@@ -198,4 +198,10 @@ cron.schedule('*/4 6-23 * * *', async () => {
 5. ✅ Versionamento e backup no GitHub configurados (repositório privado `chrystianomoura/nossabiblia`).
 6. ✅ Instância serverless PostgreSQL no Neon configurada e conectada (projeto `nossabiblia`, branch `production`).
 7. ✅ Carga completa (seed) executada com 100% de sucesso na nuvem: 66 livros e todos os 62.207 versículos (31.105 NAA + 31.102 NVT) gravados e indexados com GIN em português. Busca textual instantânea validada.
-8. ⏳ **Próximo passo imediato:** estruturar a camada de backend da aplicação (servidor Node.js com endpoints para leitura de capítulos, busca de palavras e rotas da API) e iniciar a interface no frontend.
+8. ✅ Servidor backend (API REST) estruturado com Fastify, pool de conexões Neon, robô inteligente de keep-alive ping (06:00 às 23:00 SP) e rotas públicas validadas:
+   - `GET /health`: Monitoramento de status da API e banco de dados.
+   - `GET /api/books`: Retorna os 66 livros da Bíblia na ordem canônica (divididos em AT e NT).
+   - `GET /api/books/:book/chapters/:chapter?translation=NAA`: Leitura completa de capítulos em NAA ou NVT.
+   - `GET /api/search?q=palavra&translation=NAA`: Busca instantânea com índice GIN e contagem exata de ocorrências.
+   - `GET /api/daily-verse`: Versículo do dia público.
+9. ⏳ **Próximo passo imediato:** iniciar a Fase 3 (Frontend / Interface de leitura bíblica, minimalista, devocional e responsiva para celular e desktop).

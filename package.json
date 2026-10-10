@@ -1,7 +1,17 @@
 {
   "dependencies": {
+    "@fastify/cors": "^11.3.1",
     "@neon/config": "^1.8.6",
     "@neon/env": "^1.5.3",
+    "dotenv": "^18.0.7",
+    "fastify": "^5.12.5",
     "pg": "^8.23.1"
+  },
+  "name": "nossabiblia",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
   }
 }
