@@ -196,4 +196,6 @@ cron.schedule('*/4 6-23 * * *', async () => {
 3. ✅ Esquema SQL DDL completo (`schema.sql`) projetado com todas as tabelas, índices GIN de texto em português e regras de negócio.
 4. ✅ Scripts de carga e seed criados: `seed.sql` (arquivo SQL puro de 9,1 MB pronto para execução via psql em transação atômica) e `seed.py` (script automatizado para rodar local ou apontando para o Neon).
 5. ✅ Versionamento e backup no GitHub configurados (repositório privado `chrystianomoura/nossabiblia`).
-6. ⏳ **Próximo passo imediato:** configurar a instância do PostgreSQL (local via Homebrew ou no Neon gratuito) e rodar a importação para validar as buscas instantâneas.
+6. ✅ Instância serverless PostgreSQL no Neon configurada e conectada (projeto `nossabiblia`, branch `production`).
+7. ✅ Carga completa (seed) executada com 100% de sucesso na nuvem: 66 livros e todos os 62.207 versículos (31.105 NAA + 31.102 NVT) gravados e indexados com GIN em português. Busca textual instantânea validada.
+8. ⏳ **Próximo passo imediato:** estruturar a camada de backend da aplicação (servidor Node.js com endpoints para leitura de capítulos, busca de palavras e rotas da API) e iniciar a interface no frontend.
