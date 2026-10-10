@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS books (
     id INTEGER PRIMARY KEY, -- 1 a 66 (ordem canônica)
     name VARCHAR(50) NOT NULL, -- Ex: 'Gênesis', 'Mateus'
     abbrev VARCHAR(10) NOT NULL, -- Ex: 'Gn', 'Mt'
-    testament VARCHAR(2) NOT NULL CHECK (testament IN ('OT', 'NT')), -- OT: Antigo (1-39), NT: Novo (40-66)
+    testament VARCHAR(2) NOT NULL CHECK (testament IN ('AT', 'NT')), -- AT: Antigo (1-39), NT: Novo (40-66)
     chapters_count INTEGER NOT NULL
 );
 

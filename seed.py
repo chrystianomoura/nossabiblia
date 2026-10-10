@@ -86,7 +86,7 @@ def main():
         book_id = i + 1
         name = naa_data[i]["name"]
         abbrev = naa_data[i]["abbrev"]
-        testament = "OT" if book_id <= 39 else "NT"
+        testament = "AT" if book_id <= 39 else "NT"
         chapters_count = len(naa_data[i]["chapters"])
         book_records.append((book_id, name, abbrev, testament, chapters_count))
 

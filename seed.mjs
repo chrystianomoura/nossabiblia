@@ -53,7 +53,7 @@ async function runSeed() {
     const bookId = i + 1;
     const name = naa[i].name;
     const abbrev = naa[i].abbrev;
-    const testament = bookId <= 39 ? "OT" : "NT";
+    const testament = bookId <= 39 ? "AT" : "NT";
     const chaptersCount = naa[i].chapters.length;
 
     await client.query(
