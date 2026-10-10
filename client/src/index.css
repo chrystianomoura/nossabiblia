@@ -1,0 +1,96 @@
+:root {
+  --font-serif: 'Newsreader', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Modo Claro Papiro / Alabastro */
+  --bg-main: #F7F5F0;
+  --bg-card: #FAF8F5;
+  --bg-card-subtle: #F0EDE6;
+  --text-main: #181817;
+  --text-secondary: #5C5852;
+  --text-muted: #8E8A83;
+  --border-light: rgba(24, 24, 23, 0.08);
+  --border-strong: rgba(24, 24, 23, 0.15);
+
+  /* Acentos Devocionais */
+  --gold-accent: #C5A059;
+  --gold-soft-bg: rgba(197, 160, 89, 0.12);
+  --gold-glow: rgba(197, 160, 89, 0.25);
+  --btn-dark: #181817;
+  --btn-dark-text: #F7F5F0;
+
+  /* Sombras Naturais de Papel */
+  --shadow-book: 0 20px 40px -15px rgba(24, 24, 23, 0.08), 0 0 0 1px rgba(24, 24, 23, 0.05);
+  --shadow-card: 0 8px 24px -10px rgba(24, 24, 23, 0.06);
+}
+
+[data-theme="dark"] {
+  --bg-main: #0C0D10;
+  --bg-card: #14151A;
+  --bg-card-subtle: #1C1E24;
+  --text-main: #EAE7E1;
+  --text-secondary: #A6A39C;
+  --text-muted: #6E6C66;
+  --border-light: rgba(234, 231, 225, 0.08);
+  --border-strong: rgba(234, 231, 225, 0.15);
+
+  --gold-accent: #D4AF37;
+  --gold-soft-bg: rgba(212, 175, 55, 0.15);
+  --gold-glow: rgba(212, 175, 55, 0.3);
+  --btn-dark: #EAE7E1;
+  --btn-dark-text: #0C0D10;
+
+  --shadow-book: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  line-height: 1.6;
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input {
+  font-family: inherit;
+}
+
+/* Utilitários Tipográficos */
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+/* Transições suaves */
+.transition-all {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Animação suave de entrada */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

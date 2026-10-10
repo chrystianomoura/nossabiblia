@@ -204,4 +204,9 @@ cron.schedule('*/4 6-23 * * *', async () => {
    - `GET /api/books/:book/chapters/:chapter?translation=NAA`: Leitura completa de capítulos em NAA ou NVT.
    - `GET /api/search?q=palavra&translation=NAA`: Busca instantânea com índice GIN e contagem exata de ocorrências.
    - `GET /api/daily-verse`: Versículo do dia público.
-9. ⏳ **Próximo passo imediato:** iniciar a Fase 3 (Frontend / Interface de leitura bíblica, minimalista, devocional e responsiva para celular e desktop).
+9. ✅ Frontend SPA (Vite + React + Vanilla CSS Tokens + Lucide Icons) estruturado, compilado e rodando:
+   - Layout de tela dividida fiel ao conceito visual: Lado esquerdo com manifesto monumental, busca rápida e 3 cartões de benefícios reais; Lado direito com a Bíblia aberta interativa, abas NAA/NVT ativas, setas de virar página e botão de imersão.
+   - Modo de Leitura Imersivo completo: seletor dos 66 livros e capítulos, controle de tamanho de fonte (A-/A+), entrelinha devocional e navegação fluida.
+   - Modal de Busca Instantânea (⌘K) conectado em tempo real à API.
+   - Suporte completo a tema Claro (Alabastro/Papiro) e Escuro (Obsidiana suave).
+10. ⏳ **Próximo passo imediato:** Fase 4 (Sistema de Autenticação, Cadastro de Usuários, Envio de E-mails com Resend e Marcações Pessoais).
