@@ -3,8 +3,9 @@ Script de importação automática para o PostgreSQL (NossaBíblia)
 Suporta conexão com PostgreSQL local ou Neon na nuvem.
 
 Uso:
-  python3 seed.py --url "postgresql://usuario:senha@host:5432/nossabiblia?sslmode=require"
-  ou defina a variável de ambiente: export DATABASE_URL="..."
+  python3 seed.py
+  (lê automaticamente DATABASE_URL_UNPOOLED ou DATABASE_URL de .env.local)
+  ou: python3 seed.py --url "sua_url_aqui"
 """
 
 import os
@@ -12,15 +13,40 @@ import sys
 import json
 import argparse
 
+def get_db_url(cli_url):
+    if cli_url:
+        return cli_url
+    if os.getenv("DATABASE_URL_UNPOOLED"):
+        return os.getenv("DATABASE_URL_UNPOOLED")
+    if os.getenv("DATABASE_URL"):
+        return os.getenv("DATABASE_URL")
+    
+    # Tenta ler .env.local
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    env_local = os.path.join(base_dir, ".env.local")
+    if os.path.exists(env_local):
+        urls = {}
+        with open(env_local, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("DATABASE_URL_UNPOOLED="):
+                    urls["unpooled"] = line.split("=", 1)[1].strip('"\'')
+                elif line.startswith("DATABASE_URL="):
+                    urls["pooled"] = line.split("=", 1)[1].strip('"\'')
+        if "unpooled" in urls:
+            return urls["unpooled"]
+        if "pooled" in urls:
+            return urls["pooled"]
+    return None
+
 def main():
     parser = argparse.ArgumentParser(description="Seed do banco de dados NossaBíblia")
-    parser.add_argument("--url", default=os.getenv("DATABASE_URL"), help="URL de conexão PostgreSQL")
+    parser.add_argument("--url", default=None, help="URL de conexão PostgreSQL")
     args = parser.parse_args()
 
-    db_url = args.url
+    db_url = get_db_url(args.url)
     if not db_url:
-        print("Erro: Forneça a URL do banco via --url ou variável DATABASE_URL.")
-        print('Exemplo: python3 seed.py --url "postgresql://usuario:senha@host/banco"')
+        print("Erro: Nenhuma URL de banco encontrada em --url, variáveis de ambiente ou .env.local")
         sys.exit(1)
 
     try:
@@ -38,11 +64,11 @@ def main():
     naa_path = os.path.join(base_dir, "NAA.json")
     nvt_path = os.path.join(base_dir, "NVT.json")
 
-    print(f"Conectando ao PostgreSQL...")
+    print("Conectando ao PostgreSQL no Neon...")
     conn = psycopg2.connect(db_url)
     cur = conn.cursor()
 
-    print("1. Executando schema.sql (criando tabelas e índices)...")
+    print("1. Executando schema.sql (criando tabelas, tipos e índices GIN)...")
     with open(schema_path, "r", encoding="utf-8") as f:
         cur.execute(f.read())
     conn.commit()
@@ -112,8 +138,7 @@ def main():
 
     cur.close()
     conn.close()
-    print("
- Sucesso total! Banco NossaBíblia populado e pronto.")
+    print("\n🎉 Sucesso total! Banco NossaBíblia populado e pronto no Neon.")
 
 if __name__ == "__main__":
     main()
