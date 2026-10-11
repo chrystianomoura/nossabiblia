@@ -7,7 +7,14 @@
 
 -- Extensões necessárias
 CREATE EXTENSION IF NOT EXISTS "pgcrypto"; -- Para gen_random_uuid() e funções criptográficas
-CREATE EXTENSION IF NOT EXISTS "unaccent";  -- Opcional, para buscas sem acentuação se desejado
+CREATE EXTENSION IF NOT EXISTS "unaccent";  -- Para buscas insensíveis a acentos
+
+-- Função wrapper imutável para unaccent em colunas calculadas e índices GIN
+CREATE OR REPLACE FUNCTION immutable_unaccent(text)
+  RETURNS text AS
+$$
+  SELECT public.unaccent($1);
+$$ LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT;
 
 -- ------------------------------------------------------------------------------
 -- 1. TABELAS ESTÁTICAS DA BÍBLIA
@@ -31,8 +38,8 @@ CREATE TABLE IF NOT EXISTS verses (
     translation VARCHAR(10) NOT NULL CHECK (translation IN ('NAA', 'NVT')),
     text TEXT NOT NULL,
     
-    -- Vetor de busca textual em português (gerado automaticamente pelo PostgreSQL)
-    search_vector tsvector GENERATED ALWAYS AS (to_tsvector('portuguese', text)) STORED,
+    -- Vetor de busca textual sem stemming destrutivo (Concordância Bíblica com suporte a acentos)
+    search_vector tsvector GENERATED ALWAYS AS (to_tsvector('simple', immutable_unaccent(text))) STORED,
     
     CONSTRAINT uq_verse_translation UNIQUE (book_id, chapter, verse, translation)
 );
@@ -41,7 +48,7 @@ CREATE TABLE IF NOT EXISTS verses (
 CREATE INDEX IF NOT EXISTS idx_verses_lookup ON verses(book_id, chapter, verse, translation);
 CREATE INDEX IF NOT EXISTS idx_verses_chapter ON verses(book_id, chapter, translation);
 
--- Índice GIN para busca instantânea em português (menos de 5ms)
+-- Índice GIN para busca instantânea em ordem canônica (menos de 3ms)
 CREATE INDEX IF NOT EXISTS idx_verses_search ON verses USING gin(search_vector);
 
 

@@ -110,3 +110,17 @@ input {
 .cta-button:hover .cta-arrow {
   transform: translateX(5px);
 }
+
+/* Botões de Ação da Navbar Padronizados */
+.nav-action-btn {
+  border: 1px solid var(--border-strong) !important;
+  background: var(--bg-card) !important;
+  color: var(--text-main) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+  cursor: pointer;
+}
+
+.nav-action-btn:hover {
+  border-color: var(--text-main) !important;
+  box-shadow: 0 0 0 0.6px var(--text-main) !important;
+}

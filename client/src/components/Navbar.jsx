@@ -47,44 +47,13 @@ export default function Navbar({ onOpenSearch, onOpenReading, theme, onToggleThe
         </span>
       </div>
 
-      {/* 2. Barra de Busca Central (Meio Superior) */}
-      <div
-        onClick={onOpenSearch}
-        style={{
-          flex: 1,
-          maxWidth: '440px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          padding: '8px 16px',
-          borderRadius: '24px',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-strong)',
-          color: 'var(--text-muted)',
-          cursor: 'pointer',
-          transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-          boxShadow: 'var(--shadow-card)',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = 'var(--text-main)';
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = 'var(--border-strong)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-card)';
-        }}
-      >
-        <Search size={16} color="var(--gold-accent)" />
-        <span style={{ fontSize: '13.5px', color: 'var(--text-secondary)', flex: 1 }}>
-          Buscar livro, capítulo ou palavra...
-        </span>
-      </div>
-
-      {/* 3. Ações da Direita (Tema + Entrar) */}
+      {/* 2. Ações da Direita: [ Busca ] [ Tema ] [ Entrar ] */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+        {/* Botão de Busca (Ícone Lupa) */}
         <button
-          onClick={onToggleTheme}
-          aria-label="Alternar modo claro e escuro"
+          onClick={onOpenSearch}
+          aria-label="Buscar na Bíblia"
+          className="nav-action-btn"
           style={{
             width: '36px',
             height: '36px',
@@ -92,32 +61,38 @@ export default function Navbar({ onOpenSearch, onOpenReading, theme, onToggleThe
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--text-main)',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-strong)',
-            cursor: 'pointer',
-            transition: 'border-color 0.15s ease',
           }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--text-main)'}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-strong)'}
         >
-          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+          <Search size={17} strokeWidth={2} />
         </button>
 
+        {/* Botão de Alternar Modo Escuro */}
+        <button
+          onClick={onToggleTheme}
+          aria-label="Alternar modo claro e escuro"
+          className="nav-action-btn"
+          style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {theme === 'dark' ? <Sun size={17} strokeWidth={2} /> : <Moon size={17} strokeWidth={2} />}
+        </button>
+
+        {/* Botão Entrar */}
         <button 
           onClick={() => alert('Autenticação será ativada na próxima fase!')}
+          className="nav-action-btn"
           style={{
             padding: '7px 18px',
             borderRadius: '20px',
-            border: '1px solid var(--border-strong)',
             fontSize: '13.5px',
             fontWeight: '500',
-            color: 'var(--text-main)',
-            background: 'var(--bg-card)',
-            transition: 'border-color 0.15s ease',
           }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--text-main)'}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-strong)'}
         >
           Entrar
         </button>

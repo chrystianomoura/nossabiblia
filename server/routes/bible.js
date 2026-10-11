@@ -117,7 +117,7 @@ export default async function bibleRoutes(fastify, options) {
       // Monta filtros SQL de forma segura com parâmetros
       const conditions = [
         "v.translation = $1",
-        "v.search_vector @@ websearch_to_tsquery('portuguese', $2)"
+        "v.search_vector @@ websearch_to_tsquery('simple', immutable_unaccent($2))"
       ];
       const params = [translation, queryText];
       let pIdx = 3;
