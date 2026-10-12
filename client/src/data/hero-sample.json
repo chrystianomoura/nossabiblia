@@ -1,0 +1,80 @@
+{
+  "book": "Gênesis",
+  "chapter": 1,
+  "NAA": [
+    {
+      "verse": 1,
+      "text": "No princípio, Deus criou os céus e a terra."
+    },
+    {
+      "verse": 2,
+      "text": "A terra era sem forma e vazia; havia trevas sobre a face do abismo, e o Espírito de Deus se movia sobre as águas."
+    },
+    {
+      "verse": 3,
+      "text": "Então Deus disse: — Haja luz! E houve luz."
+    },
+    {
+      "verse": 4,
+      "text": "E Deus viu que a luz era boa e fez separação entre a luz e as trevas."
+    },
+    {
+      "verse": 5,
+      "text": "Deus chamou à luz “dia” e chamou às trevas “noite”. Houve tarde e manhã, o primeiro dia."
+    },
+    {
+      "verse": 6,
+      "text": "E Deus disse: — Haja um firmamento no meio das águas e separação entre águas e águas."
+    },
+    {
+      "verse": 7,
+      "text": "E Deus fez o firmamento e a separação entre as águas debaixo do firmamento e as águas acima do firmamento. E assim aconteceu."
+    },
+    {
+      "verse": 8,
+      "text": "E Deus chamou ao firmamento “céus”. Houve tarde e manhã, o segundo dia."
+    },
+    {
+      "verse": 9,
+      "text": "E Deus disse: — Ajuntem-se as águas debaixo dos céus num só lugar, e apareça a porção seca. E assim aconteceu."
+    }
+  ],
+  "NVT": [
+    {
+      "verse": 1,
+      "text": "No princípio, Deus criou os céus e a terra."
+    },
+    {
+      "verse": 2,
+      "text": "A terra era sem forma e vazia, a escuridão cobria as águas profundas, e o Espírito de Deus se movia sobre a superfície das águas."
+    },
+    {
+      "verse": 3,
+      "text": "Então Deus disse: “Haja luz”, e houve luz."
+    },
+    {
+      "verse": 4,
+      "text": "E Deus viu que a luz era boa, e separou a luz da escuridão."
+    },
+    {
+      "verse": 5,
+      "text": "Deus chamou a luz de “dia” e a escuridão de “noite”. A noite passou e veio a manhã, encerrando o primeiro dia."
+    },
+    {
+      "verse": 6,
+      "text": "Então Deus disse: “Haja um espaço entre as águas, para separar as águas dos céus das águas da terra”."
+    },
+    {
+      "verse": 7,
+      "text": "E assim aconteceu. Deus criou um espaço para separar as águas da terra das águas dos céus."
+    },
+    {
+      "verse": 8,
+      "text": "Deus chamou o espaço de “céu”. A noite passou e veio a manhã, encerrando o segundo dia."
+    },
+    {
+      "verse": 9,
+      "text": "Então Deus disse: “Juntem-se as águas que estão debaixo do céu num só lugar, para que apareça uma parte seca”. E assim aconteceu."
+    }
+  ]
+}

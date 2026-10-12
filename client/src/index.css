@@ -23,6 +23,7 @@
   /* Acentos devocionais */
   --gold-text: #8A6A24;
   --gold-soft-bg: rgba(197, 160, 89, 0.12);
+  --gold-strong-bg: rgba(197, 160, 89, 0.26);
   --focus: #8A6A24;
   --btn-dark: #181817;
   --btn-dark-text: #F7F5F0;
@@ -50,6 +51,7 @@
 
   --gold-text: #D4AF37;
   --gold-soft-bg: rgba(212, 175, 55, 0.15);
+  --gold-strong-bg: rgba(212, 175, 55, 0.28);
   --focus: #D4AF37;
   --btn-dark: #EAE7E1;
   --btn-dark-text: #0C0D10;
@@ -460,6 +462,10 @@ select {
     max-width: 98cqi;
   }
 
+  .home-col--left .benefit-text {
+    font-size: clamp(13.5px, 2.9cqi, 15px);
+  }
+
   /* Coluna direita encostada na borda do conteúdo, alinhada ao "Entrar" do cabeçalho */
   .home-col--right {
     align-items: flex-end;
@@ -561,14 +567,14 @@ select {
   box-shadow: var(--shadow-card);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .benefit-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--gold-soft-bg);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--gold-strong-bg);
   color: var(--gold-text);
   display: flex;
   align-items: center;
@@ -584,8 +590,9 @@ select {
 }
 
 .benefit-text {
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: color-mix(in srgb, var(--text-main) 82%, transparent);
   line-height: 1.4;
   text-wrap: pretty;
 }
@@ -625,19 +632,6 @@ select {
 .book-pages {
   flex: 1;
   min-height: 230px;
-}
-
-.book-status {
-  height: 100%;
-  min-height: 230px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--text-muted);
-  font-size: 13px;
-  text-align: center;
 }
 
 .book-spreads {

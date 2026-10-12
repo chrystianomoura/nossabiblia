@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/generate-hero-sample.mjs --check",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sample": "node scripts/generate-hero-sample.mjs",
+    "sample:check": "node scripts/generate-hero-sample.mjs --check"
   },
   "dependencies": {
     "lucide-react": "^1.55.0",

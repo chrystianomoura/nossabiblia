@@ -25,7 +25,7 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
 
   const [fontSize, setFontSize] = useState(loadFontSize);
   const chapterUrl = bookId ? `/api/books/${bookId}/chapters/${chapter}?translation=${translation}` : null;
-  const { data, error, loading, retry } = useJson(chapterUrl);
+  const { data, error, loading, slow, retry } = useJson(chapterUrl);
   const touchStart = useRef(null);
 
   useEffect(() => {
@@ -130,12 +130,13 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
     }
 
     if (loading || !data) {
-      return (
+      // O spinner só aparece se a resposta demorar; antes disso a área fica quieta.
+      return slow ? (
         <div className="read-status" role="status">
           <Spinner size={24} />
           <p>Carregando as Sagradas Escrituras…</p>
         </div>
-      );
+      ) : null;
     }
 
     return (

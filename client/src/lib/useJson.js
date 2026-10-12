@@ -1,34 +1,67 @@
 import { useEffect, useState } from 'react';
 
-// GET de JSON com cancelamento. `url` nulo não busca. `retry()` refaz a mesma requisição.
-// "loading" é derivado: a resposta guardada só vale para a url (e tentativa) atuais.
-export function useJson(url) {
-  const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState({});
+// Cache de respostas por URL, vivo enquanto a aba estiver aberta. Texto bíblico não muda, então não revalida.
+// Só respostas bem-sucedidas entram; erros são tentados de novo.
+const cache = new Map();
+const inflight = new Map();
 
-  useEffect(() => {
-    if (!url) return undefined;
-    const controller = new AbortController();
+// Evita piscar um spinner quando a resposta chega rápido.
+const SPINNER_DELAY_MS = 200;
 
-    fetch(url, { signal: controller.signal })
+function fetchJson(url) {
+  if (cache.has(url)) return Promise.resolve(cache.get(url));
+
+  if (!inflight.has(url)) {
+    const request = fetch(url)
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || 'Não foi possível carregar.');
+        cache.set(url, body);
         return body;
       })
-      .then((data) => setResult({ url, attempt, data }))
-      .catch((err) => {
-        if (err.name !== 'AbortError') setResult({ url, attempt, error: err.message });
-      });
+      .finally(() => inflight.delete(url));
+    inflight.set(url, request);
+  }
+  return inflight.get(url);
+}
 
-    return () => controller.abort();
+// GET de JSON. `url` nulo não busca. `retry()` refaz a requisição que falhou.
+// - loading: ainda sem resposta para a url atual
+// - slow: loading há mais de 200 ms (é aí que vale mostrar um spinner)
+export function useJson(url) {
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState({});
+  const [slowKey, setSlowKey] = useState(null);
+
+  const cached = url ? cache.get(url) : undefined;
+  const settled = Boolean(url) && result.url === url && result.attempt === attempt;
+  const data = cached ?? (settled ? result.data : undefined);
+  const error = cached === undefined && settled ? result.error : undefined;
+  const loading = Boolean(url) && data === undefined && error === undefined;
+  const key = `${url}#${attempt}`;
+
+  useEffect(() => {
+    if (!url || cache.has(url)) return undefined;
+    let active = true;
+
+    fetchJson(url)
+      .then((body) => active && setResult({ url, attempt, data: body }))
+      .catch((err) => active && setResult({ url, attempt, error: err.message }));
+
+    return () => { active = false; };
   }, [url, attempt]);
 
-  const settled = Boolean(url) && result.url === url && result.attempt === attempt;
+  useEffect(() => {
+    if (!loading) return undefined;
+    const timer = setTimeout(() => setSlowKey(key), SPINNER_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [loading, key]);
+
   return {
-    data: settled ? result.data : undefined,
-    error: settled ? result.error : undefined,
-    loading: Boolean(url) && !settled,
+    data,
+    error,
+    loading,
+    slow: loading && slowKey === key,
     retry: () => setAttempt((n) => n + 1),
   };
 }

@@ -47,7 +47,7 @@ O estado da leitura vive na URL, então há link direto, o botão voltar funcion
 
 | URL | Tela |
 |---|---|
-| `/` | Home: manifesto, benefícios e amostra de Gênesis 1 em NAA/NVT |
+| `/` | Home: manifesto, benefícios e amostra de Gênesis 1 em NAA/NVT (embutida, aparece sem esperar a API) |
 | `/ler/joao/3` | Leitor no capítulo (o livro vai como *slug* do nome, ex.: `1-corintios`) |
 | `/ler/joao/3?t=NVT&v=16` | Mesmo capítulo na NVT, com o versículo 16 destacado |
 
@@ -71,6 +71,8 @@ nossabiblia/
 │   ├── public/
 │   │   ├── favicon.svg             # Selo NB (SVG com os contornos das letras)
 │   │   └── _redirects              # Fallback de SPA para o Cloudflare Pages
+│   ├── scripts/
+│   │   └── generate-hero-sample.mjs   # Gera o trecho de Gênesis 1 da home a partir de NAA.json/NVT.json
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── BenefitsCards.jsx       # Cards de benefícios devocionais
@@ -78,18 +80,20 @@ nossabiblia/
 │   │   │   ├── Home.jsx                # Página inicial
 │   │   │   ├── Link.jsx                # Link de navegação interna (respeita clique com modificador)
 │   │   │   ├── Navbar.jsx              # Cabeçalho com marca, busca, tema e entrada
-│   │   │   ├── OpenBibleCard.jsx       # Livro aberto com amostra de Gênesis 1
+│   │   │   ├── OpenBibleCard.jsx       # Livro aberto com a amostra de Gênesis 1 (sem requisição)
 │   │   │   ├── ReadingView.jsx         # Leitor imersivo de capítulos bíblicos
 │   │   │   ├── SearchModal.jsx         # Busca instantânea estilo Spotlight
 │   │   │   ├── Spinner.jsx             # Indicador de carregamento
 │   │   │   └── TranslationToggle.jsx   # Seletor NAA | NVT
+│   │   ├── data/
+│   │   │   └── hero-sample.json        # Gênesis 1:1-9 em NAA e NVT, embutido no bundle (gerado)
 │   │   ├── lib/
 │   │   │   ├── books.js                # Lista de livros (carregada uma vez) e slugs
 │   │   │   ├── router.js               # Rotas por History API
 │   │   │   ├── storage.js              # localStorage seguro (falha sem quebrar)
 │   │   │   ├── theme.js                # Tema claro/escuro persistido
 │   │   │   ├── translations.js         # Traduções disponíveis
-│   │   │   └── useJson.js              # GET de JSON com cancelamento e estados
+│   │   │   └── useJson.js              # GET de JSON com cache, spinner só se demorar e retry
 │   │   ├── App.jsx                 # Raiz: rotas, atalho ⌘K, tema e avisos
 │   │   ├── index.css               # Design system: tokens e estilos de todos os componentes
 │   │   └── main.jsx                # Ponto de entrada React
@@ -158,6 +162,8 @@ Outros comandos úteis:
 ```bash
 npm run build:client          # Build de produção do frontend (client/dist)
 npm --prefix client run lint  # Lint do frontend (oxlint)
+npm --prefix client run sample # Regenera o trecho de Gênesis 1 da home (se NAA.json/NVT.json mudarem)
+npm --prefix client run sample:check # Confere se o trecho está em dia (o build já faz isso sozinho)
 ```
 
 ---

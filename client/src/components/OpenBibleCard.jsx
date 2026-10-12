@@ -1,6 +1,5 @@
-import Spinner from './Spinner';
 import TranslationToggle from './TranslationToggle';
-import { useJson } from '../lib/useJson';
+import sample from '../data/hero-sample.json';
 
 function Verses({ verses }) {
   return verses.map((v) => (
@@ -11,10 +10,9 @@ function Verses({ verses }) {
   ));
 }
 
+// Amostra fixa de Gênesis 1, embutida no bundle (gerada por `npm run sample`): sem requisição, sem espera.
 export default function OpenBibleCard({ translation, onTranslationChange }) {
-  // Fixo em Gênesis 1 como amostra interativa
-  const { data, error, loading } = useJson(`/api/books/1/chapters/1?translation=${translation}`);
-  const verses = data?.verses ?? [];
+  const verses = sample[translation];
 
   return (
     <div className="book">
@@ -27,32 +25,17 @@ export default function OpenBibleCard({ translation, onTranslationChange }) {
           />
         </div>
 
-        <div className="book-pages" aria-live="polite">
-          {loading && (
-            <div className="book-status" role="status">
-              <Spinner />
-              <span>Abrindo Gênesis 1…</span>
+        <div className="book-pages">
+          <div className="book-spreads">
+            <div className="book-page-left">
+              <h2 className="book-page-title">{sample.book} {sample.chapter}</h2>
+              <Verses verses={verses.slice(0, 5)} />
             </div>
-          )}
-
-          {error && (
-            <div className="book-status" role="alert">
-              <span>Não foi possível abrir Gênesis 1. Verifique a conexão e tente de novo.</span>
+            <div className="book-page-right">
+              <div className="book-page-spacer" aria-hidden="true" />
+              <Verses verses={verses.slice(5, 9)} />
             </div>
-          )}
-
-          {data && (
-            <div className="book-spreads animate-fade-in">
-              <div className="book-page-left">
-                <h2 className="book-page-title">Gênesis 1</h2>
-                <Verses verses={verses.slice(0, 5)} />
-              </div>
-              <div className="book-page-right">
-                <div className="book-page-spacer" aria-hidden="true" />
-                <Verses verses={verses.slice(5, 9)} />
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

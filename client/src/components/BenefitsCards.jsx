@@ -24,7 +24,7 @@ export default function BenefitsCards() {
       {BENEFITS.map(({ Icon, title, description }) => (
         <li key={title} className="benefit">
           <span className="benefit-icon" aria-hidden="true">
-            <Icon size={18} strokeWidth={2.2} />
+            <Icon size={20} strokeWidth={2.2} />
           </span>
           <div>
             <h2 className="benefit-title">{title}</h2>
