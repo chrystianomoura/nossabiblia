@@ -34,11 +34,31 @@ Diferente de motores de busca comuns da web, textos sagrados exigem **fidelidade
 
 - **Índice GIN Dedicado:** Índice vetorial sobre `to_tsvector('simple', immutable_unaccent(text))`.
 - **Dicionário `simple` (Sem Stemming Destrutivo):** Preserva a integridade de termos homófonos e raízes teológicas curtas, evitando falsos positivos do algoritmo Snowball.
-- **Insensível a Acentos & Caixa:** Buscas como `esperanca` encontram `esperança`, mantendo a resposta em **menos de 3 milissegundos**.
-- **Interface Spotlight:** Modal estilo Spotlight/Raycast, aberto por **⌘K / Ctrl+K** em qualquer tela e fechado com **Esc**. Tem seletor NAA/NVT, resultados navegáveis por teclado e realce em negrito das palavras encontradas (sem diferenciar acentos nem caixa).
-- **Contagem:** o número mostrado é o de **versículos** encontrados. A contagem por ocorrência da palavra (item 23 do PROJETO.md) ainda não foi implementada.
+- **Maiúsculas e acentos:** `Sol`, `SOL` e `sol` valem o mesmo. Sem acento vale qualquer forma (`joao` encontra "João"); com acento ele precisa estar certo (`joaõ` não encontra nada).
+- **Frases:** mais de uma palavra é a sequência exata, na ordem digitada. Palavras com hífen ("disse-lhe") são uma palavra só.
+- **Como funciona:** o índice GIN acha os versículos candidatos em milissegundos, e uma conferência no texto confirma a palavra exata e conta as ocorrências. As regras estão em `server/search.js`; o destaque na tela usa as posições calculadas pelo servidor, então tela e banco nunca discordam.
+- **Interface Spotlight:** Modal estilo Spotlight/Raycast, aberto por **⌘K / Ctrl+K** em qualquer tela e fechado com **Esc**. Tem botão para alternar NAA/NVT, resultados navegáveis por teclado e **todas** as ocorrências em negrito, inclusive as repetidas no mesmo versículo.
+- **Contagem exata:** o número no topo é o de **ocorrências** (cada vez que a palavra aparece), com o total de versículos ao lado: "4.664 ocorrências em 4.085 versículos". Versículos com a palavra repetida mostram a quantidade ("2×"), e a lista é paginada ("Mostrar mais").
 - **Do resultado ao texto:** clicar num resultado abre o capítulo já rolando até o versículo, que fica destacado.
+- **Regras documentadas e testadas:** a especificação está nos itens 21 a 24 do [PROJETO.md](PROJETO.md) e o contrato em `server/search.test.js` e `server/search.db.test.js`.
 
+---
+
+## 🧹 Qualidade dos Dados
+
+A busca é exata, então o texto guardado no banco precisa estar limpo. Os arquivos de origem da NVT trouxeram dois tipos de "sujeira invisível", que foram corrigidos em 185 versículos (só NVT):
+
+| Problema | O que era | Efeito na busca |
+|---|---|---|
+| **Hífen invisível** (U+00AD), em 182 versículos | Marca de impressão que indica onde a palavra pode ser cortada no fim da linha ("preo‹marca›cupava"). Não aparece na tela | A palavra ficava "partida" para a busca: "preocupava" achava 1 versículo, mas existe em 2 |
+| **Acento desmontado**, em 3 versículos (Lucas 11:3, 11:32, 14:35) | A letra e o acento guardados como dois caracteres ("a" + acento) em vez de um ("á") | Com a regra de acento exato, quem digitava "dá" não achava o "dá" desmontado |
+
+```bash
+npm run clean:text                # só mostra o que seria alterado (não grava)
+npm run clean:text -- --apply     # grava, guardando antes uma cópia dos textos originais
+```
+
+O script é idempotente (rodar de novo não encontra mais nada) e atualiza o índice sozinho. **Rode-o depois de qualquer nova carga** (`seed`), porque `NAA.json`, `NVT.json` e `seed.sql` continuam como vieram. Há um teste automático que falha se algum versículo voltar a ter essas sujeiras.
 ---
 
 ## 🧭 Navegação e URLs
@@ -105,6 +125,11 @@ nossabiblia/
 │   ├── routes/
 │   │   └── bible.js            # Rotas de livros, capítulos, versículos e busca GIN
 │   ├── db.js                   # Pool de conexões PostgreSQL para o Neon
+│   ├── scripts/
+│   │   └── clean-verse-text.mjs   # Limpa os textos (hífen invisível, acento desmontado); rode após cada carga
+│   ├── search.js               # Regras da busca exata (palavra, acento, frase, hífen, ocorrências)
+│   ├── search.test.js          # Testes das regras (puros)
+│   ├── search.db.test.js       # Testes contra o banco real (só leitura)
 │   └── index.js                # Servidor Fastify principal
 │
 ├── schema.sql                  # DDL completo do PostgreSQL (tabelas, índices GIN e funções)
@@ -146,6 +171,9 @@ cd client && npm install && cd ..
 ```bash
 # Carga automatizada via script Python
 python3 seed.py --url "$DATABASE_URL"
+
+# Depois de qualquer carga, limpe os textos (hífen invisível e acento desmontado)
+npm run clean:text -- --apply
 ```
 
 ### 5. Iniciar os Servidores em Desenvolvimento
@@ -161,6 +189,8 @@ Acesse a aplicação no seu navegador em: **`http://localhost:3000`**
 Outros comandos úteis:
 ```bash
 npm run build:client          # Build de produção do frontend (client/dist)
+npm run clean:text            # Mostra o que a limpeza dos textos mudaria (com `-- --apply` grava; rode após qualquer seed)
+npm test                      # Testes da busca (os do banco são pulados sem DATABASE_URL)
 npm --prefix client run lint  # Lint do frontend (oxlint)
 npm --prefix client run sample # Regenera o trecho de Gênesis 1 da home (se NAA.json/NVT.json mudarem)
 npm --prefix client run sample:check # Confere se o trecho está em dia (o build já faz isso sozinho)
