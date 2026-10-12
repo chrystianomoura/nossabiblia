@@ -5,6 +5,7 @@
   color-scheme: light;
 
   --font-serif: 'Newsreader', Georgia, serif;
+  --font-brand: 'Archivo', var(--font-sans);
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Modo Claro: Warm Linen / Papel Bíblico */
@@ -344,20 +345,18 @@ select {
 }
 
 .brand-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: var(--gold-soft-bg);
-  color: var(--gold-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
 }
 
 .brand-name {
-  font-size: 21px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: var(--font-brand);
+  font-size: 28px;
+  font-weight: 700;
+  font-stretch: 112%;
+  letter-spacing: -0.035em;
+  line-height: 1;
 }
 
 .navbar-actions {
@@ -516,6 +515,19 @@ select {
   .navbar {
     flex-wrap: wrap;
     gap: 8px 12px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .brand-name {
+    font-size: clamp(17px, 5.2vw, 21px);
   }
 
   .navbar-actions {

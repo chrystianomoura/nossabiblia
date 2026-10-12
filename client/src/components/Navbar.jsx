@@ -1,13 +1,12 @@
-import { BookOpen, Search, Sun, Moon } from 'lucide-react';
+import { Search, Sun, Moon } from 'lucide-react';
+import BrandMark from './BrandMark';
 import Link from './Link';
 
 export default function Navbar({ onOpenSearch, theme, onToggleTheme, onLogin }) {
   return (
     <header className="navbar">
       <Link to="/" className="brand" aria-label="Nossa Bíblia, início">
-        <span className="brand-mark" aria-hidden="true">
-          <BookOpen size={19} strokeWidth={2.2} />
-        </span>
+        <BrandMark className="brand-mark" />
         <span className="brand-name" translate="no">Nossa Bíblia</span>
       </Link>
 
