@@ -1,317 +1,276 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Type, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Search, Sun, Moon } from 'lucide-react';
+import Spinner from './Spinner';
+import TranslationToggle from './TranslationToggle';
+import Link from './Link';
+import { navigate, readPath } from '../lib/router';
+import { useJson } from '../lib/useJson';
+import { readStorage, writeStorage } from '../lib/storage';
 
-export default function ReadingView({ initialBookId = 19, initialChapter = 23, initialTranslation = 'NAA', onBack }) {
-  const [bookId, setBookId] = useState(initialBookId);
-  const [chapter, setChapter] = useState(initialChapter);
-  const [translation, setTranslation] = useState(initialTranslation);
-  const [fontSize, setFontSize] = useState(19); // 17, 19, 21, 23
-  const [books, setBooks] = useState([]);
-  const [chapterData, setChapterData] = useState(null);
-  const [loading, setLoading] = useState(true);
+const FONT_MIN = 16;
+const FONT_MAX = 26;
+const SWIPE_MIN_X = 80;
+const SWIPE_MAX_Y = 60;
 
-  // Carrega lista de 66 livros para o seletor
+function loadFontSize() {
+  const saved = parseInt(readStorage('nb-font-size'), 10);
+  return saved >= FONT_MIN && saved <= FONT_MAX ? saved : 19;
+}
+
+export default function ReadingView({ route, books, booksError, theme, onToggleTheme, onOpenSearch }) {
+  const { slug, chapter, translation, verse } = route;
+  const bookIndex = books ? books.findIndex((b) => b.slug === slug) : -1;
+  const book = bookIndex >= 0 ? books[bookIndex] : null;
+  const bookId = book?.id;
+
+  const [fontSize, setFontSize] = useState(loadFontSize);
+  const chapterUrl = bookId ? `/api/books/${bookId}/chapters/${chapter}?translation=${translation}` : null;
+  const { data, error, loading, retry } = useJson(chapterUrl);
+  const touchStart = useRef(null);
+
   useEffect(() => {
-    fetch('/api/books')
-      .then((res) => res.json())
-      .then((data) => setBooks(data.books || []))
-      .catch(console.error);
-  }, []);
+    writeStorage('nb-font-size', String(fontSize));
+  }, [fontSize]);
 
-  // Carrega versículos
+  // Rola até o versículo pedido pela busca ou volta ao topo a cada capítulo.
   useEffect(() => {
-    setLoading(true);
-    fetch(`/api/books/${bookId}/chapters/${chapter}?translation=${translation}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setChapterData(data);
-        setLoading(false);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, [bookId, chapter, translation]);
+    if (!data) return;
+    const target = verse ? document.getElementById(`v${verse}`) : null;
+    if (target) target.scrollIntoView({ block: 'center' });
+    else window.scrollTo({ top: 0 });
+  }, [data, verse]);
 
-  const currentBook = books.find((b) => b.id === bookId) || chapterData?.book;
+  useEffect(() => {
+    if (!book) return undefined;
+    const previous = document.title;
+    document.title = `${book.name} ${chapter} (${translation}) — Nossa Bíblia`;
+    return () => { document.title = previous; };
+  }, [book, chapter, translation]);
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-main)' }}>
-      {/* Barra Superior de Leitura */}
-      <header style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        background: 'var(--bg-main)',
-        borderBottom: '1px solid var(--border-light)',
-        padding: '16px 24px',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        maxWidth: '1280px',
-        margin: '0 auto',
-      }}>
-        {/* Voltar para Home */}
-        <button
-          onClick={onBack}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <ArrowLeft size={18} />
-          <span>Voltar à Home</span>
-        </button>
+  let prev = null;
+  let next = null;
+  if (book) {
+    if (chapter > 1) prev = { slug, chapter: chapter - 1 };
+    else if (bookIndex > 0) prev = { slug: books[bookIndex - 1].slug, chapter: books[bookIndex - 1].chapters_count };
 
-        {/* Seletores Centrais: Livro, Capítulo e Tradução */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <select
-            value={bookId}
-            onChange={(e) => {
-              setBookId(parseInt(e.target.value, 10));
-              setChapter(1);
-            }}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '16px',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-strong)',
-              color: 'var(--text-main)',
-              fontSize: '14px',
-              fontWeight: '600',
-              outline: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            {books.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name} ({b.testament})
-              </option>
-            ))}
-          </select>
+    if (chapter < book.chapters_count) next = { slug, chapter: chapter + 1 };
+    else if (bookIndex < books.length - 1) next = { slug: books[bookIndex + 1].slug, chapter: 1 };
+  }
 
-          {/* Seletor de Capítulo */}
-          <select
-            value={chapter}
-            onChange={(e) => setChapter(parseInt(e.target.value, 10))}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '16px',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-strong)',
-              color: 'var(--text-main)',
-              fontSize: '14px',
-              fontWeight: '600',
-              outline: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            {Array.from({ length: currentBook?.chapters_count || 150 }, (_, i) => i + 1).map((c) => (
-              <option key={c} value={c}>
-                Cap. {c}
-              </option>
-            ))}
-          </select>
+  const go = (target) => target && navigate(readPath(target.slug, target.chapter, translation));
 
-          {/* Seletor de Versão */}
-          <div style={{
-            display: 'inline-flex',
-            padding: '2px',
-            background: 'var(--bg-card-subtle)',
-            borderRadius: '16px',
-          }}>
-            <button
-              onClick={() => setTranslation('NAA')}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '14px',
-                fontSize: '12px',
-                fontWeight: translation === 'NAA' ? '700' : '500',
-                background: translation === 'NAA' ? 'var(--btn-dark)' : 'transparent',
-                color: translation === 'NAA' ? 'var(--btn-dark-text)' : 'var(--text-secondary)',
-              }}
+  // Setas do teclado também trocam de capítulo (fora de campos de formulário).
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(event.target.tagName)) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (event.key === 'ArrowLeft') go(prev);
+      if (event.key === 'ArrowRight') go(next);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
+
+  function handleTouchStart(event) {
+    const t = event.changedTouches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  }
+
+  function handleTouchEnd(event) {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start) return;
+    const t = event.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_MIN_X || Math.abs(dy) > SWIPE_MAX_Y) return;
+    go(dx > 0 ? prev : next);
+  }
+
+  function renderBody() {
+    if (booksError) {
+      return (
+        <div className="read-status" role="alert">
+          <p>Não foi possível carregar a lista de livros.</p>
+          <button type="button" className="pill-btn" onClick={() => window.location.reload()}>
+            Tentar de novo
+          </button>
+        </div>
+      );
+    }
+
+    if (!books) {
+      return (
+        <div className="read-status" role="status">
+          <Spinner size={24} />
+          <p>Carregando…</p>
+        </div>
+      );
+    }
+
+    if (!book) {
+      return (
+        <div className="read-status" role="alert">
+          <p>Livro não encontrado.</p>
+          <Link to="/">Voltar ao início</Link>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="read-status" role="alert">
+          <p>{error}</p>
+          <button type="button" className="pill-btn" onClick={retry}>
+            Tentar de novo
+          </button>
+        </div>
+      );
+    }
+
+    if (loading || !data) {
+      return (
+        <div className="read-status" role="status">
+          <Spinner size={24} />
+          <p>Carregando as Sagradas Escrituras…</p>
+        </div>
+      );
+    }
+
+    return (
+      <article className="animate-fade-in">
+        <header className="read-head">
+          <span className="read-eyebrow">
+            {data.book.testament === 'AT' ? 'Antigo Testamento' : 'Novo Testamento'} • <span translate="no">{translation}</span>
+          </span>
+          <h1 className="read-title">{data.book.name} {data.chapter}</h1>
+        </header>
+
+        <div className="read-text">
+          {data.verses.map((v) => (
+            <span
+              key={v.verse}
+              id={`v${v.verse}`}
+              className={`verse${v.verse === verse ? ' is-target' : ''}`}
             >
-              NAA
-            </button>
-            <button
-              onClick={() => setTranslation('NVT')}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '14px',
-                fontSize: '12px',
-                fontWeight: translation === 'NVT' ? '700' : '500',
-                background: translation === 'NVT' ? 'var(--btn-dark)' : 'transparent',
-                color: translation === 'NVT' ? 'var(--btn-dark-text)' : 'var(--text-secondary)',
-              }}
-            >
-              NVT
-            </button>
-          </div>
+              <sup className="verse-num">{v.verse}</sup>
+              {v.text}{' '}
+            </span>
+          ))}
         </div>
 
-        {/* Ajuste de Tamanho da Fonte */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <footer className="read-footer">
+          <button type="button" className="pill-btn" onClick={() => go(prev)} disabled={!prev}>
+            <ChevronLeft size={16} aria-hidden="true" />
+            <span>Capítulo anterior</span>
+          </button>
+          <button type="button" className="pill-btn pill-btn--dark" onClick={() => go(next)} disabled={!next}>
+            <span>Próximo capítulo</span>
+            <ChevronRight size={16} aria-hidden="true" />
+          </button>
+        </footer>
+      </article>
+    );
+  }
+
+  return (
+    <div className="read">
+      <header className="read-header">
+        <Link to="/" className="back-link">
+          <ArrowLeft size={18} aria-hidden="true" />
+          <span>Voltar ao início</span>
+        </Link>
+
+        {book && (
+          <div className="read-controls">
+            <label className="sr-only" htmlFor="book-select">Livro</label>
+            <select
+              id="book-select"
+              name="book"
+              className="select"
+              value={slug}
+              onChange={(e) => navigate(readPath(e.target.value, 1, translation))}
+            >
+              <optgroup label="Antigo Testamento">
+                {books.filter((b) => b.testament === 'AT').map((b) => (
+                  <option key={b.id} value={b.slug}>{b.name}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Novo Testamento">
+                {books.filter((b) => b.testament === 'NT').map((b) => (
+                  <option key={b.id} value={b.slug}>{b.name}</option>
+                ))}
+              </optgroup>
+            </select>
+
+            <label className="sr-only" htmlFor="chapter-select">Capítulo</label>
+            <select
+              id="chapter-select"
+              name="chapter"
+              className="select"
+              value={chapter}
+              onChange={(e) => navigate(readPath(slug, e.target.value, translation))}
+            >
+              {Array.from({ length: book.chapters_count }, (_, i) => i + 1).map((c) => (
+                <option key={c} value={c}>Cap. {c}</option>
+              ))}
+            </select>
+
+            <TranslationToggle
+              value={translation}
+              onChange={(t) => navigate(readPath(slug, chapter, t))}
+            />
+          </div>
+        )}
+
+        <div className="read-tools">
           <button
-            onClick={() => setFontSize(Math.max(16, fontSize - 2))}
-            title="Diminuir tamanho da fonte"
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: 'var(--bg-card-subtle)',
-              color: 'var(--text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: '700',
-              fontSize: '12px',
-            }}
+            type="button"
+            className="icon-btn icon-btn--text"
+            onClick={() => setFontSize((s) => Math.max(FONT_MIN, s - 2))}
+            disabled={fontSize <= FONT_MIN}
+            aria-label="Diminuir tamanho da letra"
           >
             A-
           </button>
           <button
-            onClick={() => setFontSize(Math.min(26, fontSize + 2))}
-            title="Aumentar tamanho da fonte"
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: 'var(--bg-card-subtle)',
-              color: 'var(--text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: '700',
-              fontSize: '14px',
-            }}
+            type="button"
+            className="icon-btn icon-btn--text"
+            onClick={() => setFontSize((s) => Math.min(FONT_MAX, s + 2))}
+            disabled={fontSize >= FONT_MAX}
+            aria-label="Aumentar tamanho da letra"
           >
             A+
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={onOpenSearch}
+            aria-label="Buscar na Bíblia"
+            aria-keyshortcuts="Control+K Meta+K"
+          >
+            <Search size={17} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={onToggleTheme}
+            aria-label={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
+          >
+            {theme === 'dark' ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}
           </button>
         </div>
       </header>
 
-      {/* Conteúdo Principal do Texto Bíblico (Coluna Editorial de 720px) */}
-      <main style={{
-        maxWidth: '740px',
-        margin: '0 auto',
-        padding: '60px 24px 120px',
-      }}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '100px 0', color: 'var(--text-muted)' }}>
-            <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto 12px' }} />
-            <p>Carregando as Sagradas Escrituras...</p>
-          </div>
-        ) : (
-          <article className="animate-fade-in">
-            <header style={{ textAlign: 'center', marginBottom: '48px' }}>
-              <span style={{
-                fontSize: '13px',
-                fontWeight: '600',
-                letterSpacing: '0.08em',
-                color: 'var(--gold-accent)',
-                textTransform: 'uppercase',
-                display: 'block',
-                marginBottom: '8px',
-              }}>
-                {chapterData?.book.testament === 'AT' ? 'Antigo Testamento' : 'Novo Testamento'} • {translation}
-              </span>
-              <h1 style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: '38px',
-                fontWeight: '600',
-                color: 'var(--text-main)',
-                letterSpacing: '-0.02em',
-              }}>
-                {chapterData?.book.name} {chapterData?.chapter}
-              </h1>
-            </header>
-
-            <div style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: `${fontSize}px`,
-              lineHeight: '1.9',
-              color: 'var(--text-main)',
-            }}>
-              {chapterData?.verses.map((v) => (
-                <span key={v.verse} style={{ marginRight: '6px' }}>
-                  <sup style={{
-                    fontSize: '0.65em',
-                    fontWeight: '700',
-                    color: 'var(--gold-accent)',
-                    marginRight: '4px',
-                    userSelect: 'none',
-                  }}>
-                    {v.verse}
-                  </sup>
-                  <span>{v.text} </span>
-                </span>
-              ))}
-            </div>
-
-            {/* Navegação de Fim de Capítulo */}
-            <footer style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginTop: '64px',
-              paddingTop: '32px',
-              borderTop: '1px solid var(--border-light)',
-            }}>
-              <button
-                onClick={() => {
-                  if (chapter > 1) setChapter(chapter - 1);
-                }}
-                disabled={chapter <= 1}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '10px 18px',
-                  borderRadius: '20px',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-strong)',
-                  color: chapter <= 1 ? 'var(--text-muted)' : 'var(--text-main)',
-                  cursor: chapter <= 1 ? 'not-allowed' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                }}
-              >
-                <ChevronLeft size={16} />
-                <span>Capítulo Anterior</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  if (chapterData && chapter < chapterData.book.chapters_count) {
-                    setChapter(chapter + 1);
-                  }
-                }}
-                disabled={chapterData && chapter >= chapterData.book.chapters_count}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '10px 18px',
-                  borderRadius: '20px',
-                  background: 'var(--btn-dark)',
-                  color: 'var(--btn-dark-text)',
-                  cursor: (chapterData && chapter >= chapterData.book.chapters_count) ? 'not-allowed' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                }}
-              >
-                <span>Próximo Capítulo</span>
-                <ChevronRight size={16} />
-              </button>
-            </footer>
-          </article>
-        )}
+      <main
+        id="main"
+        className="read-main"
+        style={{ '--reading-size': `${fontSize}px` }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {renderBody()}
       </main>
     </div>
   );

@@ -1,79 +1,37 @@
-import React from 'react';
 import { Bookmark, TrendingUp, ShieldCheck } from 'lucide-react';
 
-export default function BenefitsCards() {
-  const benefits = [
-    {
-      icon: <Bookmark size={18} strokeWidth={2.2} />,
-      title: 'Marcações & Notas',
-      description: 'Destaque versículos em cores suaves e guarde suas reflexões íntimas.',
-    },
-    {
-      icon: <TrendingUp size={18} strokeWidth={2.2} />,
-      title: 'Progresso diário',
-      description: 'Acompanhe seu hábito diário de leitura com histórico sincronizado em qualquer dispositivo.',
-    },
-    {
-      icon: <ShieldCheck size={18} strokeWidth={2.2} />,
-      title: 'Leitura sem distrações',
-      description: 'Sem anúncios, sem interrupções, apenas o texto bíblico.',
-    },
-  ];
+const BENEFITS = [
+  {
+    Icon: Bookmark,
+    title: 'Marcações & Notas',
+    description: 'Destaque versículos e guarde suas reflexões ao longo da leitura.',
+  },
+  {
+    Icon: TrendingUp,
+    title: 'Progresso diário',
+    description: 'Acompanhe suas leituras em qualquer dispositivo.',
+  },
+  {
+    Icon: ShieldCheck,
+    title: 'Leitura sem distrações',
+    description: 'Sem anúncios, sem interrupções, apenas o texto bíblico.',
+  },
+];
 
+export default function BenefitsCards() {
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px',
-    }}>
-      {benefits.map((b, idx) => (
-        <div
-          key={idx}
-          style={{
-            padding: '12px 18px',
-            borderRadius: '16px',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-light)',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-          }}
-        >
-          <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
-            background: 'var(--gold-soft-bg)',
-            color: 'var(--gold-accent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}>
-            {b.icon}
-          </div>
+    <ul className="benefits">
+      {BENEFITS.map(({ Icon, title, description }) => (
+        <li key={title} className="benefit">
+          <span className="benefit-icon" aria-hidden="true">
+            <Icon size={18} strokeWidth={2.2} />
+          </span>
           <div>
-            <h4 style={{
-              fontSize: '14.5px',
-              fontWeight: '600',
-              color: 'var(--text-main)',
-              lineHeight: '1.25',
-              marginBottom: '3px',
-            }}>
-              {b.title}
-            </h4>
-            <p style={{
-              fontSize: '13px',
-              color: 'var(--text-secondary)',
-              lineHeight: '1.4',
-              textWrap: 'pretty',
-            }}>
-              {b.description}
-            </p>
+            <h2 className="benefit-title">{title}</h2>
+            <p className="benefit-text">{description}</p>
           </div>
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }

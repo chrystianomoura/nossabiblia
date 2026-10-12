@@ -1,99 +1,39 @@
-import React from 'react';
 import { BookOpen, Search, Sun, Moon } from 'lucide-react';
+import Link from './Link';
 
-export default function Navbar({ onOpenSearch, onOpenReading, theme, onToggleTheme }) {
+export default function Navbar({ onOpenSearch, theme, onToggleTheme, onLogin }) {
   return (
-    <header style={{
-      width: '100%',
-      maxWidth: '1280px',
-      margin: '0 auto',
-      padding: '18px 28px 12px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '20px',
-    }}>
-      {/* 1. Logo (Esquerda) */}
-      <div 
-        onClick={() => onOpenReading(false)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          cursor: 'pointer',
-          userSelect: 'none',
-          flexShrink: 0,
-        }}
-      >
-        <div style={{
-          width: '34px',
-          height: '34px',
-          borderRadius: '8px',
-          background: 'var(--gold-soft-bg)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--gold-accent)',
-        }}>
+    <header className="navbar">
+      <Link to="/" className="brand" aria-label="Nossa Bíblia, início">
+        <span className="brand-mark" aria-hidden="true">
           <BookOpen size={19} strokeWidth={2.2} />
-        </div>
-        <span style={{
-          fontSize: '21px',
-          fontWeight: '600',
-          letterSpacing: '-0.02em',
-          color: 'var(--text-main)',
-        }}>
-          Nossa Bíblia
         </span>
-      </div>
+        <span className="brand-name" translate="no">Nossa Bíblia</span>
+      </Link>
 
-      {/* 2. Ações da Direita: [ Busca ] [ Tema ] [ Entrar ] */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-        {/* Botão de Busca (Ícone Lupa) */}
+      <div className="navbar-actions">
         <button
+          type="button"
+          className="icon-btn"
           onClick={onOpenSearch}
           aria-label="Buscar na Bíblia"
-          className="nav-action-btn"
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+          aria-keyshortcuts="Control+K Meta+K"
         >
-          <Search size={17} strokeWidth={2} />
+          <Search size={17} strokeWidth={2} aria-hidden="true" />
         </button>
 
-        {/* Botão de Alternar Modo Escuro */}
         <button
+          type="button"
+          className="icon-btn"
           onClick={onToggleTheme}
-          aria-label="Alternar modo claro e escuro"
-          className="nav-action-btn"
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+          aria-label={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
         >
-          {theme === 'dark' ? <Sun size={17} strokeWidth={2} /> : <Moon size={17} strokeWidth={2} />}
+          {theme === 'dark'
+            ? <Sun size={17} strokeWidth={2} aria-hidden="true" />
+            : <Moon size={17} strokeWidth={2} aria-hidden="true" />}
         </button>
 
-        {/* Botão Entrar */}
-        <button 
-          onClick={() => alert('Autenticação será ativada na próxima fase!')}
-          className="nav-action-btn"
-          style={{
-            padding: '7px 18px',
-            borderRadius: '20px',
-            fontSize: '13.5px',
-            fontWeight: '500',
-          }}
-        >
+        <button type="button" className="pill-btn" onClick={onLogin}>
           Entrar
         </button>
       </div>
