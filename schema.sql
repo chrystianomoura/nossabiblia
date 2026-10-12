@@ -38,7 +38,10 @@ CREATE TABLE IF NOT EXISTS verses (
     translation VARCHAR(10) NOT NULL CHECK (translation IN ('NAA', 'NVT')),
     text TEXT NOT NULL,
     
-    -- Vetor de busca textual sem stemming destrutivo (Concordância Bíblica com suporte a acentos)
+    -- Vetor de busca textual sem stemming destrutivo (Concordância Bíblica com suporte a acentos).
+    -- É só o filtro rápido da busca: ignora acento e quebra palavras com hífen em partes. Quem decide
+    -- o resultado exato é a conferência em server/search.js. Coluna gerada: se o texto mudar (ex.:
+    -- server/scripts/clean-verse-text.mjs), o vetor se refaz sozinho.
     search_vector tsvector GENERATED ALWAYS AS (to_tsvector('simple', immutable_unaccent(text))) STORED,
     
     CONSTRAINT uq_verse_translation UNIQUE (book_id, chapter, verse, translation)

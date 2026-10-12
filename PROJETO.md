@@ -55,9 +55,15 @@ Este documento descreve a especificação funcional e as decisões técnicas da 
 
 ## Busca de palavra (pública)
 
-21. **Busca exata:** procura uma palavra dentro de uma tradução escolhida.
-22. **Ordem:** resultados sempre na ordem canônica. Não há ordenação cronológica.
-23. **Contagem:** número exato de ocorrências da palavra na tradução escolhida.
+21. **Busca exata:** procura uma palavra dentro de uma tradução escolhida. Regras (implementadas em `server/search.js` e cobertas por testes):
+    - **Palavra inteira, sem stemming:** "sol" nunca encontra "solo" nem "solos".
+    - **Maiúsculas e minúsculas são iguais:** `Sol`, `SOL` e `sOl` valem o mesmo.
+    - **Acento, palavra por palavra:** sem acento vale qualquer forma (`joao` encontra "João"); com acento ele precisa estar correto (`joaõ`, com o til na letra errada, não encontra nada).
+    - **Mais de uma palavra é a sequência exata:** juntas e na ordem digitada (a pontuação entre elas é ignorada). "luz trevas" não existe nos textos e não retorna nada.
+    - **Palavra com hífen é uma palavra só:** "disse" não encontra "disse-lhes"; quem procura "disse-lhes" digita completo.
+    - Quando não há resultado, a tela mostra apenas "Nenhum resultado para …".
+22. **Ordem:** resultados sempre na ordem canônica. Não há ordenação cronológica. A lista é paginada ("Mostrar mais").
+23. **Contagem:** número exato de **ocorrências** da palavra (ou da frase) na tradução escolhida, isto é, cada vez que ela aparece inteira, sem hífen colado. É mostrado com o total de versículos ("4.664 ocorrências em 4.085 versículos"), e cada versículo com a palavra repetida indica a quantidade ("2×").
 24. **Filtros:** restrição ao Antigo ou ao Novo Testamento, ou a um livro específico.
 
 ## Página inicial
@@ -147,7 +153,7 @@ Os arquivos `NAA.json` e `NVT.json` foram inspecionados e validados:
 ### Banco de dados
 
 - **Sistema:** PostgreSQL
-- **Motivo:** banco relacional mais completo do mercado open-source. Suporte nativo a busca de texto com `tsvector` e índice `GIN`, incluindo stemming em português. Transações, constraints e tipos de dado precisos para as regras de negócio do projeto. Amplamente usado em produção, o aprendizado tem valor duradouro.
+- **Motivo:** banco relacional mais completo do mercado open-source. Suporte nativo a busca de texto com `tsvector` e índice `GIN` (dicionário `simple`, sem stemming, porque a busca é exata: ver item 21). Transações, constraints e tipos de dado precisos para as regras de negócio do projeto. Amplamente usado em produção, o aprendizado tem valor duradouro.
 - **Autenticação:** implementada do zero no backend, sem uso de serviços gerenciados de auth. Decisão consciente com o objetivo de aprender o ciclo completo de autenticação, mesmo que implique mais tempo de desenvolvimento.
 - **Campos de perfil do usuário:** colunas `first_name` (VARCHAR(100)) e `last_name` (VARCHAR(100)) na tabela `users`. Saudações na interface e e-mails utilizam `first_name`. Validação e sanitização (trim, rejeição de números puros) aplicadas no backend antes da inserção.
 
@@ -193,16 +199,16 @@ cron.schedule('*/4 6-23 * * *', async () => {
 
 1. ✅ Decisões técnicas e arquiteturais alinhadas (PostgreSQL, Neon, Cloudflare Pages, keep-alive inteligente para evitar suspensão, autenticação própria).
 2. ✅ Arquivos de dados bíblicos (`NAA.json` e `NVT.json`) inspecionados e validados: dados 100% limpos e coerentes.
-3. ✅ Esquema SQL DDL completo (`schema.sql`) projetado com todas as tabelas, índices GIN de texto em português e regras de negócio.
+3. ✅ Esquema SQL DDL completo (`schema.sql`) projetado com todas as tabelas, índice GIN de texto (dicionário `simple`, sem acento) e regras de negócio.
 4. ✅ Scripts de carga e seed criados: `seed.sql` (arquivo SQL puro de 9,1 MB pronto para execução via psql em transação atômica) e `seed.py` (script automatizado para rodar local ou apontando para o Neon).
 5. ✅ Versionamento e backup no GitHub configurados (repositório privado `chrystianomoura/nossabiblia`).
 6. ✅ Instância serverless PostgreSQL no Neon configurada e conectada (projeto `nossabiblia`, branch `production`).
-7. ✅ Carga completa (seed) executada com 100% de sucesso na nuvem: 66 livros e todos os 62.207 versículos (31.105 NAA + 31.102 NVT) gravados e indexados com GIN em português. Busca textual instantânea validada.
+7. ✅ Carga completa (seed) executada com 100% de sucesso na nuvem: 66 livros e todos os 62.207 versículos (31.105 NAA + 31.102 NVT) gravados e indexados com GIN. Busca textual instantânea validada.
 8. ✅ Servidor backend (API REST) estruturado com Fastify, pool de conexões Neon, robô inteligente de keep-alive ping (06:00 às 23:00 SP) e rotas públicas validadas:
    - `GET /health`: Monitoramento de status da API e banco de dados.
    - `GET /api/books`: Retorna os 66 livros da Bíblia na ordem canônica (divididos em AT e NT).
    - `GET /api/books/:book/chapters/:chapter?translation=NAA`: Leitura completa de capítulos em NAA ou NVT.
-   - `GET /api/search?q=palavra&translation=NAA`: Busca instantânea com índice GIN e contagem exata de ocorrências.
+   - `GET /api/search?q=palavra&translation=NAA&limit=50&offset=0`: Busca exata (itens 21 a 24). O índice GIN acha os versículos candidatos e uma conferência no texto confirma a palavra e conta as ocorrências. Responde `total_occurrences`, `total_verses`, `has_more` e, por versículo, `occurrences` e `matches` (posições para o destaque).
    - `GET /api/daily-verse`: Versículo do dia público.
 9. ✅ Frontend SPA (Vite + React + Vanilla CSS Tokens + Lucide Icons) estruturado, compilado e rodando:
    - Layout de tela dividida fiel ao conceito visual: Lado esquerdo com manifesto monumental, busca rápida e 3 cartões de benefícios reais; Lado direito com a Bíblia aberta interativa, abas NAA/NVT ativas, setas de virar página e botão de imersão.

@@ -1,4 +1,5 @@
 import pool from '../db.js';
+import { buildPattern, candidateTerms, findMatches, parseQuery } from '../search.js';
 
 export default async function bibleRoutes(fastify, options) {
   /**
@@ -95,80 +96,86 @@ export default async function bibleRoutes(fastify, options) {
   });
 
   /**
-   * GET /api/search?q=palavra&translation=NAA&testament=AT&book_id=1
-   * Busca textual instantânea com índice GIN em português e contagem de ocorrências.
+   * GET /api/search?q=palavra&translation=NAA&testament=AT&book_id=1&limit=50&offset=0
+   * Busca exata de palavra (ou frase em sequência). As regras estão em server/search.js.
+   * O índice GIN acha os versículos candidatos; uma conferência no texto confirma a palavra
+   * e conta as ocorrências. Resultado em ordem canônica, paginado.
    */
   fastify.get('/search', async (request, reply) => {
-    const queryText = (request.query.q || '').trim();
     const translation = (request.query.translation || 'NAA').toUpperCase();
     const testament = request.query.testament ? request.query.testament.toUpperCase() : null;
     const bookId = request.query.book_id ? parseInt(request.query.book_id, 10) : null;
-    const limit = Math.min(parseInt(request.query.limit, 10) || 100, 500);
+    const limit = Math.min(Math.max(parseInt(request.query.limit, 10) || 50, 1), 200);
+    const offset = Math.max(parseInt(request.query.offset, 10) || 0, 0);
 
-    if (!queryText) {
-      return reply.status(400).send({ error: 'Parâmetro de busca "q" é obrigatório.' });
+    const parsed = parseQuery(request.query.q);
+    if (parsed.error) {
+      return reply.status(400).send({ error: parsed.error });
     }
 
     if (!['NAA', 'NVT'].includes(translation)) {
       return reply.status(400).send({ error: "Tradução inválida. Escolha 'NAA' ou 'NVT'." });
     }
 
+    const { words } = parsed;
+    const response = { query: words.map((w) => w.text).join(' '), translation, offset, limit };
+
+    // Só pontuação digitada: não há palavra para procurar.
+    if (words.length === 0) {
+      return { ...response, total_occurrences: 0, total_verses: 0, has_more: false, results: [] };
+    }
+
     try {
-      // Monta filtros SQL de forma segura com parâmetros
-      const conditions = [
-        "v.translation = $1",
-        "v.search_vector @@ websearch_to_tsquery('simple', immutable_unaccent($2))"
-      ];
-      const params = [translation, queryText];
-      let pIdx = 3;
+      const params = [translation, candidateTerms(words), buildPattern(words, 'pg')];
+      let where = `v.translation = $1 AND v.search_vector @@ to_tsquery('simple', immutable_unaccent($2))`;
 
       if (testament && ['AT', 'NT'].includes(testament)) {
-        conditions.push(`b.testament = $${pIdx++}`);
         params.push(testament);
+        where += ` AND b.testament = $${params.length}`;
       }
-
       if (bookId && !isNaN(bookId)) {
-        conditions.push(`v.book_id = $${pIdx++}`);
         params.push(bookId);
+        where += ` AND v.book_id = $${params.length}`;
       }
+      params.push(limit, offset);
 
-      const whereClause = conditions.join(' AND ');
-
-      // Contagem exata de ocorrências (Regra 23)
-      const countRes = await pool.query(
-        `SELECT COUNT(*) AS total
-         FROM verses v
-         JOIN books b ON b.id = v.book_id
-         WHERE ${whereClause};`,
+      // Duas etapas, de propósito:
+      //  1) o índice GIN ($2) reduz a poucos versículos candidatos, em milissegundos. Ele ignora acento
+      //     e enxerga as partes de uma palavra com hífen, então só garante que nenhum acerto fica de fora;
+      //  2) regexp_count confere o texto de verdade ($3, as regras de server/search.js) e conta as
+      //     ocorrências. É ela que decide o que entra na lista, e por isso lista e contagem nunca divergem.
+      // lower(v.text) porque o padrão é montado em minúsculas. As janelas (count/sum OVER) calculam os
+      // totais sobre todos os acertos antes do LIMIT, então a página não altera a contagem.
+      const { rows } = await pool.query(
+        `WITH hits AS (
+           SELECT b.id AS book_id, b.name AS book_name, b.abbrev AS book_abbrev, b.testament,
+                  v.chapter, v.verse, v.translation, v.text,
+                  regexp_count(lower(v.text), $3) AS occurrences
+           FROM verses v
+           JOIN books b ON b.id = v.book_id
+           WHERE ${where}
+         )
+         SELECT *,
+                count(*) OVER () AS total_verses,
+                sum(occurrences) OVER () AS total_occurrences
+         FROM hits
+         WHERE occurrences > 0
+         ORDER BY book_id, chapter, verse
+         LIMIT $${params.length - 1} OFFSET $${params.length};`,
         params
       );
-      const totalOccurrences = parseInt(countRes.rows[0].total, 10);
 
-      // Resultados em ordem canônica (Regra 22: sempre ordem canônica)
-      const resultsQuery = `
-        SELECT 
-          b.id AS book_id,
-          b.name AS book_name,
-          b.abbrev AS book_abbrev,
-          b.testament,
-          v.chapter,
-          v.verse,
-          v.translation,
-          v.text
-        FROM verses v
-        JOIN books b ON b.id = v.book_id
-        WHERE ${whereClause}
-        ORDER BY b.id ASC, v.chapter ASC, v.verse ASC
-        LIMIT $${pIdx};
-      `;
-      const searchRes = await pool.query(resultsQuery, [...params, limit]);
-
+      const totalVerses = rows.length ? Number(rows[0].total_verses) : 0;
       return {
-        query: queryText,
-        translation,
-        total_occurrences: totalOccurrences,
-        showing: searchRes.rowCount,
-        results: searchRes.rows,
+        ...response,
+        total_occurrences: rows.length ? Number(rows[0].total_occurrences) : 0,
+        total_verses: totalVerses,
+        has_more: offset + rows.length < totalVerses,
+        results: rows.map(({ total_verses, total_occurrences, occurrences, ...verse }) => ({
+          ...verse,
+          occurrences: Number(occurrences),
+          matches: findMatches(verse.text, words),
+        })),
       };
     } catch (err) {
       request.log.error(err);

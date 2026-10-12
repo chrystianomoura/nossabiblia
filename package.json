@@ -15,6 +15,8 @@
     "dev": "node --watch server/index.js",
     "dev:server": "node server/index.js",
     "dev:client": "npm --prefix client run dev",
-    "build:client": "npm --prefix client run build"
+    "build:client": "npm --prefix client run build",
+    "test": "node --test \"server/**/*.test.js\"",
+    "clean:text": "node server/scripts/clean-verse-text.mjs"
   }
 }

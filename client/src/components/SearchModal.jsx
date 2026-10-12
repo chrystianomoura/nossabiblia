@@ -1,21 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search, X, BookOpen } from 'lucide-react';
+import { Search, X, BookOpen, ArrowLeftRight } from 'lucide-react';
 import Spinner from './Spinner';
-import TranslationToggle from './TranslationToggle';
 import { navigate, readPath } from '../lib/router';
 import { slugify } from '../lib/books';
 
-const normalize = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const number = new Intl.NumberFormat('pt-BR');
+const plural = (n, one, many) => (n === 1 ? one : many);
 
-// Destaca cada palavra consultada, sem diferenciar acentos nem caixa.
-function highlightMatch(text, query) {
-  const words = new Set(query.split(/\s+/).filter(Boolean).map(normalize));
-  if (words.size === 0) return text;
-
-  return text.split(/([\p{L}\p{N}]+)/u).map((part, i) =>
-    words.has(normalize(part)) ? <strong key={i}>{part}</strong> : part
-  );
+// Destaca cada ocorrência. As posições vêm do servidor, que aplica as mesmas regras da busca.
+function highlight(text, matches) {
+  const parts = [];
+  let last = 0;
+  matches.forEach(([start, end], i) => {
+    if (start > last) parts.push(text.slice(last, start));
+    parts.push(<strong key={i}>{text.slice(start, end)}</strong>);
+    last = end;
+  });
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
 }
+
+const searchUrl = (term, translation, offset = 0) =>
+  `/api/search?q=${encodeURIComponent(term)}&translation=${translation}&offset=${offset}`;
 
 const FOCUSABLE = 'button:not(:disabled), [href], input, select, [tabindex]:not([tabindex="-1"])';
 
@@ -25,6 +31,9 @@ export default function SearchModal({ isOpen, onClose }) {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState(false);
+  const moreRef = useRef(null); // requisição de "Mostrar mais" em andamento, para cancelar se a busca mudar
   const inputRef = useRef(null);
   const dialogRef = useRef(null);
   const openerRef = useRef(null);
@@ -41,9 +50,12 @@ export default function SearchModal({ isOpen, onClose }) {
     return () => {
       document.body.style.overflow = previousOverflow;
       openerRef.current?.focus?.();
+      moreRef.current?.abort();
       setQuery('');
       setResults(null);
       setError(false);
+      setLoadingMore(false);
+      setMoreError(false);
     };
   }, [isOpen]);
 
@@ -53,17 +65,25 @@ export default function SearchModal({ isOpen, onClose }) {
 
     const controller = new AbortController();
     const timer = setTimeout(() => {
+      moreRef.current?.abort();
       setLoading(true);
       setError(false);
-      fetch(`/api/search?q=${encodeURIComponent(term)}&translation=${translation}`, {
-        signal: controller.signal,
-      })
+      setLoadingMore(false);
+      setMoreError(false);
+      fetch(searchUrl(term, translation), { signal: controller.signal })
         .then((res) => {
           if (!res.ok) throw new Error('Falha na busca.');
           return res.json();
         })
         .then((data) => {
-          setResults(data);
+          setResults({
+            // Identifica de qual busca são estes resultados; "Mostrar mais" só anexa se ainda for a mesma.
+            key: `${term}|${translation}`,
+            items: data.results,
+            totalOccurrences: data.total_occurrences,
+            totalVerses: data.total_verses,
+            hasMore: data.has_more,
+          });
           setLoading(false);
         })
         .catch((err) => {
@@ -76,6 +96,7 @@ export default function SearchModal({ isOpen, onClose }) {
     return () => {
       clearTimeout(timer);
       controller.abort();
+      moreRef.current?.abort();
     };
   }, [query, translation, isOpen]);
 
@@ -87,8 +108,9 @@ export default function SearchModal({ isOpen, onClose }) {
   const shown = hasContent ? results : null;
   const busy = hasContent && loading;
   const failed = hasContent && error;
-  const list = shown?.results ?? [];
-  const total = shown?.total_occurrences;
+  const otherTranslation = translation === 'NAA' ? 'NVT' : 'NAA';
+  const list = shown?.items ?? [];
+  const found = shown && shown.totalOccurrences > 0;
 
   function handleKeyDown(event) {
     if (event.key === 'Escape') {
@@ -111,6 +133,31 @@ export default function SearchModal({ isOpen, onClose }) {
     }
   }
 
+  // Próxima página da mesma busca (50 versículos por vez), anexada à lista atual.
+  async function loadMore() {
+    if (!shown || loadingMore) return;
+    const controller = new AbortController();
+    moreRef.current = controller;
+    setLoadingMore(true);
+    setMoreError(false);
+
+    try {
+      const res = await fetch(searchUrl(term, translation, shown.items.length), { signal: controller.signal });
+      if (!res.ok) throw new Error('Falha ao carregar mais.');
+      const data = await res.json();
+      setResults((current) =>
+        current && current.key === shown.key
+          ? { ...current, items: [...current.items, ...data.results], hasMore: data.has_more }
+          : current
+      );
+      setLoadingMore(false);
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      setMoreError(true);
+      setLoadingMore(false);
+    }
+  }
+
   function selectResult(r) {
     onClose();
     navigate(readPath(slugify(r.book_name), r.chapter, translation, r.verse));
@@ -120,7 +167,7 @@ export default function SearchModal({ isOpen, onClose }) {
     <div className="search-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
         ref={dialogRef}
-        className="search-dialog"
+        className={`search-dialog${hasContent ? ' has-results' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Buscar na Bíblia"
@@ -135,7 +182,7 @@ export default function SearchModal({ isOpen, onClose }) {
             name="q"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Digite uma palavra, ex.: esperança…"
+            placeholder="Buscar…"
             aria-label="Palavra a buscar"
             autoComplete="off"
             autoCapitalize="none"
@@ -143,14 +190,19 @@ export default function SearchModal({ isOpen, onClose }) {
             enterKeyHint="search"
           />
           {busy && <Spinner />}
+          <button
+            type="button"
+            className="search-version"
+            onClick={() => setTranslation(otherTranslation)}
+            aria-label={`Tradução ${translation}. Trocar para ${otherTranslation}`}
+            title={`Trocar para ${otherTranslation}`}
+          >
+            <ArrowLeftRight size={16} aria-hidden="true" />
+            <span translate="no">{translation}</span>
+          </button>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Fechar busca">
             <X size={18} aria-hidden="true" />
           </button>
-        </div>
-
-        <div className="search-options">
-          <TranslationToggle value={translation} onChange={setTranslation} label="Tradução da busca" />
-          <span className="search-hint">Esc para fechar</span>
         </div>
 
         {hasContent && (
@@ -168,16 +220,18 @@ export default function SearchModal({ isOpen, onClose }) {
               </div>
             )}
 
-            {!failed && total !== undefined && (
+            {!failed && found && (
               <p className="search-count">
-                <span className="search-count-number">{total}</span>{' '}
-                {total === 1 ? 'resultado encontrado' : 'resultados encontrados'} em ordem canônica
-                {total > list.length && ` (exibindo os ${list.length} primeiros)`}
+                <strong className="search-count-number">{number.format(shown.totalOccurrences)}</strong>{' '}
+                {plural(shown.totalOccurrences, 'ocorrência', 'ocorrências')}
+                <span className="search-count-in"> em </span>
+                <strong className="search-count-number">{number.format(shown.totalVerses)}</strong>{' '}
+                {plural(shown.totalVerses, 'versículo', 'versículos')}
               </p>
             )}
 
-            {!failed && !busy && shown && list.length === 0 && (
-              <p className="search-message">Nenhum versículo encontrado para “{term}”.</p>
+            {!failed && !busy && shown && !found && (
+              <p className="search-message">Nenhum resultado para “{term}”.</p>
             )}
 
             {!failed && list.length > 0 && (
@@ -189,12 +243,34 @@ export default function SearchModal({ isOpen, onClose }) {
                         <BookOpen size={14} aria-hidden="true" />
                         <span>{r.book_name} {r.chapter}:{r.verse}</span>
                         <span className="search-result-tr" translate="no">({r.translation})</span>
+                        {r.occurrences > 1 && (
+                          <span
+                            className="search-result-badge"
+                            aria-label={`${r.occurrences} ocorrências neste versículo`}
+                          >
+                            {r.occurrences}×
+                          </span>
+                        )}
                       </span>
-                      <span className="search-result-text">{highlightMatch(r.text, term)}</span>
+                      <span className="search-result-text">{highlight(r.text, r.matches)}</span>
                     </button>
                   </li>
                 ))}
               </ul>
+            )}
+
+            {!failed && shown?.hasMore && (
+              <div className="search-more">
+                <p className="search-more-status">
+                  {moreError
+                    ? 'Não foi possível carregar mais.'
+                    : `Mostrando ${number.format(list.length)} de ${number.format(shown.totalVerses)} versículos`}
+                </p>
+                <button type="button" className="pill-btn" onClick={loadMore} disabled={loadingMore}>
+                  {loadingMore && <Spinner size={14} />}
+                  <span>{moreError ? 'Tentar de novo' : 'Mostrar mais'}</span>
+                </button>
+              </div>
             )}
           </div>
         )}
