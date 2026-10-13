@@ -35,7 +35,7 @@ const HOST = '0.0.0.0';
 
 try {
   await fastify.listen({ port: PORT, host: HOST });
-  console.log(`🚀 Servidor NossaBíblia rodando em http://localhost:${PORT}`);
+  console.log(`🚀 Servidor Nossa Bíblia rodando em http://localhost:${PORT}`);
   
   // Inicia o keep-alive inteligente para manter o Neon acordado
   startKeepAlive();

@@ -1,5 +1,5 @@
 -- ==============================================================================
--- PROJETO: NossaBíblia
+-- PROJETO: Nossa Bíblia
 -- ARQUIVO: schema.sql
 -- DESCRIÇÃO: Estrutura DDL completa para PostgreSQL
 -- PADRÃO DE FUSO: America/Sao_Paulo para regras de negócio diárias

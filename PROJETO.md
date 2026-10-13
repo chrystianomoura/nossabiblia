@@ -1,12 +1,12 @@
-# NossaBíblia: especificação do projeto
+# Nossa Bíblia: especificação do projeto
 
-Este documento descreve a especificação funcional e as decisões técnicas da aplicação **NossaBíblia**, um app web pessoal para ler a Bíblia, marcar versículos, organizar leituras por tema e estudar palavras.
+Este documento descreve a especificação funcional e as decisões técnicas da aplicação **Nossa Bíblia**, um app web pessoal para ler a Bíblia, marcar versículos, organizar leituras por tema e estudar palavras.
 
 ---
 
 ## Visão geral
 
-- **Nome oficial:** NossaBíblia
+- **Nome oficial:** Nossa Bíblia (escrito separado em qualquer texto; nos identificadores técnicos, como o repositório, o pacote e o projeto no Neon, é `nossabiblia`)
 - **Tipo:** aplicação web (funciona no navegador do computador e do celular).
 - **Uso:** pessoal. O app é feito para o próprio autor. Se um dia for público, questões de licença das traduções precisam ser revistas.
 - **Traduções:** NAA e NVT.
@@ -34,8 +34,8 @@ Este documento descreve a especificação funcional e as decisões técnicas da 
     - **Livro:** pelo nome, por abreviação (`sl`, `mt`, `1co`) ou por prefixo de 3 letras ou mais (`mat` mostra o cartão de Mateus). As abreviações são só as da base (Pv, Fp, Mc...; `pr`, `fl` e `mr` não valem). Abreviação de 1 ou 2 letras só vale com número depois: `os 2` é Oséias 2, mas `os` sozinho é a palavra "os". `jn` é Jonas e `jo` é João, como nas edições em português.
     - **Mais de um livro serve:** aparecem sempre em ordem canônica, o mais antigo primeiro (`jo 3:16` mostra Jó e depois João; `tim` mostra 1 e 2 Timóteo).
     - **Acento:** a mesma regra da busca de palavra, inclusive nos nomes de livros (`joaõ 3:16` não encontra nada).
-    - **Sem exceção para livros de um capítulo só:** `judas 5` é o capítulo 5 e a tela diz "Judas tem 1 capítulo."; `judas 1` abre o capítulo e `judas 1:5`, o versículo.
-    - **Validação na tradução escolhida:** NAA e NVT numeram alguns versículos de forma diferente (2 Coríntios 13:14 só existe na NVT). Fora dos limites, a tela informa o que existe ("Salmos tem 150 capítulos.", "Salmos 23 tem 6 versículos na NAA."). Havendo alguma referência válida entre os candidatos (`fil 2`, `jo 3:30`), as inválidas não aparecem.
+    - **Sem exceção para livros de um capítulo só:** `judas 5` é o capítulo 5 e a tela diz "Judas tem 1 capítulo" (sem ponto final); `judas 1` abre o capítulo e `judas 1:5`, o versículo.
+    - **Validação na tradução escolhida:** NAA e NVT numeram alguns versículos de forma diferente (2 Coríntios 13:14 só existe na NVT). Fora dos limites, a tela informa o que existe ("Salmos tem 150 capítulos", "Salmos 23 tem 6 versículos na NAA", "Esse intervalo de versículos não é válido"), todas **sem ponto final**, como a mensagem "Nenhum resultado para: “…”" (decisão do usuário). Havendo alguma referência válida entre os candidatos (`fil 2`, `jo 3:30`), as inválidas não aparecem.
     - **Referência e palavra:** uma referência com número não dispara busca de palavra. Um livro sem número (`mar`) mostra o livro e, em grupo separado, as ocorrências da palavra.
 
 ## Marcações (exige conta verificada)
@@ -80,7 +80,18 @@ Este documento descreve a especificação funcional e as decisões técnicas da 
     - **Sem resultado:** a tela mostra apenas "Nenhum resultado para: “…”", com o que foi digitado em negrito. Não há sugestão nem correção automática.
 22. **Ordem:** resultados sempre na ordem canônica. Não há ordenação cronológica. A lista é paginada, de 50 em 50 versículos ("Mostrar mais").
 23. **Contagem:** número exato de **ocorrências** da palavra (ou da frase) na tradução escolhida, isto é, cada vez que ela aparece inteira, sem hífen colado. É mostrado com o total de versículos ("4.664 ocorrências em 4.085 versículos"), e cada versículo com a palavra repetida indica a quantidade ("2×") e tem todas as repetições destacadas.
-24. **Filtros:** restrição ao Antigo ou ao Novo Testamento, ou a um livro específico (a API já aceita `testament` e `book_id`; a tela ainda não tem os controles).
+24. **Filtros:** restrição ao Antigo ou ao Novo Testamento, ou a um livro específico. Implementados (API e tela). O filtro só **recorta** a busca de palavra: não muda as regras (itens 21 e 23), o destaque nem a contagem, que passa a ser a do recorte ("1.405 ocorrências em 1.226 versículos" dentro do Novo Testamento).
+    - **Onde:** um botão com o ícone de funil, ao lado do botão NAA/NVT da busca, abre um painel dentro do modal.
+    - **Padrão:** Toda a Bíblia. Sem tocar em nada o comportamento é idêntico ao de antes (o filtro é opt-in) e ele **zera ao fechar o modal**, para ninguém achar que uma palavra "não existe" por ter esquecido o filtro ligado.
+    - **Seletor** "Toda a Bíblia | Antigo | Novo": uma pílula única desliza até a opção marcada (0,25 s; sem animação se o sistema pede movimento reduzido). Ao escolher um livro, nenhuma opção fica marcada e a pílula some.
+    - **Campo de livro:** lista curta de 5 linhas (o resto rola), com "Todos os livros" como primeira linha. Digitar filtra a lista sem exigir acento (`salm`, `1 jo`); ↑ ↓ e Enter funcionam; o destaque do mouse some quando ele sai da linha, e o do teclado só existe depois de usar as setas. Ao clicar num livro a lista reabre na mesma posição de rolagem (só vale se for a mesma lista; escolhido digitando, ela reabre no livro). Clicar no campo com a lista aberta a fecha.
+    - **Escolher um livro sobrepõe o testamento** (e escolher um testamento zera o livro): a tela nunca monta um conflito. Com Antigo ou Novo marcado, a lista de livros traz só os livros daquele testamento.
+    - **Lembrete de que há filtro:** uma etiqueta sob a barra ("Novo Testamento ✕", "Salmos ✕", que ao clicar tira o filtro) e o botão do funil pintado (escuro no tema claro e claro no escuro; **não há bolinha**). Os dois valem com o painel aberto ou fechado.
+    - **Só busca de palavra:** referências (`salmos 23`, `joão 3:16`) e cartões de livro **ignoram** o filtro; são endereços, não buscas.
+    - **Acompanham o recorte:** a contagem, o "Mostrar mais" (que traz só itens do recorte; trocar o filtro reinicia a lista) e a troca NAA/NVT (mantém o filtro). Os ids dos livros são os mesmos nas duas traduções.
+    - **Sem resultado dentro de um filtro:** `Nenhum resultado para: “sol” em Salmos` (o recorte entra na mensagem, com o mesmo formato do item 21).
+    - **Teclado:** Esc fecha em camadas (lista de livros, painel, modal); Tab nunca sai do diálogo; o anel de foco do campo de livro só aparece para quem navega por teclado.
+    - **API:** `GET /api/search?q=...&testament=AT|NT&book_id=1..66`. Testamento e livro em conflito dão zero resultados; testamento aceita qualquer caixa; filtros vazios são ignorados. Valores inválidos dão **400**, nunca 500 nem filtro ignorado em silêncio: `book_id` só aceita dígitos (recusa `abc`, `1.5`, `-1`, `1e1`, `0x10`, ` 5`, `1,2`; `007` vale 7) e vai de 1 a 66; `testament` só `AT` ou `NT`.
 
 ## Página inicial
 
@@ -122,6 +133,15 @@ Este documento descreve a especificação funcional e as decisões técnicas da 
 45. **Exportação:** todos os dados da conta, com a data de cada marcação e de cada favorito.
 46. **Exclusão:** apaga a conta e todos os dados. Irreversível. Vale também para conta não verificada.
 47. **Bloqueio de e-mail:** após a exclusão de conta verificada, o endereço fica bloqueado por 30 dias. Só o hash do e-mail é guardado para isso. Depois desse prazo, um novo cadastro gera nova data de abertura.
+
+## Interface da busca (decisões de tela)
+
+Decididas com o usuário, vendo cada uma renderizada:
+
+- **Sem balões de dica** (`title`) nos botões da barra de busca: o botão do funil e o NAA/NVT só têm `aria-label`, para leitor de tela. Foi testado um aviso próprio, mais rápido que o do navegador, e o usuário preferiu nenhum.
+- **Falha de rede:** a mensagem "Não foi possível buscar agora. Verifique a conexão e tente de novo." traz o botão **Tentar de novo**, que refaz a mesma busca com a mesma tradução e o mesmo filtro (sem ele, repetir o mesmo texto não refazia a requisição). O "Mostrar mais" tem o seu próprio botão de nova tentativa, e a lista já carregada continua.
+- **Selo "2×"** (versículo com a palavra repetida): no tema claro ganhou fundo dourado mais marcado e texto escuro (contraste 5,9:1; antes 3,8:1, abaixo do mínimo de 4,5:1); no tema escuro nada mudou.
+- **Acessibilidade medida:** Tab e Shift+Tab nunca saem do diálogo; contraste mínimo de 4,5:1 nos textos; alvos de toque de 30 px ou mais (o mínimo da norma é 24 px; 44 px é o recomendado para toque, e não foi adotado); sem rolagem lateral de 320 a 1920 px; zoom de 200% e fonte grande sem quebrar.
 
 ## Regras transversais
 
@@ -182,14 +202,27 @@ Os arquivos `NAA.json` e `NVT.json` foram inspecionados e validados:
 - **Limites derivados dos dados.** Uma frase só casa dentro de um versículo, então o teto da busca é o maior versículo, com folga para os espaços de quem cola. Um teste de banco falha se algum versículo passar do limite.
 - **Segurança.** Só letras, números, hífen e o ponto ou vírgula dos números entram no padrão; o resto vira separador. O texto digitado nunca é concatenado em SQL ou em expressão regular (usa parâmetros).
 
+### Filtros na API e no SQL
+
+- Os filtros são condições a mais na mesma consulta da busca (`b.testament = $n`, `v.book_id = $n`), sempre por parâmetros; `server/search.js` não foi tocado. Em buscas só de números (varredura completa) o filtro até acelera, pois há menos versículos para conferir.
+- `book_id` é validado com `/^\d+$/` antes de virar número: `Number()` aceitaria `1e1` (= 10), ` 5` e `0x10`, e o filtro valeria sobre um livro que o usuário não pediu.
+- Parâmetros de texto passam por `String(...)` antes de `.toUpperCase()`: um parâmetro repetido chega do Fastify como lista, e chamar o método direto nela derrubava a rota com erro 500 (valia também para o capítulo e para o versículo do dia).
+- **Cliente** (`SearchModal.jsx`): o recorte é `{ testament, bookId }` (um zera o outro); a chave de cada resposta inclui o recorte, então uma resposta atrasada de um filtro anterior nunca sobrescreve a do filtro atual; "Mostrar mais" só anexa se a chave ainda for a mesma. A pílula do seletor é medida no JavaScript (posição e largura do botão marcado, remedida por `ResizeObserver`), porque "Toda a Bíblia" é mais larga que os outros dois botões.
+- **Armadilha do Chrome:** uma lista com rolagem (`overflow: auto`) sem filhos focáveis vira parada do Tab. A lista de livros recebeu `tabIndex={-1}`; sem isso o foco ia para ela, o campo perdia o foco, a lista fechava e o foco caía na página, fora do diálogo. Foi achado pela bateria de tela.
+- O diálogo da busca não corta o que sai dele (`overflow` visível), para a lista de livros poder flutuar por cima dos resultados; o corpo com rolagem corta os próprios cantos arredondados.
+
 ### Qualidade dos dados
 
 A busca exata exige texto limpo. Os arquivos de origem da NVT trouxeram **hífen invisível** (U+00AD, marca de quebra de linha de impressão) no meio de palavras em 182 versículos e **acento desmontado** (letra + acento solto) em 3 versículos. O banco foi limpo (185 versículos, só NVT) por `server/scripts/clean-verse-text.mjs`, que é idempotente, tem modo de teste, roda em transação e guarda cópia dos originais. `NAA.json`, `NVT.json` e `seed.sql` não foram alterados: o script deve ser rodado após qualquer nova carga. Um teste de banco falha se as sujeiras voltarem.
 
 ### Testes e precisão
 
-- `npm test`: testes das regras (puros), do analisador de referências e do contrato contra o banco (só leitura). Os números dos testes de banco são o contrato.
-- `npm run test:accuracy`: bateria de precisão. Compara cerca de 12 mil buscas reais com um gabarito independente (`server/accuracy/oracle.js`), que lê `NAA.json` e `NVT.json` por força bruta e de outro jeito que a busca; também confere os 62.207 versículos do banco contra os arquivos e todos os 1.189 capítulos em várias grafias de referência. Já revelou um defeito real (números com ponto). Não prova que as regras estão certas, só que o código as cumpre.
+- `npm test`: **63 testes**: regras da busca (puros), analisador de referências, e o contrato contra o banco (só leitura), que inclui os filtros (Antigo + Novo = total; a soma dos 66 livros = total; recortes sem vazar livros de fora; conflito dá zero; parâmetros inválidos dão 400; `offset` gigante e parâmetro repetido não dão erro 500). Os números dos testes de banco são o contrato.
+- `npm run test:accuracy`: bateria de precisão, **15 camadas e cerca de 104 mil conferências** contra um gabarito independente (`server/accuracy/oracle.js`), que lê `NAA.json` e `NVT.json` por força bruta e de outro jeito que a busca; também confere os 62.207 versículos do banco contra os arquivos e todos os 1.189 capítulos em várias grafias de referência. Camadas dos filtros: (10) Antigo, Novo e cada livro contra o gabarito, Antigo + Novo = total e, em parte das buscas, a soma dos 66 livros = total; (11) listas completas dentro do recorte; (12) as combinações testamento + livro para todos os 66 livros; (13) parâmetros hostis. Leva uns 18 minutos no tamanho padrão; `ACCURACY_SCALE=0.2` dá uma rodada rápida.
+- **Verificações da tela** (`client/scripts/ui-checks/`, skill `playwright-cli`): comportamento (incluindo 150 ações aleatórias conferidas com a API), visual (6 tamanhos de tela, claro e escuro, contraste, corte, sobreposição) e conferências específicas da pílula, do botão do funil, da nova tentativa e do espaçamento. Detalhes no README.
+- **Segurança dos scripts da tela:** só rodam contra `localhost` (recusam outra página e abortam, enquanto rodam, qualquer requisição para fora dele, exceto as fontes do Google), só leem (GET), e nunca guardam credenciais; textos de ataque neles (XSS, SQL) são dados de teste. A bateria de precisão lê o banco de **produção** (só leitura, ~104 mil consultas): quando a Fase 4 trouxer escrita, os testes devem rodar numa **branch separada da Neon**.
+- **Defeitos que a bateria já revelou:** números com ponto ("3.700") não eram achados; `offset` gigante, parâmetro `translation` repetido e `book_id=1e1` davam erro 500 ou filtro errado; o Tab saía do diálogo pela lista de livros. Todos corrigidos.
+- Não prova que as regras estão certas (o gabarito segue as decisões deste documento), só que o código as cumpre. Não cobre leitor de tela de verdade, Safari/Firefox nem carga no banco.
 
 ### Infraestrutura
 
@@ -242,7 +275,7 @@ cron.schedule('*/4 6-23 * * *', async () => {
    - `GET /health`: Monitoramento de status da API e banco de dados.
    - `GET /api/books`: Retorna os 66 livros da Bíblia na ordem canônica (divididos em AT e NT).
    - `GET /api/books/:book/chapters/:chapter?translation=NAA`: Leitura completa de capítulos em NAA ou NVT.
-   - `GET /api/search?q=palavra&translation=NAA&limit=50&offset=0`: Busca exata (itens 21 a 24). O índice GIN acha os versículos candidatos e uma conferência no texto confirma a palavra e conta as ocorrências. Responde `total_occurrences`, `total_verses`, `has_more` e, por versículo, `occurrences` e `matches` (posições para o destaque).
+   - `GET /api/search?q=palavra&translation=NAA&testament=AT&book_id=19&limit=50&offset=0`: Busca exata (itens 21 a 24). O índice GIN acha os versículos candidatos e uma conferência no texto confirma a palavra e conta as ocorrências. Responde `total_occurrences`, `total_verses`, `has_more` e, por versículo, `occurrences` e `matches` (posições para o destaque). `testament` e `book_id` recortam o resultado (item 24). Parâmetros inválidos dão 400: tradução, testamento, `book_id` e também parâmetros repetidos (`?translation=NAA&translation=NVT`). `limit` vai de 1 a 200 e `offset` tem teto de 100.000 (a Bíblia tem 31 mil versículos; um número gigante estourava o inteiro do banco e dava erro 500). Além do fim da lista, a resposta vem com a lista e os totais zerados.
    - `GET /api/daily-verse`: Versículo do dia público.
 9. ✅ Frontend SPA (Vite + React 19 + CSS puro com tokens + Lucide Icons) estruturado, compilado e rodando:
    - Home em tela dividida: manifesto, benefícios e o livro aberto de Gênesis 1 em NAA/NVT, embutido no código (aparece sem esperar a API).
@@ -251,6 +284,9 @@ cron.schedule('*/4 6-23 * * *', async () => {
 10. ✅ Busca exata (itens 21 a 24): palavra inteira, caixa, acento, frase, hífen, números, contagem em ocorrências, paginação e colagem de versículo inteiro.
 11. ✅ Busca por referência (item 6): `salmos 23`, `joão 3:16-18`, `I João 4:8`, `mat`.
 12. ✅ Qualidade dos dados: limpeza da NVT (185 versículos) com script idempotente.
-13. ✅ Testes: 56 testes automatizados e uma bateria de precisão de cerca de 12 mil buscas contra um gabarito independente, toda verde.
-14. ⏳ **Pendências da busca:** controles de filtro por Antigo/Novo Testamento e por livro na tela (a API já aceita); dica "Encontrado na NVT" quando a busca der zero na tradução escolhida (adiada).
-15. ⏳ **Próximo passo:** Fase 4 (Sistema de Autenticação, Cadastro de Usuários, Envio de E-mails com Resend e Marcações Pessoais).
+13. ✅ **Filtros da busca** (item 24): Antigo, Novo e livro, com o painel, o seletor de pílula, a lista curta de livros, a etiqueta e o botão do funil pintado; API validada (400 para valores inválidos).
+14. ✅ Testes: 63 testes automatizados, bateria de precisão de 15 camadas (~104 mil conferências) e verificações da tela, tudo verde. Defeitos achados no caminho (offset gigante, parâmetro repetido, `book_id=1e1`, foco do Tab) foram corrigidos.
+15. ✅ Acabamento da busca: botão "Tentar de novo" na falha de rede, selo "2×" legível no tema claro, sem balões de dica nos botões.
+16. ✅ Textos: as mensagens da busca por referência ficaram **sem ponto final** (decisão do usuário) e a marca aparece sempre como "Nossa Bíblia" (com espaço), inclusive no título da aba do navegador.
+17. ⏳ **Pendências da busca:** a dica "Encontrado na NVT" quando a busca der zero na tradução escolhida (adiada pelo usuário); decidir se as mensagens de falha ("Não foi possível buscar agora. Verifique a conexão e tente de novo.", "Não foi possível carregar mais.", "Não foi possível carregar essa referência.") também perdem o ponto final.
+18. ⏳ **Próximo passo:** Fase 4 (Sistema de Autenticação, Cadastro de Usuários, Envio de E-mails com Resend e Marcações Pessoais).

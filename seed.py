@@ -1,5 +1,5 @@
 """
-Script de importação automática para o PostgreSQL (NossaBíblia)
+Script de importação automática para o PostgreSQL (Nossa Bíblia)
 Suporta conexão com PostgreSQL local ou Neon na nuvem.
 
 Uso:
@@ -40,7 +40,7 @@ def get_db_url(cli_url):
     return None
 
 def main():
-    parser = argparse.ArgumentParser(description="Seed do banco de dados NossaBíblia")
+    parser = argparse.ArgumentParser(description="Seed do banco de dados Nossa Bíblia")
     parser.add_argument("--url", default=None, help="URL de conexão PostgreSQL")
     args = parser.parse_args()
 
@@ -138,7 +138,7 @@ def main():
 
     cur.close()
     conn.close()
-    print("\n🎉 Sucesso total! Banco NossaBíblia populado e pronto no Neon.")
+    print("\n🎉 Sucesso total! Banco Nossa Bíblia populado e pronto no Neon.")
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,5 @@
 -- ==============================================================================
--- PROJETO: NossaBíblia
+-- PROJETO: Nossa Bíblia
 -- ARQUIVO: seed.sql
 -- DESCRIÇÃO: Carga inicial de livros e versículos (NAA e NVT)
 -- ==============================================================================

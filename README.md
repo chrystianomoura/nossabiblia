@@ -1,4 +1,4 @@
-# NossaBíblia 📖
+# Nossa Bíblia 📖
 
 Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, com foco em simplicidade, busca instantânea de alta fidelidade e experiência devocional profunda.
 
@@ -69,11 +69,30 @@ A busca entende endereços antes de procurar palavras:
 | `mat` (3 letras ou mais) | Cartão do livro (Mateus); abre o capítulo 1 |
 | `jo 3:16` | Dois livros servem (Jó e João): aparecem em ordem canônica, o mais antigo primeiro |
 
-Regras: abreviações são só as da base (Pv, Fp, Mc...; `jn` é Jonas e `jo` é João); abreviação de 1 ou 2 letras só vale com número depois (`os 2` é Oséias 2, mas `os` sozinho é a palavra "os"); capítulo e versículo exigem um separador de verdade, então `salmos 23–25` não é reconhecido (nunca vira "Salmos 2:3-25"); livros de um capítulo só não têm exceção (`judas 5` diz "Judas tem 1 capítulo."); a regra de acento vale também para nomes de livros. A referência é validada na tradução escolhida (2 Coríntios 13:14 só existe na NVT), e candidatos inválidos somem quando há algum válido (`fil 2` só mostra Filipenses). Uma referência com número **não** dispara busca de palavra; um livro sem número (`mar`) mostra o livro e, em grupo separado, as ocorrências da palavra. Não são tratados: intervalo de capítulos, lista de versículos (`23:1,3`) e versículo parcial (`23:1a`).
+Regras: abreviações são só as da base (Pv, Fp, Mc...; `jn` é Jonas e `jo` é João); abreviação de 1 ou 2 letras só vale com número depois (`os 2` é Oséias 2, mas `os` sozinho é a palavra "os"); capítulo e versículo exigem um separador de verdade, então `salmos 23–25` não é reconhecido (nunca vira "Salmos 2:3-25"); livros de um capítulo só não têm exceção (`judas 5` diz "Judas tem 1 capítulo"); a regra de acento vale também para nomes de livros. A referência é validada na tradução escolhida (2 Coríntios 13:14 só existe na NVT), e candidatos inválidos somem quando há algum válido (`fil 2` só mostra Filipenses). Uma referência com número **não** dispara busca de palavra; um livro sem número (`mar`) mostra o livro e, em grupo separado, as ocorrências da palavra. Não são tratados: intervalo de capítulos, lista de versículos (`23:1,3`) e versículo parcial (`23:1a`).
+
+### Filtros da busca
+
+Um botão com o ícone de funil, ao lado do NAA/NVT, abre o painel de filtros. Filtrar só **recorta** o resultado da busca de palavra: não muda nenhuma regra, o destaque nem a contagem (a contagem acompanha o recorte).
+
+| Controle | Como funciona |
+|---|---|
+| **Toda a Bíblia \| Antigo \| Novo** | Seletor com uma pílula única que desliza até a opção marcada (0,25 s; sem movimento se o sistema pede animação reduzida). Escolher um testamento desmarca o livro. |
+| **Campo de livro** | Abre uma lista curta (5 linhas, o resto rola). Digitar filtra a lista sem exigir acento (`salm`, `1 jo`); ↑ ↓ e Enter funcionam; o mouse destaca só a linha sob ele e o destaque some quando ele sai. Escolher um livro desmarca o testamento. Com Antigo ou Novo marcado, a lista só traz os livros daquele testamento. Ao clicar num livro, a lista reabre exatamente na posição de rolagem em que estava. Clicar no campo com a lista aberta a fecha. |
+| **Etiqueta** (`Novo Testamento ✕`, `Salmos ✕`) | Aparece sob a barra enquanto houver filtro, mesmo com o painel fechado. Clicar tira o filtro. |
+| **Botão do funil pintado** | Com filtro ativo o botão fica escuro (claro no tema escuro), como a pílula do seletor. Não há bolinha. |
+
+Regras: o filtro é opt-in (o padrão é a Bíblia toda) e **zera ao fechar o modal**; referências (`salmos 23`, `joão 3:16`) e cartões de livro **ignoram** o filtro; o "Mostrar mais" e a troca de NAA/NVT respeitam o filtro, e trocar o filtro reinicia a lista; sem resultado, a tela diz `Nenhum resultado para: “sol” em Salmos`. Os ids dos livros são os mesmos nas duas traduções.
+
+Na API: `GET /api/search?q=...&testament=AT|NT&book_id=1..66`. Valores inválidos dão **400** (`book_id` só aceita dígitos: `abc`, `1.5`, `1e1`, `0x10`, ` 5` e `1,2` são recusados; `testament` aceita `AT` ou `NT`, em qualquer caixa). Testamento e livro em conflito (`AT` + João) dão zero resultados, e filtros vazios são ignorados.
 
 ### Interface
 
-Modal estilo Spotlight, aberto por **⌘K / Ctrl+K** em qualquer tela e fechado com **Esc**: botão para alternar NAA/NVT, resultados navegáveis por teclado e foco preso no diálogo. Clicar num resultado abre o capítulo já rolando até o versículo, que fica destacado.
+Modal estilo Spotlight, aberto por **⌘K / Ctrl+K** em qualquer tela (a mesma tecla fecha). **Esc fecha em camadas**: primeiro a lista de livros, depois o painel de filtros, depois o modal. O foco fica preso no diálogo (Tab e Shift+Tab nunca saem dele), a rolagem da página de fundo trava enquanto ele está aberto, e o anel de foco do campo de livro só aparece para quem navega por teclado. Há o botão NAA/NVT, resultados navegáveis por teclado, e clicar num resultado abre o capítulo já rolando até o versículo, que fica destacado.
+
+- **Sem balões de dica** nos botões (decisão do usuário): os botões de ícone têm só `aria-label`, para leitor de tela.
+- **Falha de rede:** a mensagem "Não foi possível buscar agora. Verifique a conexão e tente de novo." traz o botão **Tentar de novo**, que refaz a mesma busca (mantendo tradução e filtro). Se o "Mostrar mais" falhar, ele tem o seu próprio "Tentar de novo" e a lista já carregada continua.
+- **Selo "2×"** (versículo com a palavra repetida): no tema claro usa fundo dourado mais marcado e texto escuro (contraste 5,9:1); no escuro, o dourado de sempre.
 
 ---
 
@@ -99,11 +118,13 @@ O script é idempotente (rodar de novo não encontra mais nada) e atualiza o ín
 
 | Comando | O que faz | Tempo |
 |---|---|---|
-| `npm test` | 56 testes: regras da busca, referências e contrato contra o banco (só leitura; os de banco são pulados sem `DATABASE_URL`) | ~25 s |
-| `npm run test:accuracy` | **Bateria de precisão**: cerca de 12 mil buscas reais contra um gabarito independente | ~7 min |
+| `npm test` | **63 testes**: regras da busca, referências, filtros e contrato contra o banco (só leitura; os de banco são pulados sem `DATABASE_URL`) | ~50 s |
+| `npm run test:accuracy` | **Bateria de precisão**: 15 camadas, cerca de 104 mil conferências contra um gabarito independente (inclui os filtros) | ~18 min |
+| `ACCURACY_SCALE=0.2 npm run test:accuracy` | A mesma bateria em escala pequena, para uma rodada rápida | ~3 min |
+| `playwright-cli ... run-code --filename=client/scripts/ui-checks/<arquivo>.js` | **Verificações da tela** no navegador (comportamento e visual); ver abaixo | 1 a 5 min cada |
 | `npm --prefix client run lint` | Lint do frontend (oxlint); deve ficar com 0 avisos | segundos |
 
-Os testes de `npm test` conferem exemplos escolhidos à mão (por exemplo, "Deus" na NAA tem 4.664 ocorrências em 4.085 versículos). Para saber se a busca está **de fato** precisa em todo o vocabulário, a bateria compara a rota `/api/search` (com o banco) com um **gabarito independente** (`server/accuracy/oracle.js`), que lê `NAA.json` e `NVT.json` e conta tudo por força bruta, de outro jeito que a busca: varredura de caracteres em vez de expressão regular, índice em memória em vez de PostgreSQL. Se os dois discordam, um deles está errado.
+Os testes de `npm test` conferem exemplos escolhidos à mão (por exemplo, "Deus" na NAA tem 4.664 ocorrências em 4.085 versículos, 3.259 no Antigo e 1.405 no Novo). Para saber se a busca está **de fato** precisa em todo o vocabulário, a bateria compara a rota `/api/search` (com o banco) com um **gabarito independente** (`server/accuracy/oracle.js`), que lê `NAA.json` e `NVT.json` e conta tudo por força bruta, de outro jeito que a busca: varredura de caracteres em vez de expressão regular, índice em memória em vez de PostgreSQL. Se os dois discordam, um deles está errado.
 
 | Camada | O que confere |
 |---|---|
@@ -117,8 +138,36 @@ Os testes de `npm test` conferem exemplos escolhidos à mão (por exemplo, "Deus
 | Dados | Os 62.207 versículos do banco são idênticos aos arquivos de texto (já limpos) |
 | Referências | Todos os 1.189 capítulos em várias grafias resolvem para o livro e o capítulo certos |
 | Entradas malucas | Textos aleatórios (símbolos, emoji, textos enormes) nunca causam erro 500 |
+| **Filtros × gabarito** | Para palavras, frases e números sorteados, nas duas traduções: Antigo e Novo batem com o gabarito, **Antigo + Novo = total**, cada livro com acerto (e alguns sem) bate, e em parte das buscas a **soma dos 66 livros = total** (ocorrências e versículos). As somas são provas fortes: não dependem de interpretar nenhuma regra |
+| **Filtros: listas** | A lista completa dentro do recorte (versículos, ordem canônica, ocorrências por versículo, destaques); um trecho filtrado pelo livro de origem sempre acha o seu versículo, e pelo testamento oposto nunca |
+| **Filtros: combinações** | Para todos os 66 livros: testamento certo + livro dá o livro, testamento errado + livro dá zero, minúscula vale, filtros vazios são ignorados |
+| **Parâmetros hostis** | Lixo em `testament`, `book_id`, `translation`, `limit` e `offset` (emoji, `%00`, injeção de SQL, lista, repetidos, 5 mil caracteres) só dá 200 com o recorte certo ou 400, nunca 500 |
 
-O sorteio usa uma semente fixa (`ACCURACY_SEED`, repete os mesmos casos) e a amostra é ajustável (`ACCURACY_SCALE`; o padrão é 3, e `0.2` dá uma rodada rápida). Quando algo discorda, o relatório mostra a busca, o esperado e o obtido e grava a lista completa num arquivo. A bateria já valeu a pena: foi ela que revelou que números como "3.700" não eram achados. Ela **não prova que as regras estão certas** (o gabarito segue as mesmas decisões do PROJETO.md), só que o código as cumpre.
+O sorteio usa uma semente fixa (`ACCURACY_SEED`, repete os mesmos casos) e a amostra é ajustável (`ACCURACY_SCALE`; o padrão é 3, e `0.2` dá uma rodada rápida). Quando algo discorda, o relatório mostra a busca, o esperado e o obtido e grava a lista completa num arquivo. A bateria **não prova que as regras estão certas** (o gabarito segue as mesmas decisões do PROJETO.md), só que o código as cumpre. Já valeu a pena: revelou que números como "3.700" não eram achados, e que `offset` gigante, `translation` repetida e `book_id=1e1` davam erro 500 ou filtro errado.
+
+### Verificações da tela (`client/scripts/ui-checks/`)
+
+Scripts para a skill `playwright-cli` (`run-code`), que só leem a API. Rodam com os dois servidores no ar:
+
+```bash
+playwright-cli open http://localhost:3000 && playwright-cli resize 1000 800
+playwright-cli --raw run-code --filename=client/scripts/ui-checks/comportamento.js
+playwright-cli close
+```
+
+| Arquivo | O que confere |
+|---|---|
+| `comportamento.js` | Abrir e fechar (⌘K, botão, Esc, clique fora), foco preso em 40 Tabs, texto hostil digitado/colado (emoji, 5 mil letras, HTML), resposta atrasada de um filtro não sobrescreve o atual, rede caindo e voltando (com "Tentar de novo"), resultado → leitor → voltar e **150 ações aleatórias seguidas** conferidas com a API. Também acusa qualquer erro de JavaScript, de console ou resposta 5xx |
+| `visual.js` | 6 tamanhos de tela (320 a 1920 px) nos dois temas e zoom de 200%: sem rolagem lateral, texto cortado, sobreposição nem alvo de toque menor que 24 px; contraste mínimo de 4,5:1; a lista de livros cabe na tela |
+| `seletor-pilula.js` | A pílula do seletor para exatamente sobre o botão marcado, desliza, nasce no lugar ao abrir, some ao escolher um livro, e acompanha a janela e a fonte |
+| `botao-funil.js` | O botão do funil fica pintado com filtro ativo (e só então), nos dois temas, com contraste do ícone |
+| `tentar-de-novo.js` | O botão de nova tentativa depois de uma falha de rede, com e sem filtro e por teclado |
+| `etiqueta-espacamento.js` | O respiro da etiqueta do filtro com o painel aberto, fechado e sem texto |
+| `filtros-traducao.js` | Escolher Salmos digitando, trocar NAA/NVT mantendo o filtro e digitar rápido |
+
+**Segurança:** só rodam contra `localhost` (recusam outra página e abortam qualquer requisição para fora dele, exceto as fontes do Google) e só leem (GET). Os textos de ataque que usam (XSS, injeção de SQL, emoji, caracteres de controle) são dados de teste, não um incidente. Credenciais nunca entram nesses arquivos: na Fase 4, use variável de ambiente ou um arquivo ignorado pelo git. O lint do cliente os aceita (a pasta é tratada à parte, porque cada arquivo é uma função solta para o `run-code`).
+
+Cobrem o que dá para automatizar; **não** cobrem leitor de tela de verdade, Safari/Firefox, carga no banco nem o julgamento de se uma regra é a certa.
 
 ---
 
@@ -154,7 +203,8 @@ nossabiblia/
 │   │   ├── favicon.svg             # Selo NB (SVG com os contornos das letras)
 │   │   └── _redirects              # Fallback de SPA para o Cloudflare Pages
 │   ├── scripts/
-│   │   └── generate-hero-sample.mjs   # Gera o trecho de Gênesis 1 da home a partir de NAA.json/NVT.json
+│   │   ├── generate-hero-sample.mjs   # Gera o trecho de Gênesis 1 da home a partir de NAA.json/NVT.json
+│   │   └── ui-checks/                 # Verificações da tela (playwright-cli run-code): comportamento, visual, filtros
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── BenefitsCards.jsx       # Cards de benefícios devocionais
@@ -165,7 +215,7 @@ nossabiblia/
 │   │   │   ├── OpenBibleCard.jsx       # Livro aberto com a amostra de Gênesis 1 (sem requisição)
 │   │   │   ├── ReferenceResults.jsx    # Cartões de referência e de livro na busca
 │   │   │   ├── ReadingView.jsx         # Leitor imersivo de capítulos bíblicos
-│   │   │   ├── SearchModal.jsx         # Busca instantânea estilo Spotlight
+│   │   │   ├── SearchModal.jsx         # Busca instantânea estilo Spotlight, com os filtros (testamento e livro)
 │   │   │   ├── Spinner.jsx             # Indicador de carregamento
 │   │   │   └── TranslationToggle.jsx   # Seletor NAA | NVT
 │   │   ├── data/
@@ -195,9 +245,9 @@ nossabiblia/
 │   ├── search.js               # Regras da busca exata (palavra, acento, frase, hífen, ocorrências)
 │   ├── accuracy/
 │   │   ├── oracle.js           # Gabarito independente da busca (lê NAA.json e NVT.json)
-│   │   └── search.accuracy.js  # Bateria de precisão (npm run test:accuracy)
+│   │   └── search.accuracy.js  # Bateria de precisão: 15 camadas, incluindo filtros (npm run test:accuracy)
 │   ├── search.test.js          # Testes das regras (puros)
-│   ├── search.db.test.js       # Testes contra o banco real (só leitura)
+│   ├── search.db.test.js       # Testes contra o banco real (só leitura): contrato da busca e dos filtros
 │   └── index.js                # Servidor Fastify principal
 │
 ├── schema.sql                  # DDL completo do PostgreSQL (tabelas, índices GIN e funções)
@@ -259,8 +309,9 @@ Outros comandos úteis:
 ```bash
 npm run build:client          # Build de produção do frontend (client/dist)
 npm run clean:text            # Mostra o que a limpeza dos textos mudaria (com `-- --apply` grava; rode após qualquer seed)
-npm test                      # Testes da busca e das referências (os do banco são pulados sem DATABASE_URL)
-npm run test:accuracy         # Bateria de precisão: ~12 mil buscas contra um gabarito independente (~7 min, só leitura)
+npm test                      # 63 testes da busca, das referências e dos filtros (os do banco são pulados sem DATABASE_URL)
+npm run test:accuracy         # Bateria de precisão: ~104 mil conferências contra um gabarito independente (~18 min, só leitura)
+ACCURACY_SCALE=0.2 npm run test:accuracy   # a mesma bateria em escala pequena (~3 min)
 npm --prefix client run lint  # Lint do frontend (oxlint)
 npm --prefix client run sample # Regenera o trecho de Gênesis 1 da home (se NAA.json/NVT.json mudarem)
 npm --prefix client run sample:check # Confere se o trecho está em dia (o build já faz isso sozinho)
