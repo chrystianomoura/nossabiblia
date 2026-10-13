@@ -22,6 +22,9 @@
 
   /* Acentos devocionais */
   --gold-text: #8A6A24;
+  /* Selo "2×": no claro precisa de mais presença sobre o cartão bege (fundo mais dourado, texto mais escuro) */
+  --badge-bg: rgba(197, 160, 89, 0.34);
+  --badge-text: #5E440F;
   --gold-soft-bg: rgba(197, 160, 89, 0.12);
   --gold-strong-bg: rgba(197, 160, 89, 0.26);
   --focus: #8A6A24;
@@ -50,6 +53,8 @@
   --border-strong: rgba(234, 231, 225, 0.16);
 
   --gold-text: #D4AF37;
+  --badge-bg: rgba(212, 175, 55, 0.15);
+  --badge-text: #D4AF37;
   --gold-soft-bg: rgba(212, 175, 55, 0.15);
   --gold-strong-bg: rgba(212, 175, 55, 0.28);
   --focus: #D4AF37;
@@ -904,7 +909,6 @@ select {
   max-height: 80dvh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   background: var(--bg-card);
   border: 1px solid var(--border-strong);
   border-radius: 32px;
@@ -964,8 +968,223 @@ select {
   box-shadow: 0 0 0 0.6px var(--text-main);
 }
 
+.search-filter-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: var(--bg-card);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search-filter-btn:hover {
+  border-color: var(--text-main);
+  box-shadow: 0 0 0 0.6px var(--text-main);
+}
+
+/* Com filtro ativo o botão fica pintado (como a pílula do seletor), no lugar de uma bolinha */
+.search-filter-btn.is-active {
+  background: var(--btn-dark);
+  border-color: var(--btn-dark);
+  color: var(--btn-dark-text);
+}
+
+.search-filter-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-light);
+}
+
+.search-filter-seg {
+  position: relative;
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 18px;
+  background: var(--bg-card-subtle);
+}
+
+.search-filter-opt {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 15px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  position: relative; /* fica acima da pílula */
+  z-index: 1;
+  transition: color 0.2s var(--ease);
+}
+
+.search-filter-opt[aria-pressed='true'] {
+  color: var(--btn-dark-text);
+}
+
+/* Pílula única que desliza até o botão marcado (posição e largura medidas no JS) */
+.search-filter-pill {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  height: 30px;
+  border-radius: 15px;
+  background: var(--btn-dark);
+  opacity: 0;
+  transition: transform 0.25s var(--ease), width 0.25s var(--ease), opacity 0.15s ease;
+}
+
+.search-filter-pill.is-shown {
+  opacity: 1;
+}
+
+/* Ao aparecer de novo (ou ao abrir o painel) entra já no lugar, sem deslizar de onde estava */
+.search-filter-pill.is-snap {
+  transition: opacity 0.15s ease;
+}
+
+.search-filter-book {
+  position: relative;
+  flex: 1;
+  min-width: 170px;
+}
+
+.search-filter-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 40px 0 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+}
+
+/* Parado, o campo é um seletor (mão, sem cursor de texto); o cursor só aparece ao digitar para filtrar */
+.search-filter-input.is-idle {
+  caret-color: transparent;
+}
+
+.search-filter-input::placeholder {
+  color: var(--text-main);
+}
+
+/* Sem anel de foco para quem usa mouse; quem navega por Tab continua vendo onde está */
+.search-filter-input.is-kbd:focus-visible {
+  border-color: var(--text-main);
+  box-shadow: 0 0 0 0.6px var(--text-main);
+}
+
+.search-filter-chevron {
+  position: absolute;
+  top: 10px;
+  right: 16px;
+  color: var(--text-main);
+  pointer-events: none;
+  transition: transform 0.2s var(--ease);
+}
+
+.search-filter-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+/* Lista curta: 5 linhas visíveis, o resto rola */
+.search-filter-list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 188px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  list-style: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  box-shadow: var(--shadow-modal);
+}
+
+.search-filter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.search-filter-item + .search-filter-item {
+  margin-top: 2px;
+}
+
+.search-filter-item.is-active {
+  background: var(--gold-soft-bg);
+}
+
+.search-filter-item[aria-selected='true']:not(.search-filter-item--all) {
+  color: var(--gold-text);
+}
+
+.search-filter-item-tm {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.search-filter-empty {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.search-filter-tags {
+  padding: 0 20px 2px;
+}
+
+/* Com o painel fechado a etiqueta vem logo depois da barra: o respiro de cima era do painel */
+.search-bar + .search-filter-tags {
+  padding-top: 12px;
+}
+
+/* Sem resultados abaixo, a etiqueta é a última coisa do diálogo e precisa de respiro até a borda */
+.search-filter-tags:last-child {
+  padding-bottom: 16px;
+}
+
+.search-filter-tags + .search-body {
+  padding-top: 10px;
+}
+
+.search-filter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px 0 12px;
+  border-radius: 13px;
+  background: var(--gold-soft-bg);
+  color: var(--gold-text);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
 .search-body {
   padding: 16px 20px;
+  border-radius: 0 0 24px 24px; /* a rolagem corta nos cantos arredondados do diálogo */
   overflow-y: auto;
   overscroll-behavior: contain;
   flex: 1;
@@ -1047,8 +1266,8 @@ select {
   margin-left: auto;
   padding: 1px 8px;
   border-radius: 10px;
-  background: var(--gold-soft-bg);
-  color: var(--gold-text);
+  background: var(--badge-bg);
+  color: var(--badge-text);
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;

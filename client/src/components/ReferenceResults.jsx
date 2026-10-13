@@ -70,10 +70,10 @@ function resolve(candidate, state, translation) {
   if (error?.type === 'chapter') {
     return {
       type: 'message',
-      node: <><strong>{book.name}</strong> tem {book.chapters_count} {plural(book.chapters_count, 'capítulo', 'capítulos')}.</>,
+      node: <><strong>{book.name}</strong> tem {book.chapters_count} {plural(book.chapters_count, 'capítulo', 'capítulos')}</>,
     };
   }
-  if (error) return { type: 'message', node: 'Esse intervalo de versículos não é válido.' };
+  if (error) return { type: 'message', node: 'Esse intervalo de versículos não é válido' };
   if (state.error) return { type: 'failed' };
   if (!state.data) return { type: 'loading' };
 
@@ -84,7 +84,7 @@ function resolve(candidate, state, translation) {
   if (verse && shown.length === 0) {
     return {
       type: 'message',
-      node: <><strong>{book.name} {chapter}</strong> tem {total} {plural(total, 'versículo', 'versículos')} na {translation}.</>,
+      node: <><strong>{book.name} {chapter}</strong> tem {total} {plural(total, 'versículo', 'versículos')} na {translation}</>,
     };
   }
   return { type: 'card', candidate, shown, total };
