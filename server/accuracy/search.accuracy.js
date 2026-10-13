@@ -93,11 +93,21 @@ function makeLayer(name) {
 }
 
 // Compara uma busca com o gabarito: totais, lista de versículos, ocorrências por versículo e destaques.
-async function compare(layer, label, query, translation, { full = true } = {}) {
+// Recorta o gabarito como o filtro da busca deveria: testamento (AT = livros 1 a 39, NT = 40 a 66) e/ou livro.
+// Vem da numeração dos próprios arquivos de texto, não da coluna `testament` do banco: assim a coluna também é conferida.
+function applyFilter(want, { testament, book_id: bookId } = {}) {
+  if (!testament && !bookId) return want;
+  const verses = want.verses.filter(
+    (v) => (!testament || (testament.toUpperCase() === 'AT' ? v.book_id <= 39 : v.book_id >= 40)) && (!bookId || v.book_id === Number(bookId))
+  );
+  return { occurrences: verses.reduce((n, v) => n + v.occurrences, 0), verses };
+}
+
+async function compare(layer, label, query, translation, { full = true, filter = {} } = {}) {
   layer.stats.checks++;
-  const want = expected(translation, query);
-  const got = await api(query, translation, { limit: 200 });
-  const where = { label, query: short(query), translation };
+  const want = applyFilter(expected(translation, query), filter);
+  const got = await api(query, translation, { limit: 200, ...filter });
+  const where = { label, query: short(query), translation, ...(Object.keys(filter).length ? { filtro: filter } : {}) };
 
   if (got.status !== 200) return layer.record('status', { ...where, got: got.status });
   if (got.total_occurrences !== want.occurrences || got.total_verses !== want.verses.length) {
@@ -106,7 +116,7 @@ async function compare(layer, label, query, translation, { full = true } = {}) {
   if (!full || want.verses.length > 400) return undefined;
 
   const rows = [...got.results];
-  while (rows.length < got.total_verses) rows.push(...(await api(query, translation, { limit: 200, offset: rows.length })).results);
+  while (rows.length < got.total_verses) rows.push(...(await api(query, translation, { limit: 200, offset: rows.length, ...filter })).results);
   const wantKeys = want.verses.map(key);
   const gotKeys = rows.map(key);
   if (JSON.stringify(wantKeys) !== JSON.stringify(gotKeys)) {
@@ -415,5 +425,212 @@ test('9. Entradas malucas: nunca dão erro 500 e a resposta tem sempre o mesmo f
     }
     return undefined;
   });
+  layer.finish();
+});
+
+// ---------- filtros ----------
+
+const BOOK_IDS = Array.from({ length: 66 }, (_, i) => i + 1);
+
+// Quantas ocorrências/versículos o gabarito vê em cada livro, e quantos no total.
+function perBook(translation, query) {
+  const want = expected(translation, query);
+  const books = new Map();
+  for (const v of want.verses) {
+    const b = books.get(v.book_id) ?? { occurrences: 0, verses: 0 };
+    b.occurrences += v.occurrences;
+    b.verses++;
+    books.set(v.book_id, b);
+  }
+  return { want, books };
+}
+
+const totals = async (query, translation, filter = {}) => {
+  const got = await api(query, translation, { limit: 1, ...filter });
+  return { status: got.status, occurrences: got.total_occurrences, verses: got.total_verses };
+};
+
+test('10. Filtros: testamento e cada livro batem com o gabarito, e as partes somam o todo', opts, async () => {
+  const layer = makeLayer('filtros');
+  const jobs = [];
+  for (const translation of TRANSLATIONS) {
+    const { strata } = vocabulary(translation);
+    for (const [name, list] of Object.entries(strata)) {
+      for (const { word } of sample(list, scaled(name === 'muito frequente (1000+)' || name === 'frequente (100 a 999)' ? 12 : 8))) {
+        jobs.push({ translation, query: word });
+      }
+    }
+    // frases reais: o filtro não pode mudar nenhuma regra da busca (frase, acento, hífen, número)
+    for (const verse of sample(loadCorpus(translation).verses.filter((v) => v.tokens.length >= 5), scaled(40))) {
+      const n = 2 + Math.floor(random() * 4);
+      const from = Math.floor(random() * (verse.tokens.length - n + 1));
+      jobs.push({ translation, query: verse.tokens.slice(from, from + n).map((t) => t.raw).join(' ') });
+    }
+    for (const q of ['deus', 'senhor deus', 'no princípio', 'disse', 'jesus', 'rei', 'orfã', 'órfã']) jobs.push({ translation, query: q });
+    for (const number of [...loadCorpus(translation).frequency.keys()].filter((w) => /\d/.test(w)).slice(0, scaled(30))) jobs.push({ translation, query: number });
+  }
+
+  await inBatches(jobs, async ({ translation, query }) => {
+    const { want, books } = perBook(translation, query);
+    const where = { query: short(query), translation };
+    const full = await totals(query, translation);
+
+    // (a) Antigo e Novo, contra o gabarito, e a soma dos dois contra o total (prova que não depende de regra)
+    const at = await totals(query, translation, { testament: 'AT' });
+    const nt = await totals(query, translation, { testament: 'NT' });
+    layer.stats.checks += 3;
+    const wantAt = [...books].filter(([id]) => id <= 39).reduce((n, [, b]) => [n[0] + b.occurrences, n[1] + b.verses], [0, 0]);
+    const wantNt = [...books].filter(([id]) => id >= 40).reduce((n, [, b]) => [n[0] + b.occurrences, n[1] + b.verses], [0, 0]);
+    if (at.occurrences !== wantAt[0] || at.verses !== wantAt[1]) layer.record('AT contra o gabarito', { ...where, esperado: wantAt, obtido: [at.occurrences, at.verses] });
+    if (nt.occurrences !== wantNt[0] || nt.verses !== wantNt[1]) layer.record('NT contra o gabarito', { ...where, esperado: wantNt, obtido: [nt.occurrences, nt.verses] });
+    if (at.occurrences + nt.occurrences !== full.occurrences || at.verses + nt.verses !== full.verses) {
+      layer.record('AT + NT diferente do total', { ...where, total: [full.occurrences, full.verses], soma: [at.occurrences + nt.occurrences, at.verses + nt.verses] });
+    }
+
+    // (b) livros com acerto, mais alguns sem acerto (têm que dar zero)
+    const withHits = [...books.keys()];
+    const empty = BOOK_IDS.filter((id) => !books.has(id));
+    for (const id of [...withHits.slice(0, 12), ...sample(empty, 4)]) {
+      layer.stats.checks++;
+      const got = await totals(query, translation, { book_id: id });
+      const b = books.get(id) ?? { occurrences: 0, verses: 0 };
+      if (got.occurrences !== b.occurrences || got.verses !== b.verses) layer.record('livro contra o gabarito', { ...where, livro: id, esperado: [b.occurrences, b.verses], obtido: [got.occurrences, got.verses] });
+    }
+
+    // (c) soma dos 66 livros = total, para uma parte das buscas (66 consultas cada)
+    if (random() < 0.25) {
+      let occurrences = 0;
+      let verses = 0;
+      for (const id of BOOK_IDS) {
+        const got = await totals(query, translation, { book_id: id });
+        occurrences += got.occurrences;
+        verses += got.verses;
+      }
+      layer.stats.checks++;
+      if (occurrences !== full.occurrences || verses !== full.verses) layer.record('soma dos 66 livros diferente do total', { ...where, total: [full.occurrences, full.verses], soma: [occurrences, verses] });
+    }
+    return want;
+  });
+  layer.finish();
+});
+
+test('11. Filtros: a lista completa (versículos, ordem, ocorrências, destaques) dentro do recorte', opts, async () => {
+  const layer = makeLayer('filtros (listas)');
+  const jobs = [];
+  for (const translation of TRANSLATIONS) {
+    const { strata } = vocabulary(translation);
+    const { verses } = loadCorpus(translation);
+    for (const word of ['deus', 'senhor', 'amor', 'terra', 'sol', 'luz', 'rei', 'disse']) {
+      for (const testament of ['AT', 'NT']) jobs.push({ translation, query: word, filter: { testament }, label: `testamento ${testament}` });
+    }
+    for (const { word } of sample([...strata['média (10 a 99)'], ...strata['frequente (100 a 999)']], scaled(60))) {
+      jobs.push({ translation, query: word, filter: { testament: pick(['AT', 'NT']) }, label: 'palavra num testamento' });
+      jobs.push({ translation, query: word, filter: { book_id: pick(BOOK_IDS) }, label: 'palavra num livro qualquer' });
+    }
+    // um trecho de um versículo, filtrado pelo livro DELE: o versículo tem que aparecer
+    for (const verse of sample(verses.filter((v) => v.tokens.length >= 4), scaled(150))) {
+      const n = 2 + Math.floor(random() * 3);
+      const from = Math.floor(random() * (verse.tokens.length - n + 1));
+      const query = verse.tokens.slice(from, from + n).map((t) => t.raw).join(' ');
+      jobs.push({ translation, query, filter: { book_id: verse.book_id }, label: 'trecho no livro de origem', mustHave: key(verse) });
+      jobs.push({ translation, query, filter: { testament: verse.book_id <= 39 ? 'NT' : 'AT' }, label: 'trecho no testamento oposto', mustNotHave: key(verse) });
+    }
+    // colar o versículo inteiro, com o filtro certo
+    for (const verse of sample(verses, scaled(80))) {
+      jobs.push({ translation, query: verse.text, filter: { book_id: verse.book_id }, label: 'versículo inteiro no livro dele', mustHave: key(verse) });
+    }
+  }
+  await inBatches(jobs, async ({ translation, query, filter, label, mustHave, mustNotHave }) => {
+    await compare(layer, label, query, translation, { filter });
+    if (mustHave || mustNotHave) {
+      layer.stats.checks++;
+      const got = await api(query, translation, { limit: 200, ...filter });
+      const keys = (got.results ?? []).map(key);
+      if (mustHave && !keys.includes(mustHave)) layer.record('o versículo de origem sumiu do recorte dele', { query: short(query), translation, filtro: filter, versiculo: mustHave });
+      if (mustNotHave && keys.includes(mustNotHave)) layer.record('o versículo apareceu fora do seu testamento', { query: short(query), translation, filtro: filter, versiculo: mustNotHave });
+    }
+  });
+  layer.finish();
+});
+
+test('12. Filtros em conflito e combinações: testamento + livro, caixa, vazio', opts, async () => {
+  const layer = makeLayer('filtros (combinações)');
+  const words = ['deus', 'senhor', 'amor', 'terra', 'jesus', 'rei'];
+  await inBatches(words.flatMap((q) => TRANSLATIONS.map((translation) => ({ q, translation }))), async ({ q, translation }) => {
+    const { books } = perBook(translation, q);
+    const where = { query: q, translation };
+    for (const id of BOOK_IDS) {
+      const b = books.get(id) ?? { occurrences: 0, verses: 0 };
+      const same = id <= 39 ? 'AT' : 'NT';
+      const other = id <= 39 ? 'NT' : 'AT';
+      layer.stats.checks += 3;
+      const consistent = await totals(q, translation, { testament: same, book_id: id });
+      if (consistent.occurrences !== b.occurrences) layer.record('testamento certo + livro deveria dar o livro', { ...where, livro: id, esperado: b.occurrences, obtido: consistent.occurrences });
+      const conflict = await totals(q, translation, { testament: other, book_id: id });
+      if (conflict.status !== 200 || conflict.occurrences !== 0 || conflict.verses !== 0) layer.record('testamento errado + livro deveria dar zero', { ...where, livro: id, obtido: conflict });
+      const lower = await totals(q, translation, { testament: same.toLowerCase(), book_id: id });
+      if (lower.occurrences !== b.occurrences) layer.record('testamento em minúscula deveria valer igual', { ...where, livro: id });
+    }
+    layer.stats.checks += 2;
+    const empty = await totals(q, translation, { testament: '', book_id: '' });
+    const full = await totals(q, translation);
+    if (empty.status !== 200 || empty.occurrences !== full.occurrences) layer.record('filtros vazios deveriam ser ignorados', where);
+  });
+  layer.finish();
+});
+
+test('13. Parâmetros hostis: nunca dão erro 500; só 200 com o recorte certo ou 400', opts, async () => {
+  const layer = makeLayer('parâmetros hostis');
+  const junk = [
+    '', ' ', '0', '-1', '1.5', '1e1', '0x10', '007', '66', '67', '99999999999999999999', 'NaN', 'Infinity', 'null', 'undefined', 'true', '[]', '{}',
+    '1,2', '1;2', '1 2', '１９' /* algarismos de largura total */, '٣' /* árabe-índico */, 'AT', 'at', 'NT', 'nt', 'At', 'ATx', 'AT NT', 'AT,NT', "AT'", 'AT--', '%00', '\u0000', '\u202E', '😀', '../../etc/passwd',
+    '<script>alert(1)</script>', "' OR 1=1 --", '1; DROP TABLE verses', 'x'.repeat(5000),
+  ];
+  const names = ['testament', 'book_id', 'translation', 'limit', 'offset'];
+  const inputs = [];
+  for (const name of names) for (const value of junk) inputs.push({ name, value });
+  // combinações aleatórias de vários parâmetros ao mesmo tempo
+  for (let i = 0; i < scaled(200); i++) {
+    inputs.push({ combo: Object.fromEntries(names.filter(() => random() < 0.6).map((n) => [n, pick(junk)])) });
+  }
+  // parâmetros repetidos e em formato de lista
+  const raw = ['book_id=1&book_id=2', 'testament=AT&testament=NT', 'translation=NAA&translation=NVT', 'q=deus&q=amor', 'limit=1&limit=2', 'offset=1&offset=2',
+    'book_id[]=1', 'testament[a]=AT', 'book_id=1&testament=AT&testament=NT', 'book_id=%00', 'q=', 'q', '&&&', 'book_id', 'testament'];
+  for (const qs of raw) inputs.push({ raw: qs });
+
+  const hit = async (qs) => {
+    const res = await app.inject({ method: 'GET', url: `/api/search?${qs}` });
+    let body = null;
+    try { body = res.json(); } catch { body = null; }
+    return { status: res.statusCode, body };
+  };
+  await inBatches(inputs, async (input) => {
+    layer.stats.checks++;
+    let qs;
+    let label;
+    if (input.raw !== undefined) { qs = input.raw.startsWith('q') && !input.raw.includes('q=deus') ? input.raw : `${input.raw}${input.raw.includes('q=') ? '' : '&q=deus'}`; label = input.raw; }
+    else if (input.combo) { qs = new URLSearchParams({ q: 'deus', ...input.combo }).toString(); label = JSON.stringify(input.combo).slice(0, 120); }
+    else { qs = new URLSearchParams({ q: 'deus', [input.name]: input.value }).toString(); label = `${input.name}=${JSON.stringify(input.value.slice(0, 40))}`; }
+    const { status, body } = await hit(qs);
+    if (![200, 400].includes(status)) return layer.record('erro do servidor', { entrada: label, status, erro: body?.message ?? body?.error });
+    if (status === 200) {
+      if (!body || !Array.isArray(body.results) || !Number.isInteger(body.total_occurrences)) return layer.record('formato da resposta', { entrada: label });
+      if (body.results.length > 200) return layer.record('mais de 200 itens numa página', { entrada: label, itens: body.results.length });
+      if (body.limit < 1 || body.limit > 200 || body.offset < 0) return layer.record('limit/offset fora do limite', { entrada: label, limit: body.limit, offset: body.offset });
+    }
+    return undefined;
+  });
+
+  // Quando o filtro é aceito, o resultado respeita o recorte (nunca vaza um livro de fora)
+  for (const [filter, ok] of [
+    [{ testament: 'NT' }, (v) => v.book_id >= 40],
+    [{ testament: 'at' }, (v) => v.book_id <= 39],
+    [{ book_id: '007' }, (v) => v.book_id === 7],
+    [{ book_id: '66' }, (v) => v.book_id === 66],
+  ]) {
+    layer.stats.checks++;
+    const got = await api('deus', 'NVT', { limit: 200, ...filter });
+    if (got.status !== 200 || !got.results.every(ok)) layer.record('o recorte vazou', { filtro: filter, status: got.status });
+  }
   layer.finish();
 });

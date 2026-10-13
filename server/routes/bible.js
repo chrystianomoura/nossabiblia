@@ -30,7 +30,7 @@ export default async function bibleRoutes(fastify, options) {
    */
   fastify.get('/books/:book/chapters/:chapter', async (request, reply) => {
     const { book, chapter } = request.params;
-    const translation = (request.query.translation || 'NAA').toUpperCase();
+    const translation = String(request.query.translation || 'NAA').toUpperCase();
 
     if (!['NAA', 'NVT'].includes(translation)) {
       return reply.status(400).send({ error: "Tradução inválida. Escolha 'NAA' ou 'NVT'." });
@@ -102,11 +102,13 @@ export default async function bibleRoutes(fastify, options) {
    * e conta as ocorrências. Resultado em ordem canônica, paginado.
    */
   fastify.get('/search', async (request, reply) => {
-    const translation = (request.query.translation || 'NAA').toUpperCase();
-    const testament = request.query.testament ? request.query.testament.toUpperCase() : null;
-    const bookId = request.query.book_id ? parseInt(request.query.book_id, 10) : null;
+    const translation = String(request.query.translation || 'NAA').toUpperCase();
+    const testament = request.query.testament ? String(request.query.testament).toUpperCase() : null;
+    const bookIdRaw = request.query.book_id;
+    // Só dígitos: Number() aceitaria "1e1" (=10), " 5" e "0x10".
+    const bookId = bookIdRaw === undefined || bookIdRaw === '' ? null : /^\d+$/.test(String(bookIdRaw)) ? Number(bookIdRaw) : NaN;
     const limit = Math.min(Math.max(parseInt(request.query.limit, 10) || 50, 1), 200);
-    const offset = Math.max(parseInt(request.query.offset, 10) || 0, 0);
+    const offset = Math.min(Math.max(parseInt(request.query.offset, 10) || 0, 0), 100000);
 
     const parsed = parseQuery(request.query.q);
     if (parsed.error) {
@@ -115,6 +117,13 @@ export default async function bibleRoutes(fastify, options) {
 
     if (!['NAA', 'NVT'].includes(translation)) {
       return reply.status(400).send({ error: "Tradução inválida. Escolha 'NAA' ou 'NVT'." });
+    }
+
+    if (testament && !['AT', 'NT'].includes(testament)) {
+      return reply.status(400).send({ error: "Testamento inválido. Escolha 'AT' ou 'NT'." });
+    }
+    if (bookId !== null && !(Number.isInteger(bookId) && bookId >= 1 && bookId <= 66)) {
+      return reply.status(400).send({ error: 'Livro inválido. Use um número de 1 a 66.' });
     }
 
     const { words } = parsed;
@@ -135,11 +144,11 @@ export default async function bibleRoutes(fastify, options) {
         where += ` AND v.search_vector @@ to_tsquery('simple', immutable_unaccent($${params.length}))`;
       }
 
-      if (testament && ['AT', 'NT'].includes(testament)) {
+      if (testament) {
         params.push(testament);
         where += ` AND b.testament = $${params.length}`;
       }
-      if (bookId && !isNaN(bookId)) {
+      if (bookId !== null) {
         params.push(bookId);
         where += ` AND v.book_id = $${params.length}`;
       }
@@ -194,7 +203,7 @@ export default async function bibleRoutes(fastify, options) {
    * Versículo do dia público (para visitantes na home).
    */
   fastify.get('/daily-verse', async (request, reply) => {
-    const translation = (request.query.translation || 'NAA').toUpperCase();
+    const translation = String(request.query.translation || 'NAA').toUpperCase();
     try {
       // Pega um versículo edificante com base no dia do ano
       const today = new Date();

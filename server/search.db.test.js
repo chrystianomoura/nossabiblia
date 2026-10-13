@@ -197,3 +197,84 @@ test('o texto digitado nunca vira regex nem consulta: entradas hostis só não a
     assert.equal(r.status, 200, q);
   }
 });
+
+// ---------- filtros (Antigo/Novo Testamento e livro) ----------
+
+test('filtros: Antigo + Novo = total ("Deus" NAA: 3.259 + 1.405 = 4.664) e cada recorte tem os seus números', opts, async () => {
+  const all = await search('deus', { limit: 1 });
+  const at = await search('deus', { limit: 1, testament: 'AT' });
+  const nt = await search('deus', { limit: 1, testament: 'NT' });
+  assert.deepEqual([at.total_occurrences, at.total_verses], [3259, 2859]);
+  assert.deepEqual([nt.total_occurrences, nt.total_verses], [1405, 1226]);
+  assert.equal(at.total_occurrences + nt.total_occurrences, all.total_occurrences);
+  assert.equal(at.total_verses + nt.total_verses, all.total_verses);
+});
+
+test('filtros: livro isolado (Salmos = livro 19) e a soma dos 66 livros é o total', opts, async () => {
+  const salmos = await search('deus', { limit: 1, book_id: 19 });
+  assert.deepEqual([salmos.total_occurrences, salmos.total_verses], [468, 404]);
+  let occurrences = 0;
+  let verses = 0;
+  for (let id = 1; id <= 66; id++) {
+    const r = await search('deus', { limit: 1, book_id: id });
+    occurrences += r.total_occurrences;
+    verses += r.total_verses;
+  }
+  const all = await search('deus', { limit: 1 });
+  assert.equal(occurrences, all.total_occurrences);
+  assert.equal(verses, all.total_verses);
+});
+
+test('filtros: a lista inteira de um recorte só tem livros dele, em ordem canônica, sem repetir', opts, async () => {
+  const nt = await searchAll('deus', { testament: 'NT' });
+  assert.equal(nt.results.length, 1226);
+  assert.ok(nt.results.every((v) => v.book_id >= 40 && v.testament === 'NT'));
+  const keys = nt.results.map((v) => [v.book_id, v.chapter, v.verse]);
+  assert.equal(new Set(keys.map(String)).size, keys.length);
+  assert.deepEqual(keys, [...keys].sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]));
+  const ot = await searchAll('deus', { testament: 'AT' });
+  assert.ok(ot.results.every((v) => v.book_id <= 39));
+});
+
+test('filtros: testamento e livro em conflito dão zero; testamento em minúscula vale; filtros vazios são ignorados', opts, async () => {
+  const conflict = await search('deus', { testament: 'AT', book_id: 43 }); // João é do NT
+  assert.deepEqual([conflict.status, conflict.total_occurrences, conflict.total_verses], [200, 0, 0]);
+  const same = await search('deus', { limit: 1, testament: 'nt', book_id: 43 });
+  const joao = await search('deus', { limit: 1, book_id: 43 });
+  assert.equal(same.total_occurrences, joao.total_occurrences);
+  const empty = await search('deus', { limit: 1, testament: '', book_id: '' });
+  assert.equal(empty.total_occurrences, 4664);
+});
+
+test('filtros: as regras da busca valem dentro do recorte (sem acento, frase, número, "só existe no outro testamento")', opts, async () => {
+  assert.equal((await search('jesus', { limit: 1, testament: 'AT' })).total_occurrences, 0); // Jesus só está no NT
+  assert.equal((await search('jesus', { limit: 1, testament: 'NT' })).total_occurrences, 1634);
+  assert.equal((await search('orfã', { limit: 1, testament: 'AT' })).total_occurrences, 0); // acento incompleto: nada
+  assert.equal((await search('órfã', { limit: 1, testament: 'AT' })).total_occurrences, 1);
+  assert.equal((await search('nosso senhor', { limit: 1, testament: 'NT' })).total_occurrences > 0, true);
+  const number = await search('3.700', { translation: 'NVT', book_id: 13 }); // 1 Crônicas 12:27
+  assert.deepEqual(number.results.map((v) => [v.chapter, v.verse]), [[12, 27]]);
+  assert.equal((await search('3.700', { translation: 'NVT', testament: 'NT' })).total_verses, 0);
+});
+
+test('parâmetros inválidos dão 400 (nunca 500 nem filtro ignorado em silêncio)', opts, async () => {
+  for (const book_id of ['0', '67', 'abc', '1.5', '-1', '1e1', '0x10', ' 5', '1,2']) {
+    assert.equal((await search('deus', { book_id })).status, 400, `book_id=${JSON.stringify(book_id)}`);
+  }
+  for (const testament of ['XX', 'AT NT', "AT' OR 1=1 --", 'AT,NT']) {
+    assert.equal((await search('deus', { testament })).status, 400, `testament=${JSON.stringify(testament)}`);
+  }
+  assert.equal((await search('deus', { book_id: '007', limit: 1 })).status, 200); // zeros à esquerda são só o número 7
+  // parâmetro repetido chega como lista: antes derrubava a rota com erro 500
+  for (const url of ['/api/search?q=deus&translation=NAA&translation=NVT', '/api/books/1/chapters/1?translation=NAA&translation=NVT']) {
+    assert.equal((await app.inject({ method: 'GET', url })).statusCode, 400, url);
+  }
+});
+
+test('offset gigante não derruba a busca: 200 com lista vazia (antes: erro 500 no banco)', opts, async () => {
+  const r = await search('deus', { offset: '99999999999999999999' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.results, []);
+  // Além do fim da lista não há linhas, e os totais vêm delas (count/sum OVER): a resposta traz zeros. A tela nunca pede isso.
+  assert.equal(r.total_occurrences, 0);
+});
