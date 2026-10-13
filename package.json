@@ -17,6 +17,7 @@
     "dev:client": "npm --prefix client run dev",
     "build:client": "npm --prefix client run build",
     "test": "node --test \"server/**/*.test.js\" \"client/src/**/*.test.js\"",
-    "clean:text": "node server/scripts/clean-verse-text.mjs"
+    "clean:text": "node server/scripts/clean-verse-text.mjs",
+    "test:accuracy": "node --test \"server/accuracy/*.accuracy.js\""
   }
 }
