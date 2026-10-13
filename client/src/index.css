@@ -1151,8 +1151,10 @@ select {
   color: var(--text-muted);
 }
 
+/* O respiro de baixo é da etiqueta (que não rola): se fosse da lista, sairia junto com ela e, ao rolar,
+   os resultados encostariam na etiqueta */
 .search-filter-tags {
-  padding: 0 20px 2px;
+  padding: 0 20px 12px;
 }
 
 /* Com o painel fechado a etiqueta vem logo depois da barra: o respiro de cima era do painel */
@@ -1166,7 +1168,7 @@ select {
 }
 
 .search-filter-tags + .search-body {
-  padding-top: 10px;
+  padding-top: 0;
 }
 
 .search-filter-tag {
