@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPattern, candidateTerms, findMatches, parseQuery } from './search.js';
+import { MAX_QUERY_LENGTH, MAX_WORDS, buildPattern, candidateTerms, findMatches, parseQuery } from './search.js';
 
 const words = (q) => parseQuery(q).words;
 const found = (text, q) => findMatches(text, words(q)).map(([a, b]) => text.slice(a, b));
@@ -18,21 +18,34 @@ test('parseQuery: normaliza, separa e marca acento por palavra', () => {
 });
 
 test('parseQuery: acento "desmontado" (a + til solto) vale como o acento normal', () => {
-  assert.deepEqual(words('joão'), [{ text: 'joão', accentSensitive: true }]);
+  assert.deepEqual(words('joa\u0303o'), [{ text: 'joão', accentSensitive: true }]);
 });
 
 test('parseQuery: hífen solto, hífen duplo e hífen invisível', () => {
   assert.deepEqual(words('- sol --'), [{ text: 'sol', accentSensitive: false }]);
   assert.deepEqual(words('a--b'), [{ text: 'a-b', accentSensitive: false }]);
-  assert.deepEqual(words('so­l'), [{ text: 'sol', accentSensitive: false }]);
+  assert.deepEqual(words('so\u00ADl'), [{ text: 'sol', accentSensitive: false }]);
 });
 
-test('parseQuery: só pontuação não tem palavra; vazio, longo e muitas palavras dão erro', () => {
+test('parseQuery: só pontuação não tem palavra; vazio dá erro', () => {
   assert.deepEqual(parseQuery('?!…').words, []);
   assert.ok(parseQuery('   ').error);
-  assert.ok(parseQuery('a'.repeat(101)).error);
-  assert.ok(parseQuery('a b c d e f g h i j k l m').error);
-  assert.equal(parseQuery('a b c d e f g h i j k l').error, undefined);
+  assert.ok(parseQuery('').error);
+});
+
+test('parseQuery: o limite é o do maior versículo; passar dele não é erro, é "nenhum resultado"', () => {
+  assert.equal(MAX_QUERY_LENGTH, 600);
+  assert.equal(MAX_WORDS, 100);
+  assert.equal(parseQuery('a'.repeat(600)).words.length, 1);
+  assert.deepEqual(parseQuery('a'.repeat(601)), { words: [], oversized: true });
+  const hundred = Array.from({ length: 100 }, (_, i) => `p${i}`).join(' ');
+  assert.equal(parseQuery(hundred).words.length, 100);
+  assert.deepEqual(parseQuery(`${hundred} extra`), { words: [], oversized: true });
+});
+
+test('parseQuery: espaços e quebras de linha repetidos de quem cola não contam para o limite', () => {
+  const pasted = Array.from({ length: 90 }, () => 'de').join('\n\n   '); // 269 caracteres depois de juntar os espaços
+  assert.equal(parseQuery(pasted).words.length, 90);
 });
 
 test('palavra exata: "sol" nunca acha "solo", "solos" nem "sol-posto"', () => {

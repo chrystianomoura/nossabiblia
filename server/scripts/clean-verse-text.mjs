@@ -15,7 +15,7 @@ import pool from '../db.js';
 
 const apply = process.argv.includes('--apply');
 const CLEAN = `normalize(replace(text, chr(173), ''), NFC)`;
-const visible = (s) => s.replace(/­/g, '‹hífen-invisível›').replace(/[̀-ͯ]/g, (m) => `‹acento ${m.codePointAt(0).toString(16)}›`);
+const visible = (s) => s.replace(/\u00AD/g, '‹hífen-invisível›').replace(/[\u0300-\u036f]/g, (m) => `‹acento ${m.codePointAt(0).toString(16)}›`);
 
 try {
   const { rows } = await pool.query(
@@ -23,7 +23,7 @@ try {
      FROM verses WHERE text <> ${CLEAN} ORDER BY translation, book_id, chapter, verse`
   );
 
-  const withShy = rows.filter((r) => r.text.includes('­')).length;
+  const withShy = rows.filter((r) => r.text.includes('\u00AD')).length;
   const decomposed = rows.filter((r) => r.text !== r.text.normalize('NFC')).length;
   const byTranslation = rows.reduce((acc, r) => ({ ...acc, [r.translation]: (acc[r.translation] || 0) + 1 }), {});
   console.log(`Versículos a limpar: ${rows.length}  (${JSON.stringify(byTranslation)})`);
@@ -31,7 +31,7 @@ try {
 
   // Conferência cruzada: o banco e o JavaScript têm que chegar ao mesmo texto, e nada além disso pode mudar.
   for (const r of rows) {
-    const expected = r.text.replace(/­/g, '').normalize('NFC');
+    const expected = r.text.replace(/\u00AD/g, '').normalize('NFC');
     if (r.clean !== expected) throw new Error(`Divergência em ${r.translation} ${r.book_id}:${r.chapter}:${r.verse}`);
     if (r.clean.trim() === '') throw new Error(`Texto ficaria vazio em ${r.id}`);
   }

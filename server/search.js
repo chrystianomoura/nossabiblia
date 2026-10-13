@@ -9,8 +9,12 @@
 // 5. Palavra com hífen é uma palavra só ("disse-lhe"); "disse" não acha "disse-lhe".
 // 6. O resultado é contado em ocorrências (cada vez que a palavra aparece), não em versículos.
 
-export const MAX_QUERY_LENGTH = 100;
-export const MAX_WORDS = 12;
+// Limites da busca, derivados do maior versículo (uma frase só casa dentro de um versículo, então uma busca
+// maior que qualquer versículo nunca acharia nada). Maior versículo: NAA Ester 8:9 = 508 caracteres e 95
+// termos; NVT Josué 8:33 = 483 e 86. Os limites têm folga para espaços e quebras de linha de quem cola o
+// texto. O teste de banco falha se algum versículo passar deles.
+export const MAX_QUERY_LENGTH = 600;
+export const MAX_WORDS = 100;
 
 // Formas acentuadas que existem nos textos (NAA e NVT), por letra base. Foi conferido no banco:
 // são as únicas letras acentuadas presentes. É a lista do "sem acento vale qualquer forma".
@@ -18,23 +22,22 @@ const ACCENT_FORMS = { a: 'aáàâã', e: 'eéê', i: 'ií', o: 'oóôõ', u: 'u
 
 const hasAccent = (word) => /\p{M}/u.test(word.normalize('NFD'));
 
-// Entende o que a pessoa digitou. Devolve { words } ou { error }.
+// Entende o que a pessoa digitou. Devolve { words } ou { error } (só quando está vazio).
 // Só letras, números e hífen sobrevivem; todo o resto separa palavras (pontuação, aspas, apóstrofo...).
+// Busca maior que o maior versículo devolve { words: [], oversized: true }: não é erro, simplesmente não
+// existe versículo desse tamanho, então o resultado é "nenhum".
 export function parseQuery(raw) {
-  const text = String(raw ?? '').replace(/­/g, '').normalize('NFC').trim();
+  // \u00AD é o hífen invisível; espaços e quebras de linha repetidos de quem cola não contam para o limite.
+  const text = String(raw ?? '').replace(/\u00AD/g, '').normalize('NFC').replace(/\s+/g, ' ').trim();
   if (!text) return { error: 'Parâmetro de busca "q" é obrigatório.' };
-  if (text.length > MAX_QUERY_LENGTH) {
-    return { error: `A busca aceita até ${MAX_QUERY_LENGTH} caracteres.` };
-  }
+  if (text.length > MAX_QUERY_LENGTH) return { words: [], oversized: true };
 
   const words = [];
   for (const piece of text.toLowerCase().split(/[^\p{L}\p{N}-]+/u)) {
     const word = piece.replace(/-+/g, '-').replace(/^-|-$/g, '');
     if (word) words.push({ text: word, accentSensitive: hasAccent(word) });
   }
-  if (words.length > MAX_WORDS) {
-    return { error: `A busca aceita até ${MAX_WORDS} palavras.` };
-  }
+  if (words.length > MAX_WORDS) return { words: [], oversized: true };
   return { words };
 }
 
