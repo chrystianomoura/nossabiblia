@@ -171,6 +171,18 @@ test('busca maior que o maior versículo: sem erro, só "nenhum resultado"', opt
   assert.equal(tooManyChars.total_occurrences, 0);
 });
 
+test('NVT: número com ponto é achado digitando como está escrito, e não por pedaços', opts, async () => {
+  const r = await search('3.700', { translation: 'NVT' });
+  assert.ok(r.results.some((v) => v.book_name === '1 Crônicas' && v.chapter === 12 && v.verse === 27), '1 Crônicas 12:27 tem "3.700"');
+  const frase = await search('de Arão, com 3.700 homens sob seu comando', { translation: 'NVT' });
+  assert.equal(frase.total_verses, 1);
+  // "273" só o 273 sozinho (Números 3:46); o "22.273" de Números 3:43 é outro número
+  const n273 = await search('273', { translation: 'NVT' });
+  assert.deepEqual(n273.results.map((v) => `${v.chapter}:${v.verse}`), ['3:46']);
+  // sem acento de milhar, "3700" não é "3.700"
+  assert.equal((await search('3700', { translation: 'NVT' })).total_occurrences, 0);
+});
+
 test('validação: vazio e tradução inválida', opts, async () => {
   assert.equal((await search('   ')).status, 400);
   assert.equal((await search('sol', { translation: 'XYZ' })).status, 400);

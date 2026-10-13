@@ -126,8 +126,14 @@ export default async function bibleRoutes(fastify, options) {
     }
 
     try {
-      const params = [translation, candidateTerms(words), buildPattern(words, 'pg')];
-      let where = `v.translation = $1 AND v.search_vector @@ to_tsquery('simple', immutable_unaccent($2))`;
+      const params = [translation, buildPattern(words, 'pg')];
+      let where = 'v.translation = $1';
+      // Busca só de números não tem termo para o índice: confere todos os versículos da tradução.
+      const terms = candidateTerms(words);
+      if (terms) {
+        params.push(terms);
+        where += ` AND v.search_vector @@ to_tsquery('simple', immutable_unaccent($${params.length}))`;
+      }
 
       if (testament && ['AT', 'NT'].includes(testament)) {
         params.push(testament);
@@ -140,9 +146,9 @@ export default async function bibleRoutes(fastify, options) {
       params.push(limit, offset);
 
       // Duas etapas, de propósito:
-      //  1) o índice GIN ($2) reduz a poucos versículos candidatos, em milissegundos. Ele ignora acento
+      //  1) o índice GIN reduz a poucos versículos candidatos, em milissegundos. Ele ignora acento
       //     e enxerga as partes de uma palavra com hífen, então só garante que nenhum acerto fica de fora;
-      //  2) regexp_count confere o texto de verdade ($3, as regras de server/search.js) e conta as
+      //  2) regexp_count confere o texto de verdade ($2, as regras de server/search.js) e conta as
       //     ocorrências. É ela que decide o que entra na lista, e por isso lista e contagem nunca divergem.
       // lower(v.text) porque o padrão é montado em minúsculas. As janelas (count/sum OVER) calculam os
       // totais sobre todos os acertos antes do LIMIT, então a página não altera a contagem.
@@ -150,7 +156,7 @@ export default async function bibleRoutes(fastify, options) {
         `WITH hits AS (
            SELECT b.id AS book_id, b.name AS book_name, b.abbrev AS book_abbrev, b.testament,
                   v.chapter, v.verse, v.translation, v.text,
-                  regexp_count(lower(v.text), $3) AS occurrences
+                  regexp_count(lower(v.text), $2) AS occurrences
            FROM verses v
            JOIN books b ON b.id = v.book_id
            WHERE ${where}

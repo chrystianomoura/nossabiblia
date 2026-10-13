@@ -23,7 +23,8 @@ test('parseQuery: acento "desmontado" (a + til solto) vale como o acento normal'
 
 test('parseQuery: hífen solto, hífen duplo e hífen invisível', () => {
   assert.deepEqual(words('- sol --'), [{ text: 'sol', accentSensitive: false }]);
-  assert.deepEqual(words('a--b'), [{ text: 'a-b', accentSensitive: false }]);
+  // hífen duplo é travessão, não palavra composta: separa
+  assert.deepEqual(words('a--b').map((w) => w.text), ['a', 'b']);
   assert.deepEqual(words('so\u00ADl'), [{ text: 'sol', accentSensitive: false }]);
 });
 
@@ -110,4 +111,30 @@ test('o padrão só aceita letras, números e hífen (nada de regex vindo do usu
   const evil = parseQuery('.*+?(a|b)[x]\\d $^').words;
   for (const w of evil) assert.match(w.text, /^[\p{L}\p{N}-]+$/u);
   assert.throws(() => buildPattern([{ text: 'a.*', accentSensitive: false }], 'pg'));
+});
+
+test('número com ponto ou vírgula entre dígitos é uma palavra só', () => {
+  assert.deepEqual(words('3.700').map((w) => w.text), ['3.700']);
+  assert.deepEqual(words('22,5').map((w) => w.text), ['22,5']);
+  assert.deepEqual(words('1.000,5').map((w) => w.text), ['1.000,5']);
+  assert.deepEqual(words('3 700').map((w) => w.text), ['3', '700']);
+  assert.deepEqual(words('em 3. Depois').map((w) => w.text), ['em', '3', 'depois']); // ponto de frase não junta
+});
+
+test('número: "700" não acha "3.700" e "273" não acha "22.273"; "3.700" acha o número inteiro', () => {
+  const text = 'de Arão, com 3.700 homens; e 22.273 filhos; somam 3 700 e 273.';
+  assert.deepEqual(found(text, '3.700'), ['3.700']);
+  assert.deepEqual(found(text, '700'), ['700']); // só o "700" solto, de "3 700"
+  assert.deepEqual(found(text, '273'), ['273']); // só o "273" do fim, não o de "22.273"
+  assert.deepEqual(found(text, '22.273'), ['22.273']);
+  assert.deepEqual(found(text, '3 700'), ['3 700']); // espaço não é ponto: não acha "3.700"
+  assert.deepEqual(found('mede 22,5 metros e 1.000,5 côvados', '1.000'), []); // não termina no meio do número
+  assert.deepEqual(found('mede 22,5 metros', '22,5 metros'), ['22,5 metros']);
+  assert.deepEqual(found('mede 22,5 metros', '22'), []);
+});
+
+test('número: os termos do índice ignoram palavras com número (o índice tokeniza números do seu jeito)', () => {
+  assert.equal(candidateTerms(words('3.700')), '');
+  assert.equal(candidateTerms(words('com 3.700 homens')), 'com & homens');
+  assert.equal(candidateTerms(words('disse-lhe 22,5')), 'disse & lhe');
 });
