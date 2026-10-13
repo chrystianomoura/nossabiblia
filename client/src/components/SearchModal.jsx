@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, BookOpen, ArrowLeftRight } from 'lucide-react';
 import Spinner from './Spinner';
+import ReferenceResults from './ReferenceResults';
 import { navigate, readPath } from '../lib/router';
-import { slugify } from '../lib/books';
+import { slugify, useBooks } from '../lib/books';
+import { parseReference } from '../lib/reference';
 
 const number = new Intl.NumberFormat('pt-BR');
 const plural = (n, one, many) => (n === 1 ? one : many);
@@ -35,6 +37,10 @@ export default function SearchModal({ isOpen, onClose }) {
   const [moreError, setMoreError] = useState(false);
   const moreRef = useRef(null); // requisição de "Mostrar mais" em andamento, para cancelar se a busca mudar
   const inputRef = useRef(null);
+  const { books } = useBooks();
+  const term = query.trim();
+  // "salmos 23", "joão 3:16", "mat": referência ou livro. Referência com número não vira busca de palavra.
+  const parsed = useMemo(() => (books ? parseReference(term, books) : { kind: 'none' }), [term, books]);
   const dialogRef = useRef(null);
   const openerRef = useRef(null);
 
@@ -60,8 +66,7 @@ export default function SearchModal({ isOpen, onClose }) {
   }, [isOpen]);
 
   useEffect(() => {
-    const term = query.trim();
-    if (!isOpen || !term) return undefined;
+    if (!isOpen || !term || parsed.kind === 'reference') return undefined;
 
     const controller = new AbortController();
     const timer = setTimeout(() => {
@@ -98,16 +103,16 @@ export default function SearchModal({ isOpen, onClose }) {
       controller.abort();
       moreRef.current?.abort();
     };
-  }, [query, translation, isOpen]);
+  }, [term, translation, isOpen, parsed.kind]);
 
   if (!isOpen) return null;
 
-  // Sem texto digitado, ignora qualquer resultado, carregamento ou erro que tenha ficado pendente.
-  const term = query.trim();
+  // Sem texto digitado (ou com uma referência), ignora o que tenha ficado pendente da busca de palavra.
   const hasContent = Boolean(term);
-  const shown = hasContent ? results : null;
-  const busy = hasContent && loading;
-  const failed = hasContent && error;
+  const wordSearch = hasContent && parsed.kind !== 'reference';
+  const shown = wordSearch ? results : null;
+  const busy = wordSearch && loading;
+  const failed = wordSearch && error;
   const otherTranslation = translation === 'NAA' ? 'NVT' : 'NAA';
   const list = shown?.items ?? [];
   const found = shown && shown.totalOccurrences > 0;
@@ -163,6 +168,11 @@ export default function SearchModal({ isOpen, onClose }) {
     navigate(readPath(slugify(r.book_name), r.chapter, translation, r.verse));
   }
 
+  function openReference({ book, chapter, verse, verseEnd }) {
+    onClose();
+    navigate(readPath(slugify(book.name), chapter, translation, verse, verseEnd));
+  }
+
   return (
     <div className="search-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
@@ -207,6 +217,15 @@ export default function SearchModal({ isOpen, onClose }) {
 
         {hasContent && (
           <div className="search-body" aria-live="polite" aria-busy={busy}>
+            {parsed.kind !== 'none' && (
+              <>
+                {parsed.kind === 'book' && <h3 className="search-group-label">Livro</h3>}
+                <ReferenceResults parsed={parsed} translation={translation} onOpen={openReference} />
+              </>
+            )}
+
+            {parsed.kind === 'book' && found && <h3 className="search-group-label">Palavra</h3>}
+
             {failed && (
               <div className="search-message" role="alert">
                 <span>Não foi possível buscar agora. Verifique a conexão e tente de novo.</span>
@@ -230,8 +249,10 @@ export default function SearchModal({ isOpen, onClose }) {
               </p>
             )}
 
-            {!failed && !busy && shown && !found && (
-              <p className="search-message">Nenhum resultado para “{term}”.</p>
+            {!failed && !busy && shown && !found && parsed.kind === 'none' && (
+              <p className="search-message">
+                <span>Nenhum resultado para: <strong>“{term}”</strong></span>
+              </p>
             )}
 
             {!failed && list.length > 0 && (

@@ -40,6 +40,7 @@ Diferente de motores de busca comuns da web, textos sagrados exigem **fidelidade
 - **Interface Spotlight:** Modal estilo Spotlight/Raycast, aberto por **⌘K / Ctrl+K** em qualquer tela e fechado com **Esc**. Tem botão para alternar NAA/NVT, resultados navegáveis por teclado e **todas** as ocorrências em negrito, inclusive as repetidas no mesmo versículo.
 - **Contagem exata:** o número no topo é o de **ocorrências** (cada vez que a palavra aparece), com o total de versículos ao lado: "4.664 ocorrências em 4.085 versículos". Versículos com a palavra repetida mostram a quantidade ("2×"), e a lista é paginada ("Mostrar mais").
 - **Do resultado ao texto:** clicar num resultado abre o capítulo já rolando até o versículo, que fica destacado.
+- **Referências:** a busca entende endereços bíblicos antes de procurar palavras: `salmos 23` (capítulo), `joão 3:16`, `jo 3,16`, `salmos 23 versículo 2`, `joão 3:16-18` (intervalo), `1jo 4:8`, `I João 4:8`, e só o nome do livro com 3 letras ou mais (`mat`). Aparecem num cartão no topo e abrem o leitor já no versículo.
 - **Regras documentadas e testadas:** a especificação está nos itens 21 a 24 do [PROJETO.md](PROJETO.md) e o contrato em `server/search.test.js` e `server/search.db.test.js`.
 
 ---
@@ -70,6 +71,7 @@ O estado da leitura vive na URL, então há link direto, o botão voltar funcion
 | `/` | Home: manifesto, benefícios e amostra de Gênesis 1 em NAA/NVT (embutida, aparece sem esperar a API) |
 | `/ler/joao/3` | Leitor no capítulo (o livro vai como *slug* do nome, ex.: `1-corintios`) |
 | `/ler/joao/3?t=NVT&v=16` | Mesmo capítulo na NVT, com o versículo 16 destacado |
+| `/ler/joao/3?v=16-18` | Destaca um intervalo de versículos |
 
 No leitor, as setas do teclado e o gesto de deslizar trocam de capítulo (também passam para o livro seguinte ou anterior), e há botões equivalentes. Em hospedagem estática (Cloudflare Pages) as rotas dependem de `client/public/_redirects`, que já está no repositório.
 
@@ -101,6 +103,7 @@ nossabiblia/
 │   │   │   ├── Link.jsx                # Link de navegação interna (respeita clique com modificador)
 │   │   │   ├── Navbar.jsx              # Cabeçalho com marca, busca, tema e entrada
 │   │   │   ├── OpenBibleCard.jsx       # Livro aberto com a amostra de Gênesis 1 (sem requisição)
+│   │   │   ├── ReferenceResults.jsx    # Cartões de referência e de livro na busca
 │   │   │   ├── ReadingView.jsx         # Leitor imersivo de capítulos bíblicos
 │   │   │   ├── SearchModal.jsx         # Busca instantânea estilo Spotlight
 │   │   │   ├── Spinner.jsx             # Indicador de carregamento
@@ -109,6 +112,8 @@ nossabiblia/
 │   │   │   └── hero-sample.json        # Gênesis 1:1-9 em NAA e NVT, embutido no bundle (gerado)
 │   │   ├── lib/
 │   │   │   ├── books.js                # Lista de livros (carregada uma vez) e slugs
+│   │   │   ├── reference.js            # Entende referências ("salmos 23", "joão 3:16-18", "mat")
+│   │   │   ├── reference.test.js       # Testes do analisador de referências
 │   │   │   ├── router.js               # Rotas por History API
 │   │   │   ├── storage.js              # localStorage seguro (falha sem quebrar)
 │   │   │   ├── theme.js                # Tema claro/escuro persistido
@@ -190,7 +195,7 @@ Outros comandos úteis:
 ```bash
 npm run build:client          # Build de produção do frontend (client/dist)
 npm run clean:text            # Mostra o que a limpeza dos textos mudaria (com `-- --apply` grava; rode após qualquer seed)
-npm test                      # Testes da busca (os do banco são pulados sem DATABASE_URL)
+npm test                      # Testes da busca e das referências (os do banco são pulados sem DATABASE_URL)
 npm --prefix client run lint  # Lint do frontend (oxlint)
 npm --prefix client run sample # Regenera o trecho de Gênesis 1 da home (se NAA.json/NVT.json mudarem)
 npm --prefix client run sample:check # Confere se o trecho está em dia (o build já faz isso sozinho)

@@ -65,3 +65,40 @@ export function useJson(url) {
     retry: () => setAttempt((n) => n + 1),
   };
 }
+
+// Vários GETs de uma vez (os candidatos de uma referência). Devolve um estado por url, na mesma ordem
+// ({} para url nula, { loading } enquanto espera, { data } ou { error }). Usa o mesmo cache do useJson.
+export function useJsonList(urls) {
+  const [attempt, setAttempt] = useState(0);
+  const [results, setResults] = useState({});
+  const [slowKey, setSlowKey] = useState(null);
+  const urlKey = urls.join('|'); // as urls não contêm "|"; nulas viram vazio
+  const key = `${urlKey}#${attempt}`;
+
+  useEffect(() => {
+    let active = true;
+    for (const url of urlKey.split('|')) {
+      if (!url || cache.has(url)) continue;
+      fetchJson(url)
+        .then((data) => active && setResults((r) => ({ ...r, [url]: { attempt, data } })))
+        .catch((err) => active && setResults((r) => ({ ...r, [url]: { attempt, error: err.message } })));
+    }
+    return () => { active = false; };
+  }, [urlKey, attempt]);
+
+  const states = urls.map((url) => {
+    if (!url) return {};
+    if (cache.has(url)) return { data: cache.get(url) };
+    const result = results[url];
+    return result && result.attempt === attempt ? result : { loading: true };
+  });
+  const loading = states.some((s) => s.loading);
+
+  useEffect(() => {
+    if (!loading) return undefined;
+    const timer = setTimeout(() => setSlowKey(key), SPINNER_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [loading, key]);
+
+  return { states, loading, slow: loading && slowKey === key, retry: () => setAttempt((n) => n + 1) };
+}

@@ -21,9 +21,10 @@ export function useLocation() {
   return { pathname: url.pathname, search: url.searchParams };
 }
 
-export function readPath(slug, chapter, translation = 'NAA', verse = null) {
+// `verse` e `verseEnd` destacam um versículo ou um intervalo (?v=16 ou ?v=16-18).
+export function readPath(slug, chapter, translation = 'NAA', verse = null, verseEnd = null) {
   const params = new URLSearchParams({ t: translation });
-  if (verse) params.set('v', String(verse));
+  if (verse) params.set('v', verseEnd ? `${verse}-${verseEnd}` : String(verse));
   return `/ler/${slug}/${chapter}?${params}`;
 }
 
@@ -32,11 +33,13 @@ export function parseRoute({ pathname, search }) {
   if (!match) return { view: 'home' };
 
   const t = (search.get('t') || '').toUpperCase();
+  const range = (search.get('v') || '').match(/^(\d+)(?:-(\d+))?$/);
   return {
     view: 'read',
     slug: decodeURIComponent(match[1]),
     chapter: match[2] ? parseInt(match[2], 10) : 1,
     translation: TRANSLATIONS.includes(t) ? t : 'NAA',
-    verse: parseInt(search.get('v'), 10) || null,
+    verse: range ? parseInt(range[1], 10) || null : null,
+    verseEnd: range?.[2] ? parseInt(range[2], 10) : null,
   };
 }

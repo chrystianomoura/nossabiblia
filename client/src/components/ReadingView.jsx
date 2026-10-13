@@ -18,7 +18,7 @@ function loadFontSize() {
 }
 
 export default function ReadingView({ route, books, booksError, theme, onToggleTheme, onOpenSearch }) {
-  const { slug, chapter, translation, verse } = route;
+  const { slug, chapter, translation, verse, verseEnd } = route;
   const bookIndex = books ? books.findIndex((b) => b.slug === slug) : -1;
   const book = bookIndex >= 0 ? books[bookIndex] : null;
   const bookId = book?.id;
@@ -153,7 +153,7 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
             <span
               key={v.verse}
               id={`v${v.verse}`}
-              className={`verse${v.verse === verse ? ' is-target' : ''}`}
+              className={`verse${verse && v.verse >= verse && v.verse <= (verseEnd ?? verse) ? ' is-target' : ''}`}
             >
               <sup className="verse-num">{v.verse}</sup>
               {v.text}{' '}

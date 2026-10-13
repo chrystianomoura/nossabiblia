@@ -993,14 +993,21 @@ select {
 }
 
 .search-message {
-  color: var(--text-muted);
+  color: color-mix(in srgb, var(--text-main) 82%, transparent);
   text-align: center;
   padding: 30px 0;
-  font-size: 14.5px;
+  font-size: 15.5px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
+}
+
+.search-message strong {
+  color: var(--text-main);
+  font-weight: 700;
 }
 
 .search-results {
@@ -1059,6 +1066,57 @@ select {
   font-size: 12.5px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+.search-group-label {
+  text-align: center;
+  margin: 4px 2px 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.search-group-label:not(:first-child) {
+  margin-top: 16px;
+}
+
+.search-result-go {
+  color: var(--text-muted);
+}
+
+/* Cartões que abrem o leitor (livro, capítulo, versículo): seta grande, no meio da altura e à direita */
+.search-result--go {
+  position: relative;
+  padding-right: 52px;
+}
+
+.search-result--go .search-result-go {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translateY(-50%);
+}
+
+/* Cartões de livro e de capítulo inteiro (sem texto de versículo): conteúdo centralizado no cartão */
+.search-result--book,
+.search-result--chapter {
+  text-align: center;
+  padding-right: 14px;
+}
+
+.search-result--book .search-result-ref,
+.search-result--chapter .search-result-ref {
+  justify-content: center;
+}
+
+.search-result-meta {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .search-result-tr {

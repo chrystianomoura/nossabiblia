@@ -22,7 +22,14 @@ Este documento descreve a especificação funcional e as decisões técnicas da 
 3. **Navegação:** setas ou gestos de deslize passam para o capítulo seguinte ou anterior.
 4. **Continuar de onde parou:** o último capítulo lido fica guardado.
 5. **Modo escuro:** disponível em todo o app.
-6. **Busca por referência:** digitar "João 3:16" mostra só esse versículo, com correspondência exata.
+6. **Busca por referência:** digitar "João 3:16" mostra só esse versículo, com correspondência exata. A referência aparece em um cartão no topo da busca, antes dos resultados de palavra (implementada em `client/src/lib/reference.js`, com testes):
+    - **Formatos:** capítulo (`salmos 23`, abre o leitor), versículo (`salmos 23 versículo 2`, `salmos 23 v 2`, `salmos 23:2`, `joão 3:16`, `jo 3.16`, `jo 3,16`, `joão 3 16`) e intervalo (`joão 3:16-18`). Livros numerados: `1 joão`, `1joão`, `1jo`, `1ª joão`, `I João`, `II Coríntios`, `primeiro João`. Pontuação de frase colada ao fim (`joão 3:16.`) é ignorada.
+    - **Capítulo e versículo precisam de um separador de verdade** (`:`, `.`, `,`, espaço ou `v`): o número nunca é partido (`salmos 23-25` não vira "Salmos 2:3-25"; intervalo de capítulos não é reconhecido). Também não são tratados: lista de versículos (`23:1,3`), versículo parcial (`23:1a`) e intervalo entre capítulos (`3:16-4:2`).
+    - **Livro:** pelo nome, por abreviação (`sl`, `mt`, `1co`) ou por prefixo de 3 letras ou mais (`mat` mostra o cartão de Mateus). Abreviação de 1 ou 2 letras só vale com número depois (`os 2` é Oséias 2, mas `os` sozinho é a palavra "os"). As abreviações são só as da base (Pv, Fp, Mc...; `pr`, `fl` e `mr` não valem). `jn` é Jonas e `jo` é João, como nas edições em português. Quando a entrada serve a mais de um livro (`jo 3:16` mostra Jó e João), eles aparecem sempre em ordem canônica, o mais antigo primeiro.
+    - **Acento:** a mesma regra da busca de palavra, inclusive nos nomes de livros (`joaõ 3:16` não encontra nada).
+    - **Sem exceção para livros de um capítulo só:** `judas 5` é o capítulo 5 e a tela diz "Judas tem 1 capítulo."; `judas 1` abre o capítulo e `judas 1:5` o versículo.
+    - **Validação na tradução escolhida:** NAA e NVT numeram alguns versículos de forma diferente (2 Coríntios 13:14 só existe na NVT). Fora dos limites, a tela informa o que existe ("Salmos tem 150 capítulos.", "Salmos 23 tem 6 versículos na NAA."). Havendo alguma referência válida entre os candidatos (`fil 2`, `jo 3:30`), as inválidas não aparecem.
+    - Uma referência com número não dispara busca de palavra; um livro sem número (`mar`) mostra o livro e, em grupo separado, as ocorrências da palavra.
 
 ## Marcações (exige conta verificada)
 
