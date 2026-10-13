@@ -4,5 +4,13 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  },
+  "overrides": [
+    {
+      // Verificações da tela para o `playwright-cli run-code`: o arquivo é uma função solta (sem export),
+      // que o linter leria como "expressão sem uso".
+      "files": ["scripts/ui-checks/*.js"],
+      "rules": { "no-unused-expressions": "off" }
+    }
+  ]
 }
