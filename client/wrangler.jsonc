@@ -1,0 +1,12 @@
+// Publicação do site (Cloudflare Workers com arquivos estáticos): serve o conteúdo de dist/ gerado pelo build.
+// Qualquer endereço que não seja um arquivo (por exemplo /ler/joao/3) devolve o index.html: o roteamento é feito no navegador.
+// Os cabeçalhos de segurança vêm de dist/_headers (scripts/write-headers.mjs).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nossabiblia",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

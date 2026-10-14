@@ -40,3 +40,6 @@ yarn-error.log*
 
 # Cópias de segurança do banco (têm hashes de senha: nunca vão para o Git)
 backups/
+
+# Estado local do Wrangler
+.wrangler/
