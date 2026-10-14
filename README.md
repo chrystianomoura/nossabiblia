@@ -21,7 +21,7 @@ Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, c
 | Camada | Tecnologia / Serviço | Finalidade |
 |---|---|---|
 | **Banco de Dados** | PostgreSQL 18 ([Neon](https://neon.tech)) | Armazenamento de 62.207 versículos com `tsvector` e índice GIN de alta performance |
-| **Backend** | Node.js + [Fastify](https://fastify.dev/) | API REST assíncrona ultraveloz, keep-alive inteligente e rotas de busca/leitura |
+| **Backend** | Node.js + [Fastify](https://fastify.dev/) | API REST assíncrona ultraveloz, keep-alive opcional (`KEEPALIVE=on`) e rotas de busca/leitura |
 | **Frontend** | React 19 + [Vite](https://vitejs.dev/) | SPA responsiva (celular, tablet e desktop), com rotas próprias via History API, sem biblioteca de roteamento |
 | **Ícones** | [Lucide React](https://lucide.dev/) | Iconografia minimalista e elegante |
 | **Estilização** | CSS puro (Design Tokens) em um único `index.css` | Classes por componente, modo escuro nativo, animações só de `transform`/`opacity` e `prefers-reduced-motion` respeitado |

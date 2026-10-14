@@ -33,7 +33,11 @@ await fastify.register(rateLimit, {
   timeWindow: '1 minute',
 });
 
-// Health check para serviços como Railway: não devolve o erro do banco (só vai para o registro do servidor)
+// Verificação de vida SEM banco, para a hospedagem chamar com frequência (o Render a chama a cada poucos segundos): usar o
+// /health aqui manteria a Neon sempre acordada e gastaria as 100 CU-horas gratuitas do mês.
+fastify.get('/healthz', { config: { rateLimit: false } }, async () => ({ status: 'ok' }));
+
+// Verificação completa (consulta o banco): para conferir à mão. Não devolve o erro do banco (só vai para o registro do servidor)
 fastify.get('/health', async (request) => {
   try {
     await pool.query('SELECT 1;');
@@ -55,9 +59,12 @@ try {
   await fastify.listen({ port: PORT, host: HOST });
   console.log(`🚀 Servidor Nossa Bíblia rodando em http://localhost:${PORT}`);
   
-  // Inicia o keep-alive inteligente para manter o Neon acordado
-  startKeepAlive();
-  console.log('⚡ Robô de Keep-Alive iniciado (ativo das 06:00 às 23:00 SP)');
+  // Keep-alive da Neon: DESLIGADO por padrão. Mantê-la acordada das 06h às 23h gasta ~128 CU-horas por mês e o plano
+  // gratuito dá 100 (estourou, o banco para até o mês seguinte). Só ligue com KEEPALIVE=on num plano com folga.
+  if (process.env.KEEPALIVE === 'on') {
+    startKeepAlive();
+    console.log('⚡ Robô de Keep-Alive iniciado (ativo das 06:00 às 23:00 SP)');
+  }
 } catch (err) {
   fastify.log.error(err);
   process.exit(1);
