@@ -4,7 +4,7 @@ import { navigate, readPath } from '../lib/router';
 
 // Barra de controles do leitor: livro/capítulo, tradução e tamanho da letra.
 // No livro aberto fica no topo da moldura (como na home); na página única, acima do texto.
-export default function ReaderBar({ books, book, slug, chapter, translation, fontSize, fontSizes, onFontSize }) {
+export default function ReaderBar({ books, book, slug, chapter, translation, verse, verseEnd, fontSize, fontSizes, onFontSize }) {
   const at = fontSizes.indexOf(fontSize);
   return (
     <div className="reader-bar">
@@ -14,7 +14,7 @@ export default function ReaderBar({ books, book, slug, chapter, translation, fon
         <span aria-hidden="true" />
       )}
 
-      <TranslationToggle value={translation} onChange={(t) => navigate(readPath(slug, chapter, t))} />
+      <TranslationToggle value={translation} onChange={(t) => navigate(readPath(slug, chapter, t, verse, verseEnd))} />
 
       <div className="reader-fonts" role="group" aria-label="Tamanho da letra">
         <button

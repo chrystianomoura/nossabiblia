@@ -40,6 +40,7 @@ export default function ReaderCard({
   const anchor = useRef(null); // onde o texto estava no topo, para a troca do tamanho da letra não fazer você perder o lugar
   // Quem identifica o texto mostrado é o próprio capítulo (e não o endereço): enquanto o novo carrega, o texto anterior
   // fica na tela (`stale`) sem ser recriado nem voltar ao topo, e a troca acontece uma vez só, de uma vez.
+  const place = useRef(null); // último ponto lido { chapter, id, fraction }: sobrevive à troca de tradução, que recria a área de rolagem
   const contentKey = data ? `${data.book.id}/${data.chapter}/${data.translation}` : '';
 
   // Capítulo novo (ou versículo novo no endereço): volta ao topo, ou vai ao versículo pedido. Se o navegador guardou onde
@@ -50,6 +51,14 @@ export default function ReaderCard({
     const saved = window.history.state?.nbKey === chapterKey ? window.history.state.nbV : null;
     const target = saved ?? verse;
     el.scrollTop = 0;
+    // Troca de NAA/NVT no mesmo capítulo: continua no versículo em que você estava, quantas vezes trocar.
+    const sameChapter = place.current?.chapter === `${data.book.id}/${data.chapter}`;
+    const kept = !saved && sameChapter ? el.querySelector(`#${place.current.id}`) : null;
+    if (kept) {
+      el.scrollTop = kept.offsetTop + place.current.fraction * kept.offsetHeight;
+      return;
+    }
+    if (!sameChapter) place.current = null;
     const node = target ? el.querySelector(`#v${target}`) : null;
     // O versículo guardado fica no topo; o do endereço (?v=) fica um pouco abaixo, para dar contexto acima.
     if (node) el.scrollTop = Math.max(0, node.offsetTop - (saved ? 0 : el.clientHeight / 3));
@@ -72,6 +81,7 @@ export default function ReaderCard({
     let timer = 0;
     const onScroll = () => {
       anchor.current = topAnchor(el);
+      place.current = anchor.current && { chapter: `${data.book.id}/${data.chapter}`, ...anchor.current };
       clearTimeout(timer);
       timer = setTimeout(() => {
         const top = el.scrollTop + 4;

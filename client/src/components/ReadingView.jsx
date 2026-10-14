@@ -167,6 +167,8 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
       slug={slug}
       chapter={chapter}
       translation={translation}
+      verse={verse}
+      verseEnd={verseEnd}
       fontSize={fontSize}
       fontSizes={FONT_SIZES}
       onFontSize={setFontSize}
