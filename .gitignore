@@ -37,3 +37,6 @@ yarn-error.log*
 .neon
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
+
+# Cópias de segurança do banco (têm hashes de senha: nunca vão para o Git)
+backups/
