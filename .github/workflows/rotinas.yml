@@ -35,6 +35,8 @@ jobs:
 
   faxina:
     name: Faxina (contas não verificadas, sessões e bloqueios vencidos)
+    # Só depois do backup: o que a faxina apagar hoje sempre tem uma cópia feita antes. Se o backup falhar, a faxina não roda.
+    needs: backup
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

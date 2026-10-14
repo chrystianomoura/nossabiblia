@@ -30,6 +30,10 @@ const csp = [
   'upgrade-insecure-requests',
 ].join('; ');
 
+// Cache: o HTML tem que ser sempre conferido (ele aponta para os arquivos com hash no nome, que mudam a cada versão); os arquivos de
+// /assets têm o hash no nome e nunca mudam, então ficam um ano. `no-transform` impede a Cloudflare de reescrever o HTML (ela
+// injetaria o script do Web Analytics, que a CSP bloqueia). Os cabeçalhos das regras se somam, por isso /assets/* remove o de /*
+// antes de pôr o seu (a linha com "!"): sem isso saíam duas políticas de cache contraditórias na mesma resposta.
 const headers = `/*
   Content-Security-Policy: ${csp}
   X-Content-Type-Options: nosniff
@@ -37,11 +41,11 @@ const headers = `/*
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
-  # no-transform: a Cloudflare não reescreve o HTML (ela injetaria, por conta própria, o script do Web Analytics, que a CSP bloqueia)
-  Cache-Control: no-transform
+  Cache-Control: no-transform, public, max-age=0, must-revalidate
 
 /assets/*
-  Cache-Control: public, max-age=31536000, immutable
+  ! Cache-Control
+  Cache-Control: no-transform, public, max-age=31536000, immutable
 `;
 fs.writeFileSync(path.join(dist, '_headers'), headers);
 console.log(`dist/_headers gerado (${inline.length} script(s) embutido(s) com hash; API permitida: ${api || 'só a própria origem'})`);
