@@ -149,13 +149,18 @@ Decididas com o usuário, vendo o resultado na tela:
 
 - **Um cartão para todos os aparelhos.** O texto rola dentro do cartão e a página não rola. A coluna de leitura tem largura máxima de 760 px (o cartão se ajusta a ela) e o cartão fica centralizado no espaço abaixo do cabeçalho.
 - **Setas de capítulo:** nos lados do cartão; em telas de até 800 px, abaixo dele, centralizadas. Setas e gesto de deslizar também passam ao livro seguinte ou anterior.
-- **Um parágrafo por versículo, com o número pendurado na margem** (dourado, menor), sem mensagem de fim de capítulo e sem sublinhado no título.
-- **Três tamanhos de letra:** 19, 21 (padrão) e 23 px. Quem tinha outro tamanho salvo passa ao mais próximo.
+- **Um parágrafo por versículo, sem recuo:** o versículo começa na linha da borda esquerda da pílula do livro e as linhas seguintes voltam a ela; o número é um sobrescrito pequeno e dourado no começo do texto (alinhado a essa linha, medido pelos pixels). Sem mensagem de fim de capítulo e sem sublinhado no título. O cartão é estreito, com respiro de 24 px (20 px no tablet, 14 px no celular) e o texto e a barra têm a mesma largura.
+- **Três tamanhos de letra:** 19, 21 (padrão) e 23 px. Quem tinha outro tamanho salvo passa ao mais próximo. **Trocar a letra não faz perder o lugar:** o leitor guarda o versículo do topo (e a fração dele que já passou) e volta a ele depois da troca. Medido em Salmos 119: o v100 continua no topo com A+ e A-, no desktop e no celular.
 - **Sem piscar:** ao trocar de capítulo o texto anterior fica até o novo chegar; o capítulo vizinho e a outra tradução são pré-carregados.
 - **Posição lembrada** no histórico do navegador (F5, Voltar e Avançar), sem mexer na URL; `?v=` leva ao versículo (um terço abaixo do topo). A última leitura fica em `nb-last-read` no navegador (sem uso na tela por enquanto).
-- **Seletor de livro e capítulo:** busca no topo (campo alinhado à esquerda, sem anel branco, cursor na cor do "Buscar livro"); livros à esquerda e capítulos à direita, com título do livro centralizado sobre a grade. Ao abrir, o livro atual e o capítulo atual ficam no centro das listas; escolher outro livro **não** mexe na rolagem da lista. Sem barras de rolagem à vista.
+- **Seletor de livro e capítulo:** busca no topo (campo alinhado à esquerda, sem anel branco, cursor na cor do "Buscar livro"; o campo **não** recebe foco ao abrir, então o cursor só aparece depois do clique); livros à esquerda e capítulos à direita, com título do livro centralizado sobre a grade e só um respiro de 6 px sob a busca. Ao abrir pela primeira vez, o livro atual e o capítulo atual ficam no centro das listas; **ao reabrir, a lista de livros volta à rolagem em que ficou** (se o livro que você deixou marcado é o que está sendo lido; senão, centraliza o atual). Escolher outro livro **não** mexe na rolagem da lista. Sem barras de rolagem à vista. No celular o painel cabe dentro do cartão.
 - **Nome na tela:** "Lamentações de Jeremias" aparece como "Lamentações" (o banco e a URL não mudam).
 - Um modelo anterior, em páginas viradas como um livro, foi descartado; o código dele ficou guardado fora do projeto.
+
+## Página inicial: Bíblia de amostra e botões em telas pequenas
+
+- **Uma ou duas páginas conforme o espaço:** o livro aberto da home mostra duas páginas só se cada uma tiver largura de leitura (~210 px, ou seja, o espaço do texto do cartão acima de 440 px); com menos que isso, uma coluna só, **sem o vão entre as páginas**. Em tablet e celular (abaixo de 1040 px, onde a página rola) a coluna única usa a letra do leitor (21 px, entrelinha 1,75, número do versículo como no leitor); na tela única do desktop (1040 px ou mais) segue com a letra pequena da amostra para o livro caber na altura da tela.
+- **Botões "Criar Conta Gratuita" e "Começar a Ler Agora":** o mesmo tamanho em todos os aparelhos (235 px, só o conteúdo, centralizados), nunca esticados até as bordas. Com as colunas empilhadas, o vão do primeiro botão para o cartão é igual ao de cima do botão (18 px).
 
 ## Regras transversais
 
