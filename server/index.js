@@ -5,10 +5,12 @@ import rateLimit from '@fastify/rate-limit';
 import pool from './db.js';
 import bibleRoutes from './routes/bible.js';
 import { startKeepAlive } from './keepalive.js';
+import { parseTrustProxy } from './config.js';
 
 const fastify = Fastify({
-  // Atrás de um proxy (Railway, Render, Cloudflare) o IP real vem no cabeçalho; ligue com TRUST_PROXY=true no servidor publicado.
-  trustProxy: process.env.TRUST_PROXY === 'true',
+  // Atrás de proxies (Render, Cloudflare) o IP real vem no cabeçalho. TRUST_PROXY = número de proxies na frente (ver server/config.js);
+  // `true` deixaria o cliente inventar o próprio IP com um X-Forwarded-For falso e escapar do limite de requisições.
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
   logger: {
     level: process.env.NODE_ENV === 'production' ? 'info' : 'warn',
   },
@@ -35,6 +37,19 @@ await fastify.register(rateLimit, {
 
 // Verificação de vida SEM banco, para a hospedagem chamar com frequência (o Render a chama a cada poucos segundos): usar o
 // /health aqui manteria a Neon sempre acordada e gastaria as 100 CU-horas gratuitas do mês.
+// Diagnóstico do IP (só com DEBUG_PROXY=on): mostra o que os proxies da hospedagem enviam, para descobrir quantos são (TRUST_PROXY).
+// Sem a variável a rota nem existe. Desligue (e apague a variável) depois de medir.
+if (process.env.DEBUG_PROXY === 'on') {
+  fastify.get('/api/_diag/proxy', async (request) => ({
+    ip: request.ip,
+    ips: request.ips,
+    remoteAddress: request.raw.socket.remoteAddress,
+    xForwardedFor: request.headers['x-forwarded-for'] ?? null,
+    cfConnectingIp: request.headers['cf-connecting-ip'] ?? null,
+    trueClientIp: request.headers['true-client-ip'] ?? null,
+  }));
+}
+
 fastify.get('/healthz', { config: { rateLimit: false } }, async () => ({ status: 'ok' }));
 
 // Verificação completa (consulta o banco): para conferir à mão. Não devolve o erro do banco (só vai para o registro do servidor)

@@ -1,22 +1,33 @@
 import pool from '../db.js';
 import { buildPattern, candidateTerms, findMatches, parseQuery } from '../search.js';
+import { createMemo } from '../memo.js';
+
+// O texto bíblico não muda: o navegador pode guardar por um dia (e usar o antigo por até uma semana enquanto confere de novo).
+const IMMUTABLE = 'public, max-age=86400, stale-while-revalidate=604800';
 
 export default async function bibleRoutes(fastify, options) {
+  // Um cache por rota, para uma não expulsar as entradas da outra. Ver server/memo.js.
+  const booksMemo = createMemo({ max: 1 });
+  const bookLookupMemo = createMemo({ max: 300 });
+  const chapterMemo = createMemo({ max: 2500 }); // 1.189 capítulos x 2 traduções = 2.378
+  const searchMemo = createMemo({ max: 400 });
+
   /**
    * GET /api/books
    * Retorna os 66 livros da Bíblia na ordem canônica, divididos por testamento (AT e NT).
    */
   fastify.get('/books', async (request, reply) => {
     try {
-      const result = await pool.query(`
-        SELECT id, name, abbrev, testament, chapters_count
-        FROM books
-        ORDER BY id ASC;
-      `);
-      return {
-        total: result.rowCount,
-        books: result.rows,
-      };
+      const payload = await booksMemo.memo('books', async () => {
+        const result = await pool.query(`
+          SELECT id, name, abbrev, testament, chapters_count
+          FROM books
+          ORDER BY id ASC;
+        `);
+        return { total: result.rowCount, books: result.rows };
+      });
+      reply.header('Cache-Control', IMMUTABLE);
+      return payload;
     } catch (err) {
       request.log.error(err);
       return reply.status(500).send({ error: 'Erro ao buscar livros da Bíblia.' });
@@ -37,34 +48,32 @@ export default async function bibleRoutes(fastify, options) {
     }
 
     try {
-      // O parâmetro :book pode ser o ID (número) ou o nome/abreviação
-      let bookId = parseInt(book, 10);
-      let bookInfo = null;
-
-      if (isNaN(bookId)) {
-        // Busca livro por nome ou abreviação
-        const bResult = await pool.query(
-          `SELECT id, name, abbrev, testament, chapters_count 
-           FROM books 
-           WHERE LOWER(name) = LOWER($1) OR LOWER(abbrev) = LOWER($1)
-           LIMIT 1;`,
-          [book]
-        );
-        if (bResult.rowCount === 0) {
-          return reply.status(404).send({ error: 'Livro não encontrado.' });
-        }
-        bookInfo = bResult.rows[0];
-        bookId = bookInfo.id;
-      } else {
-        const bResult = await pool.query(
-          `SELECT id, name, abbrev, testament, chapters_count FROM books WHERE id = $1;`,
-          [bookId]
-        );
-        if (bResult.rowCount === 0) {
-          return reply.status(404).send({ error: 'Livro não encontrado.' });
-        }
-        bookInfo = bResult.rows[0];
+      // O parâmetro :book pode ser o ID (número) ou o nome/abreviação. O livro achado fica em cache (um livro que não existe não entra).
+      const bookKey = String(book).toLowerCase();
+      const found = await bookLookupMemo
+        .memo(bookKey, async () => {
+          const bId = parseInt(book, 10);
+          const bResult = isNaN(bId)
+            ? await pool.query(
+                `SELECT id, name, abbrev, testament, chapters_count
+                 FROM books
+                 WHERE LOWER(name) = LOWER($1) OR LOWER(abbrev) = LOWER($1)
+                 LIMIT 1;`,
+                [book]
+              )
+            : await pool.query(`SELECT id, name, abbrev, testament, chapters_count FROM books WHERE id = $1;`, [bId]);
+          if (bResult.rowCount === 0) throw Object.assign(new Error('livro não encontrado'), { notFound: true });
+          return bResult.rows[0];
+        })
+        .catch((err) => {
+          if (err.notFound) return null;
+          throw err;
+        });
+      if (!found) {
+        return reply.status(404).send({ error: 'Livro não encontrado.' });
       }
+      const bookInfo = found;
+      const bookId = bookInfo.id;
 
       const chapNum = parseInt(chapter, 10);
       if (isNaN(chapNum) || chapNum < 1 || chapNum > bookInfo.chapters_count) {
@@ -73,22 +82,25 @@ export default async function bibleRoutes(fastify, options) {
         });
       }
 
-      // Busca os versículos
-      const vResult = await pool.query(
-        `SELECT verse, text
-         FROM verses
-         WHERE book_id = $1 AND chapter = $2 AND translation = $3
-         ORDER BY verse ASC;`,
-        [bookId, chapNum, translation]
-      );
-
-      return {
-        book: bookInfo,
-        chapter: chapNum,
-        translation,
-        verses_count: vResult.rowCount,
-        verses: vResult.rows,
-      };
+      // Busca os versículos (a chave usa os valores já validados, nunca o texto cru da URL)
+      const payload = await chapterMemo.memo(`${bookId}/${chapNum}/${translation}`, async () => {
+        const vResult = await pool.query(
+          `SELECT verse, text
+           FROM verses
+           WHERE book_id = $1 AND chapter = $2 AND translation = $3
+           ORDER BY verse ASC;`,
+          [bookId, chapNum, translation]
+        );
+        return {
+          book: bookInfo,
+          chapter: chapNum,
+          translation,
+          verses_count: vResult.rowCount,
+          verses: vResult.rows,
+        };
+      });
+      reply.header('Cache-Control', IMMUTABLE);
+      return payload;
     } catch (err) {
       request.log.error(err);
       return reply.status(500).send({ error: 'Erro ao carregar o texto bíblico.' });
@@ -135,63 +147,70 @@ export default async function bibleRoutes(fastify, options) {
     }
 
     try {
-      const params = [translation, buildPattern(words, 'pg')];
-      let where = 'v.translation = $1';
-      // Busca só de números não tem termo para o índice: confere todos os versículos da tradução.
-      const terms = candidateTerms(words);
-      if (terms) {
-        params.push(terms);
-        where += ` AND v.search_vector @@ to_tsquery('simple', immutable_unaccent($${params.length}))`;
-      }
+      // O resultado de uma busca nunca muda enquanto o texto não muda: a chave usa só valores já validados.
+      const pattern = buildPattern(words, 'pg');
+      const key = [translation, testament, bookId, limit, offset, pattern].join('|');
+      const payload = await searchMemo.memo(key, async () => {
+        const params = [translation, pattern];
+        let where = 'v.translation = $1';
+        // Busca só de números não tem termo para o índice: confere todos os versículos da tradução.
+        const terms = candidateTerms(words);
+        if (terms) {
+          params.push(terms);
+          where += ` AND v.search_vector @@ to_tsquery('simple', immutable_unaccent($${params.length}))`;
+        }
 
-      if (testament) {
-        params.push(testament);
-        where += ` AND b.testament = $${params.length}`;
-      }
-      if (bookId !== null) {
-        params.push(bookId);
-        where += ` AND v.book_id = $${params.length}`;
-      }
-      params.push(limit, offset);
+        if (testament) {
+          params.push(testament);
+          where += ` AND b.testament = $${params.length}`;
+        }
+        if (bookId !== null) {
+          params.push(bookId);
+          where += ` AND v.book_id = $${params.length}`;
+        }
+        params.push(limit, offset);
 
-      // Duas etapas, de propósito:
-      //  1) o índice GIN reduz a poucos versículos candidatos, em milissegundos. Ele ignora acento
-      //     e enxerga as partes de uma palavra com hífen, então só garante que nenhum acerto fica de fora;
-      //  2) regexp_count confere o texto de verdade ($2, as regras de server/search.js) e conta as
-      //     ocorrências. É ela que decide o que entra na lista, e por isso lista e contagem nunca divergem.
-      // lower(v.text) porque o padrão é montado em minúsculas. As janelas (count/sum OVER) calculam os
-      // totais sobre todos os acertos antes do LIMIT, então a página não altera a contagem.
-      const { rows } = await pool.query(
-        `WITH hits AS (
-           SELECT b.id AS book_id, b.name AS book_name, b.abbrev AS book_abbrev, b.testament,
-                  v.chapter, v.verse, v.translation, v.text,
-                  regexp_count(lower(v.text), $2) AS occurrences
-           FROM verses v
-           JOIN books b ON b.id = v.book_id
-           WHERE ${where}
-         )
-         SELECT *,
-                count(*) OVER () AS total_verses,
-                sum(occurrences) OVER () AS total_occurrences
-         FROM hits
-         WHERE occurrences > 0
-         ORDER BY book_id, chapter, verse
-         LIMIT $${params.length - 1} OFFSET $${params.length};`,
-        params
-      );
+        // Duas etapas, de propósito:
+        //  1) o índice GIN reduz a poucos versículos candidatos, em milissegundos. Ele ignora acento
+        //     e enxerga as partes de uma palavra com hífen, então só garante que nenhum acerto fica de fora;
+        //  2) regexp_count confere o texto de verdade ($2, as regras de server/search.js) e conta as
+        //     ocorrências. É ela que decide o que entra na lista, e por isso lista e contagem nunca divergem.
+        // lower(v.text) porque o padrão é montado em minúsculas. As janelas (count/sum OVER) calculam os
+        // totais sobre todos os acertos antes do LIMIT, então a página não altera a contagem.
+        const { rows } = await pool.query(
+          `WITH hits AS (
+             SELECT b.id AS book_id, b.name AS book_name, b.abbrev AS book_abbrev, b.testament,
+                    v.chapter, v.verse, v.translation, v.text,
+                    regexp_count(lower(v.text), $2) AS occurrences
+             FROM verses v
+             JOIN books b ON b.id = v.book_id
+             WHERE ${where}
+           )
+           SELECT *,
+                  count(*) OVER () AS total_verses,
+                  sum(occurrences) OVER () AS total_occurrences
+           FROM hits
+           WHERE occurrences > 0
+           ORDER BY book_id, chapter, verse
+           LIMIT $${params.length - 1} OFFSET $${params.length};`,
+          params
+        );
 
-      const totalVerses = rows.length ? Number(rows[0].total_verses) : 0;
-      return {
-        ...response,
-        total_occurrences: rows.length ? Number(rows[0].total_occurrences) : 0,
-        total_verses: totalVerses,
-        has_more: offset + rows.length < totalVerses,
-        results: rows.map(({ total_verses, total_occurrences, occurrences, ...verse }) => ({
-          ...verse,
-          occurrences: Number(occurrences),
-          matches: findMatches(verse.text, words),
-        })),
-      };
+        const totalVerses = rows.length ? Number(rows[0].total_verses) : 0;
+        return {
+          ...response,
+          total_occurrences: rows.length ? Number(rows[0].total_occurrences) : 0,
+          total_verses: totalVerses,
+          has_more: offset + rows.length < totalVerses,
+          results: rows.map(({ total_verses, total_occurrences, occurrences, ...verse }) => ({
+            ...verse,
+            occurrences: Number(occurrences),
+            matches: findMatches(verse.text, words),
+          })),
+        };
+      });
+      reply.header('Cache-Control', IMMUTABLE);
+      return payload;
     } catch (err) {
       request.log.error(err);
       return reply.status(500).send({ error: 'Erro ao executar busca textual.' });
