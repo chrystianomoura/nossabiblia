@@ -23,9 +23,10 @@ export default function ChapterPicker({ books, book, chapter, translation }) {
   const [usedKeys, setUsedKeys] = useState(false);
   const rootRef = useRef(null);
   const buttonRef = useRef(null);
-  const inputRef = useRef(null);
   const listRef = useRef(null);
   const gridRef = useRef(null);
+  // Onde a lista de livros estava (rolagem e livro marcado) quando o painel foi fechado, para reabrir no mesmo ponto.
+  const lastList = useRef({ bookId: null, top: 0 });
 
   const needle = plain(query.trim());
   const rows = books.filter((b) => !needle || plain(b.name).includes(needle));
@@ -42,16 +43,20 @@ export default function ChapterPicker({ books, book, chapter, translation }) {
     if (restoreFocus) buttonRef.current?.focus();
   }
 
-  useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
-
-  // Ao abrir, o livro atual fica no centro da lista. Escolher outro livro não mexe na rolagem: ele fica onde foi clicado.
+  // Ao abrir, a lista volta ao ponto em que ficou, se o livro que você deixou marcado é o que está sendo lido agora;
+  // senão (chegou a outro livro por outro caminho), o livro atual fica no centro. Escolher outro livro não mexe na rolagem.
   useEffect(() => {
     if (!open) return;
-    centerIn(listRef.current, listRef.current?.querySelector('[aria-current="true"]'), 34);
+    const list = listRef.current;
+    if (lastList.current.bookId === book.id) list.scrollTop = lastList.current.top;
+    else centerIn(list, list?.querySelector('[aria-current="true"]'), 34);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // (Vem depois do efeito acima, que precisa ler o valor antigo.) O livro marcado na lista, para saber, ao fechar, em que livro a rolagem guardada estava.
+  useEffect(() => {
+    if (open) lastList.current.bookId = shownBook.id;
+  }, [open, shownBook]);
 
   // Os capítulos: no livro atual, a grade vem rolada até o capítulo atual (marcado); em outro livro, começa no 1.
   // Como o livro e o capítulo vêm do endereço, o que está marcado acompanha quem anda de capítulo em capítulo.
@@ -121,7 +126,6 @@ export default function ChapterPicker({ books, book, chapter, translation }) {
           {/* A busca fica em cima, na largura toda; a lista de livros e os capítulos descem abaixo dela */}
           <div className="picker-search">
             <input
-              ref={inputRef}
               className="picker-input"
               type="text"
               value={query}
@@ -138,7 +142,13 @@ export default function ChapterPicker({ books, book, chapter, translation }) {
           </div>
 
           <div className="picker-books">
-            <ul className="picker-list" ref={listRef}>
+            <ul
+              className="picker-list"
+              ref={listRef}
+              onScroll={(e) => {
+                if (!query) lastList.current.top = e.currentTarget.scrollTop;
+              }}
+            >
               {rows.map((b, i) => (
                 <li key={b.id}>
                   <button

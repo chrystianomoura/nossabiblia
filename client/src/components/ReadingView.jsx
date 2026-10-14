@@ -215,6 +215,7 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
           stale={isStale}
           status={renderStatus()}
           chapterKey={`${slug}/${chapter}/${translation}`}
+          fontSize={fontSize}
           verse={verse}
           verseEnd={verseEnd}
           hasPrev={Boolean(prev)}

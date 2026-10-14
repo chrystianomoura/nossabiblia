@@ -14,13 +14,30 @@ function rememberPosition(chapterKey, verse) {
   writeStorage('nb-last-read', JSON.stringify({ slug, chapter: Number(chapter), translation, verse }));
 }
 
+// O versículo que está no topo da área de leitura e quanto dele (em fração da altura) já passou. A busca é binária: os
+// versículos estão em ordem, então não precisa olhar os 176 de um Salmos 119 a cada rolagem.
+function topAnchor(el) {
+  const nodes = el.querySelectorAll('.rb-verse');
+  const top = el.scrollTop;
+  let lo = 0;
+  let hi = nodes.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (nodes[mid].offsetTop + nodes[mid].offsetHeight > top + 4) hi = mid;
+    else lo = mid + 1;
+  }
+  const node = nodes[lo];
+  return node ? { id: node.id, fraction: (top - node.offsetTop) / node.offsetHeight } : null;
+}
+
 // Leitor em cartão (todos os aparelhos): o texto é uma coluna que rola DENTRO do cartão, e a página não rola.
 // As setas dos lados (e as do teclado, tratadas pelo ReadingView) trocam de capítulo.
 export default function ReaderCard({
-  bar, data, stale, status, chapterKey, verse, verseEnd,
+  bar, data, stale, status, chapterKey, fontSize, verse, verseEnd,
   hasPrev, hasNext, onPrevChapter, onNextChapter,
 }) {
   const scrollRef = useRef(null);
+  const anchor = useRef(null); // onde o texto estava no topo, para a troca do tamanho da letra não fazer você perder o lugar
   // Quem identifica o texto mostrado é o próprio capítulo (e não o endereço): enquanto o novo carrega, o texto anterior
   // fica na tela (`stale`) sem ser recriado nem voltar ao topo, e a troca acontece uma vez só, de uma vez.
   const contentKey = data ? `${data.book.id}/${data.chapter}/${data.translation}` : '';
@@ -38,12 +55,23 @@ export default function ReaderCard({
     if (node) el.scrollTop = Math.max(0, node.offsetTop - (saved ? 0 : el.clientHeight / 3));
   }, [data, stale, chapterKey, verse]);
 
-  // Ao rolar, lembra o versículo do topo.
+  // Troca do tamanho da letra: o texto se reorganiza, então volta ao versículo que estava no topo (e à mesma altura dele),
+  // antes de a tela ser pintada. Fora esse caso, `anchor` está vazio ou já acompanha a rolagem e nada se move.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    const saved = anchor.current;
+    const node = saved && el ? el.querySelector(`#${saved.id}`) : null;
+    if (node) el.scrollTop = node.offsetTop + saved.fraction * node.offsetHeight;
+  }, [fontSize]);
+
+  // Ao rolar, guarda o ponto do topo (para a letra) e, um instante depois, lembra o versículo (para o F5 e o Voltar).
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || !data || stale) return undefined;
+    anchor.current = null;
     let timer = 0;
     const onScroll = () => {
+      anchor.current = topAnchor(el);
       clearTimeout(timer);
       timer = setTimeout(() => {
         const top = el.scrollTop + 4;

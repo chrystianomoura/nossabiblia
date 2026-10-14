@@ -490,6 +490,11 @@ select {
     padding-top: 32px;
   }
 
+  /* Com as colunas empilhadas, o vão do botão para baixo é igual ao de cima (o botão tem 18px de margem acima) */
+  .home-grid {
+    gap: 18px;
+  }
+
   .home-col {
     width: 100%;
     max-width: 640px;
@@ -550,11 +555,6 @@ select {
 
   .navbar-actions .pill-btn {
     padding: 7px 14px;
-  }
-
-  .btn-primary {
-    width: 100%;
-    min-width: 0;
   }
 }
 
@@ -683,10 +683,33 @@ select {
   user-select: none;
 }
 
-/* Só empilha as páginas quando o livro fica realmente estreito (celular) */
-@container (max-width: 340px) {
+/* Duas páginas só se cada uma tiver largura de leitura (~220px); com menos que isso, uma coluna só */
+@container (max-width: 440px) {
+  /* Uma coluna só: sem o vão entre as páginas */
   .book-spreads {
     grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  /* A letra grande do leitor só quando a página rola (tablet e celular): na tela única do desktop (1040 px ou mais) a
+     coluna é estreita e o livro precisa caber na altura da tela, então segue com a letra pequena da amostra */
+  @media (max-width: 1039px) {
+    .book-spreads {
+      font-size: 21px;
+      line-height: 1.75;
+    }
+  }
+
+  .book-spreads p {
+    margin-bottom: 0.5em;
+    text-indent: 0;
+  }
+
+  .book-spreads .verse-num {
+    font-size: 0.6em;
+    font-weight: 600;
+    margin-right: 0.5em;
+    color: var(--num-soft);
   }
 
   .book-page-left {
@@ -813,17 +836,12 @@ select {
 /* Número do versículo pendurado na margem esquerda, pequeno e discreto (no livro aberto e na página única) */
 .read-text .verse-num,
 .rb-scroll .verse-num {
-  position: absolute;
-  left: 0;
-  top: 0.22em;
-  /* A caixa vai até 5 px antes do texto (a margem tem 1.9em do versículo = 3.1667em do número): o número fica
-     junto do versículo, sem colar. */
-  width: calc(3.1667em - 5px);
-  margin: 0;
+  position: static;
+  margin: 0 0.5em 0 -1px; /* o 1 tem folga própria: -1px põe a tinta do número na mesma linha da borda da pílula */
   font-size: 0.6em;
   font-weight: 600;
-  line-height: 1.6;
-  text-align: right;
+  vertical-align: super;
+  line-height: 0;
   color: var(--num-soft);
 }
 
@@ -1143,7 +1161,7 @@ select {
   /* A largura do cartão segue a coluna de texto: coluna + margens internas + as duas setas. Para mudar a largura da
      leitura, é só mexer em --rb-col. */
   --rb-col: 760px;
-  --rb-pad: 44px;
+  --rb-pad: 24px; /* o respiro do cartão: o texto começa na mesma linha da barra (pílula do livro) */
   --rb-nav: 48px;
   --rb-gap: 12px;
   display: grid;
@@ -1196,7 +1214,7 @@ select {
 .rb-col {
   max-width: var(--rb-col); /* coluna de leitura centralizada: ~75 caracteres por linha */
   margin: 0 auto;
-  padding: 0 8px 4px;
+  padding: 0 0 4px; /* sem margem lateral: o texto alinha com a barra */
 }
 
 .rb-scroll--status {
@@ -1218,7 +1236,7 @@ select {
 .rb-verse {
   position: relative;
   margin: 0 0 0.5em;
-  padding-left: 1.9em; /* a margem onde o número fica pendurado */
+  padding-left: 0; /* sem recuo: o versículo começa na linha da borda da pílula e as linhas seguintes voltam a ela */
 }
 
 .rb-nav {
@@ -1246,7 +1264,7 @@ select {
 /* Tablet em pé e celular: sem espaço para as setas dos lados, elas descem para baixo do cartão */
 @media (max-width: 800px) {
   .rb {
-    --rb-pad: 28px;
+    --rb-pad: 20px;
     --rb-h: clamp(300px, calc(100dvh - 310px), 900px);
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
@@ -1277,7 +1295,7 @@ select {
 
 @media (max-width: 520px) {
   .rb {
-    --rb-pad: 16px;
+    --rb-pad: 14px;
   }
 
   .rb-paper {

@@ -107,6 +107,28 @@ async page => {
   await page.reload(); await page.waitForSelector('.rb-verse'); await sleep(500);
   log((await fontPx()) === 19, 'o tamanho escolhido é lembrado');
 
+  // ---------- Trocar a letra não faz perder o lugar ----------
+  const topo = () => page.evaluate(() => { const s = document.querySelector('.rb-scroll'); const t = s.scrollTop + 4; for (const n of s.querySelectorAll('.rb-verse')) { if (n.offsetTop + n.offsetHeight > t) return { verso: +n.id.slice(1), fracao: (s.scrollTop - n.offsetTop) / n.offsetHeight }; } return null; });
+  for (const [w, h] of [[1440, 900], [390, 844]]) {
+    await open('/ler/salmos/119?t=NAA', w, h);
+    await page.evaluate(() => { const s = document.querySelector('.rb-scroll'); s.scrollTop = document.querySelector('#v100').offsetTop; });
+    await sleep(300);
+    await page.click('[aria-label="Aumentar tamanho da letra"]'); await sleep(300);
+    const mais = await topo();
+    await page.click('[aria-label="Diminuir tamanho da letra"]'); await page.click('[aria-label="Diminuir tamanho da letra"]'); await sleep(300);
+    const menos = await topo();
+    log(mais.verso === 100 && menos.verso === 100, w + 'x' + h + ': A+ e A- mantêm o versículo do topo (v' + mais.verso + ' e v' + menos.verso + ')');
+  }
+  await open('/ler/ester/8?t=NAA');
+  await page.evaluate(() => { const s = document.querySelector('.rb-scroll'); const n = document.querySelector('#v9'); s.scrollTop = n.offsetTop + n.offsetHeight * 0.5; });
+  await sleep(300);
+  await page.click('[aria-label="Aumentar tamanho da letra"]'); await sleep(300);
+  const meio = await topo();
+  log(meio.verso === 9 && Math.abs(meio.fracao - 0.5) < 0.1, 'versículo longo (Ester 8:9) pela metade continua pela metade ao trocar a letra (' + Math.round(meio.fracao * 100) + '%)');
+  await open('/ler/salmos/23?t=NAA');
+  await page.click('[aria-label="Aumentar tamanho da letra"]'); await sleep(300);
+  log((await scrollTop()) === 0, 'no começo do capítulo, trocar a letra não move o texto');
+
   // ---------- Tradução ----------
   await open('/ler/salmos/23?t=NAA');
   await page.getByRole('radio', { name: 'NVT' }).click().catch(() => page.getByText('NVT', { exact: true }).click());
