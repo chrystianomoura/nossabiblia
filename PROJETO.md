@@ -143,6 +143,20 @@ Decididas com o usuário, vendo cada uma renderizada:
 - **Selo "2×"** (versículo com a palavra repetida): no tema claro ganhou fundo dourado mais marcado e texto escuro (contraste 5,9:1; antes 3,8:1, abaixo do mínimo de 4,5:1); no tema escuro nada mudou.
 - **Acessibilidade medida:** Tab e Shift+Tab nunca saem do diálogo; contraste mínimo de 4,5:1 nos textos; alvos de toque de 30 px ou mais (o mínimo da norma é 24 px; 44 px é o recomendado para toque, e não foi adotado); sem rolagem lateral de 320 a 1920 px; zoom de 200% e fonte grande sem quebrar.
 
+## Interface do leitor (decisões de tela)
+
+Decididas com o usuário, vendo o resultado na tela:
+
+- **Um cartão para todos os aparelhos.** O texto rola dentro do cartão e a página não rola. A coluna de leitura tem largura máxima de 760 px (o cartão se ajusta a ela) e o cartão fica centralizado no espaço abaixo do cabeçalho.
+- **Setas de capítulo:** nos lados do cartão; em telas de até 800 px, abaixo dele, centralizadas. Setas e gesto de deslizar também passam ao livro seguinte ou anterior.
+- **Um parágrafo por versículo, com o número pendurado na margem** (dourado, menor), sem mensagem de fim de capítulo e sem sublinhado no título.
+- **Três tamanhos de letra:** 19, 21 (padrão) e 23 px. Quem tinha outro tamanho salvo passa ao mais próximo.
+- **Sem piscar:** ao trocar de capítulo o texto anterior fica até o novo chegar; o capítulo vizinho e a outra tradução são pré-carregados.
+- **Posição lembrada** no histórico do navegador (F5, Voltar e Avançar), sem mexer na URL; `?v=` leva ao versículo (um terço abaixo do topo). A última leitura fica em `nb-last-read` no navegador (sem uso na tela por enquanto).
+- **Seletor de livro e capítulo:** busca no topo (campo alinhado à esquerda, sem anel branco, cursor na cor do "Buscar livro"); livros à esquerda e capítulos à direita, com título do livro centralizado sobre a grade. Ao abrir, o livro atual e o capítulo atual ficam no centro das listas; escolher outro livro **não** mexe na rolagem da lista. Sem barras de rolagem à vista.
+- **Nome na tela:** "Lamentações de Jeremias" aparece como "Lamentações" (o banco e a URL não mudam).
+- Um modelo anterior, em páginas viradas como um livro, foi descartado; o código dele ficou guardado fora do projeto.
+
 ## Regras transversais
 
 - **Fuso horário:** toda regra de dia (positivo, limite diário, reset) usa o horário de São Paulo.
@@ -279,7 +293,7 @@ cron.schedule('*/4 6-23 * * *', async () => {
    - `GET /api/daily-verse`: Versículo do dia público.
 9. ✅ Frontend SPA (Vite + React 19 + CSS puro com tokens + Lucide Icons) estruturado, compilado e rodando:
    - Home em tela dividida: manifesto, benefícios e o livro aberto de Gênesis 1 em NAA/NVT, embutido no código (aparece sem esperar a API).
-   - Leitor imersivo com rotas por URL (`/ler/joao/3?t=NVT&v=16-18`), tamanho de letra, navegação por setas e gestos, tema claro e escuro.
+   - Leitor em cartão vertical com rotas por URL (`/ler/joao/3?t=NVT&v=16-18`), três tamanhos de letra, seletor de livro e capítulo, navegação por setas e gestos, posição lembrada, tema claro e escuro (ver "Interface do leitor").
    - Marca NB, acessibilidade (teclado, foco, leitor de tela) e layout responsivo para celular, tablet e desktop.
 10. ✅ Busca exata (itens 21 a 24): palavra inteira, caixa, acento, frase, hífen, números, contagem em ocorrências, paginação e colagem de versículo inteiro.
 11. ✅ Busca por referência (item 6): `salmos 23`, `joão 3:16-18`, `I João 4:8`, `mat`.
@@ -288,5 +302,6 @@ cron.schedule('*/4 6-23 * * *', async () => {
 14. ✅ Testes: 63 testes automatizados, bateria de precisão de 15 camadas (~104 mil conferências) e verificações da tela, tudo verde. Defeitos achados no caminho (offset gigante, parâmetro repetido, `book_id=1e1`, foco do Tab) foram corrigidos.
 15. ✅ Acabamento da busca: botão "Tentar de novo" na falha de rede, selo "2×" legível no tema claro, sem balões de dica nos botões.
 16. ✅ Textos: as mensagens da busca por referência ficaram **sem ponto final** (decisão do usuário) e a marca aparece sempre como "Nossa Bíblia" (com espaço), inclusive no título da aba do navegador.
-17. ⏳ **Pendências da busca:** a dica "Encontrado na NVT" quando a busca der zero na tradução escolhida (adiada pelo usuário); decidir se as mensagens de falha ("Não foi possível buscar agora. Verifique a conexão e tente de novo.", "Não foi possível carregar mais.", "Não foi possível carregar essa referência.") também perdem o ponto final.
-18. ⏳ **Próximo passo:** Fase 4 (Sistema de Autenticação, Cadastro de Usuários, Envio de E-mails com Resend e Marcações Pessoais).
+17. ✅ **Leitor redesenhado** (ver "Interface do leitor"): cartão vertical para todos os aparelhos, sem piscar entre capítulos, posição lembrada e verificações da tela próprias (`leitor-livro.js`).
+18. ⏳ **Pendências da busca:** a dica "Encontrado na NVT" quando a busca der zero na tradução escolhida (adiada pelo usuário); decidir se as mensagens de falha ("Não foi possível buscar agora. Verifique a conexão e tente de novo.", "Não foi possível carregar mais.", "Não foi possível carregar essa referência.") também perdem o ponto final.
+19. ⏳ **Próximo passo:** Fase 4 (Sistema de Autenticação, Cadastro de Usuários, Envio de E-mails com Resend e Marcações Pessoais).

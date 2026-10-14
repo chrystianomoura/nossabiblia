@@ -163,6 +163,7 @@ playwright-cli close
 | `botao-funil.js` | O botão do funil fica pintado com filtro ativo (e só então), nos dois temas, com contraste do ícone |
 | `tentar-de-novo.js` | O botão de nova tentativa depois de uma falha de rede, com e sem filtro e por teclado |
 | `etiqueta-espacamento.js` | O respiro da etiqueta do filtro com o painel aberto, fechado e sem texto |
+| `leitor-livro.js` | O leitor em cartão: rolagem por dentro (a página não rola), troca de capítulo por seta e teclado, fim de livro, `?v=`, F5 na mesma posição, três tamanhos de letra, seletor (centro da lista, rolagem que não pula ao escolher), Lamentações e 7 tamanhos de tela (setas nos lados ou embaixo, seletor cabendo) |
 | `filtros-traducao.js` | Escolher Salmos digitando, trocar NAA/NVT mantendo o filtro e digitar rápido |
 
 **Segurança:** só rodam contra `localhost` (recusam outra página e abortam qualquer requisição para fora dele, exceto as fontes do Google) e só leem (GET). Os textos de ataque que usam (XSS, injeção de SQL, emoji, caracteres de controle) são dados de teste, não um incidente. Credenciais nunca entram nesses arquivos: na Fase 4, use variável de ambiente ou um arquivo ignorado pelo git. O lint do cliente os aceita (a pasta é tratada à parte, porque cada arquivo é uma função solta para o `run-code`).
@@ -181,6 +182,8 @@ O estado da leitura vive na URL, então há link direto, o botão voltar funcion
 | `/ler/joao/3` | Leitor no capítulo (o livro vai como *slug* do nome, ex.: `1-corintios`) |
 | `/ler/joao/3?t=NVT&v=16` | Mesmo capítulo na NVT, com o versículo 16 destacado |
 | `/ler/joao/3?v=16-18` | Destaca um intervalo de versículos |
+
+**O leitor** é um cartão só, para todos os aparelhos: o texto do capítulo (um parágrafo por versículo, com o número na margem) rola **dentro** do cartão e a página em volta fica parada. No desktop e no tablet deitado as setas de capítulo ficam nos lados; em telas de até 800 px elas descem para baixo do cartão. Há três tamanhos de letra (19, 21 e 23 px; o padrão é 21), o seletor de livro e capítulo (busca por nome, sem exigir acento) e a troca NAA/NVT. Ao trocar de capítulo o texto anterior fica na tela até o novo chegar (nada pisca em branco), e o capítulo vizinho e a outra tradução são carregados de antemão. A posição de leitura é lembrada no histórico do navegador (F5, Voltar e Avançar voltam ao mesmo ponto; a URL não muda) e a última leitura fica guardada em `nb-last-read` (ainda sem uso na tela). "Lamentações de Jeremias" aparece como "Lamentações" na tela; o banco e a URL continuam com o nome completo.
 
 No leitor, as setas do teclado e o gesto de deslizar trocam de capítulo (também passam para o livro seguinte ou anterior), e há botões equivalentes. Em hospedagem estática (Cloudflare Pages) as rotas dependem de `client/public/_redirects`, que já está no repositório.
 
@@ -213,8 +216,11 @@ nossabiblia/
 │   │   │   ├── Link.jsx                # Link de navegação interna (respeita clique com modificador)
 │   │   │   ├── Navbar.jsx              # Cabeçalho com marca, busca, tema e entrada
 │   │   │   ├── OpenBibleCard.jsx       # Livro aberto com a amostra de Gênesis 1 (sem requisição)
+│   │   │   ├── ChapterPicker.jsx       # Seletor de livro e capítulo do leitor
+│   │   │   ├── ReaderBar.jsx           # Barra do leitor: seletor, NAA/NVT e tamanho da letra
+│   │   │   ├── ReaderCard.jsx          # Cartão vertical: texto que rola por dentro e setas de capítulo
 │   │   │   ├── ReferenceResults.jsx    # Cartões de referência e de livro na busca
-│   │   │   ├── ReadingView.jsx         # Leitor imersivo de capítulos bíblicos
+│   │   │   ├── ReadingView.jsx         # Leitor: rotas, carga, teclado, gestos e carga antecipada
 │   │   │   ├── SearchModal.jsx         # Busca instantânea estilo Spotlight, com os filtros (testamento e livro)
 │   │   │   ├── Spinner.jsx             # Indicador de carregamento
 │   │   │   └── TranslationToggle.jsx   # Seletor NAA | NVT
@@ -228,7 +234,7 @@ nossabiblia/
 │   │   │   ├── storage.js              # localStorage seguro (falha sem quebrar)
 │   │   │   ├── theme.js                # Tema claro/escuro persistido
 │   │   │   ├── translations.js         # Traduções disponíveis
-│   │   │   └── useJson.js              # GET de JSON com cache, spinner só se demorar e retry
+│   │   │   └── useJson.js              # GET de JSON com cache, texto anterior (`stale`), carga antecipada e retry
 │   │   ├── App.jsx                 # Raiz: rotas, atalho ⌘K, tema e avisos
 │   │   ├── index.css               # Design system: tokens e estilos de todos os componentes
 │   │   └── main.jsx                # Ponto de entrada React
