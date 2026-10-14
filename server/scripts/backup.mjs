@@ -14,11 +14,20 @@ import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import crypto from 'node:crypto';
+import pg from 'pg';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { createPool } from '../db-core.js';
 
+// Datas e horários voltam como TEXTO, com a precisão que o banco tem. Por padrão o driver os transforma em objetos Date do JavaScript, e
+// isso estraga o backup de dois jeitos (os dois foram achados no ensaio de restauração):
+//   - horários (timestamptz): o Date só guarda milissegundos e o PostgreSQL guarda microssegundos ("23:17:24.88085" virava ".88");
+//   - datas (date, a coluna sp_date): o Date vira meia-noite no fuso da máquina, e no JSON sai outro dia ("T03:00:00Z" em São Paulo).
+pg.types.setTypeParser(1082, (value) => value); // date
+pg.types.setTypeParser(1114, (value) => value); // timestamp
+pg.types.setTypeParser(1184, (value) => value); // timestamptz
+
 // Ordem das tabelas: quem é referenciado vem antes, para a restauração respeitar as chaves estrangeiras.
-const TABLES = ['users', 'sessions', 'bookmark_folders', 'bookmarks', 'favorites', 'daily_verses', 'daily_progress', 'email_blocks', 'themes', 'theme_verses'];
+const TABLES = ['users', 'sessions', 'bookmark_folders', 'bookmarks', 'favorites', 'themes', 'theme_verses', 'daily_verses', 'daily_progress', 'email_blocks'];
 
 const args = process.argv.slice(2);
 const keep = args.includes('--keep');
