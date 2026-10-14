@@ -1,0 +1,50 @@
+# Rotinas diárias, de graça no GitHub Actions: backup dos dados dos usuários para o R2 e faxina das contas não verificadas.
+# Cada rotina usa o seu papel de banco, com o menor privilégio possível (migração 003):
+#   backup -> nb_backup (só leitura)      faxina -> nb_maint (lê e apaga em users, sessions e email_blocks)
+# Os segredos ficam em Settings > Secrets and variables > Actions. Se uma rotina falhar, o GitHub avisa por e-mail.
+name: Rotinas
+
+on:
+  schedule:
+    - cron: '30 6 * * *' # 06:30 UTC = 03:30 em São Paulo
+  workflow_dispatch: # também dá para rodar à mão, na aba Actions
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Backup para o R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Exportar, enviar ao R2 e conferir
+        run: node server/scripts/backup.mjs
+        env:
+          DATABASE_URL_BACKUP: ${{ secrets.DATABASE_URL_BACKUP }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+  faxina:
+    name: Faxina (contas não verificadas, sessões e bloqueios vencidos)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apagar o que venceu
+        run: node server/scripts/cleanup.mjs --apply
+        env:
+          DATABASE_URL_MAINT: ${{ secrets.DATABASE_URL_MAINT }}

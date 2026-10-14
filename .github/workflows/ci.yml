@@ -1,0 +1,41 @@
+# Integração contínua: a cada push no main e em pull requests, confere o lint, os testes que não dependem do banco e o build do site.
+# Os testes contra o banco (search.db.test.js) e a bateria de precisão leem a PRODUÇÃO e rodam só na máquina de quem desenvolve:
+# sem DATABASE_URL eles são pulados de propósito (ver o início de server/search.db.test.js).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Lint, testes e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+      - name: Dependências (servidor e cliente)
+        run: |
+          npm ci
+          npm --prefix client ci
+      - name: Lint do cliente
+        run: npm --prefix client run lint
+      - name: Testes (regras da busca e referências; os de banco são pulados)
+        run: npm test
+      - name: Build do site (confere a amostra da home e gera os cabeçalhos)
+        run: npm --prefix client run build
