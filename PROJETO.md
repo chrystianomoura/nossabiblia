@@ -166,6 +166,16 @@ Decididas com o usuário, vendo o resultado na tela:
 - **Cartões "Marcações & Notas", "Progresso diário", "Leitura sem distrações":** todos com a largura do maior e centralizados. Até 640 px (onde a descrição mais longa deixa de caber em uma linha, ~615 px, com folga) o conteúdo empilha: ícone em cima, título e descrição centralizados. O ícone é só um contorno dourado (sem preenchimento), porque o dourado translúcido virava oliva sujo sobre o cartão azul do tema escuro.
 - **Cabeçalho em linha única até 320 px:** abaixo de 520 px a marca (selo e nome) e os botões encolhem com a largura da tela e nunca quebram linha.
 
+## Navegadores de celular: barras, teclado e entalhe
+
+- **A página não rola; quem rola é o `#root`.** `html` e `body` ficam parados, para as barras do navegador permanecerem à mostra (elas só recolhem quando a página inteira rola). Consequências: o modal da busca trava o `#root` (não o `body`); ao trocar de tela (início, leitor) o `#root` volta ao topo; os testes de tela olham o `#root`, não o `window`. Em contrapartida, tocar na barra de status não volta ao topo.
+- **Alturas:** fundo, home e leitor usam `svh` (altura com as barras visíveis, que não muda); só o cartão de leitura e o modal da busca usam `dvh`, para ocupar a área visível.
+- **Entalhe (celular deitado):** as margens laterais usam `--safe-x`, o maior valor entre as áreas seguras da esquerda e da direita, nos dois lados; senão o conteúdo ficava deslocado para o lado oposto ao entalhe.
+- **Celular deitado (altura até 500 px):** o cartão do leitor se ajusta à altura visível (mínimo de 110 px de texto) e o modal da busca começa a 14 px do topo e termina a 14 px da base, com a altura que sobra com o teclado aberto.
+- **Aparelhos de toque (`hover: none`):** nenhum estilo de hover vale em toque (ficava preso depois do toque); a busca tem fundo sólido na cor do tema, sem desfoque e sem sombra, e a página de trás fica invisível enquanto ela está aberta (o iOS muda a altura da janela com atraso ao subir e baixar o teclado, e a página de trás aparecia por instantes). No celular o modal da busca usa a tela até o fim (menos as margens).
+- **Sem barra de rolagem abaixo de 1070 px**, em todas as áreas (rola normalmente por toque, roda e teclado).
+- **Leitor:** trocar NAA/NVT mantém o versículo do topo (e a fração dele) e o destaque do `?v=`; setas e busca de outro lugar descartam o destaque. O fundo atrás do leitor é liso (a rolagem elástica do iOS não mostra o degradê da home).
+
 ## Regras transversais
 
 - **Fuso horário:** toda regra de dia (positivo, limite diário, reset) usa o horário de São Paulo.

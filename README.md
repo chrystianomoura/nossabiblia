@@ -193,7 +193,10 @@ No leitor, as setas do teclado e o gesto de deslizar trocam de capítulo (també
 
 - Navegação completa por teclado, indicador de foco visível, *skip link*, `aria-label` nos botões de ícone e diálogo de busca com foco preso.
 - Layout em coluna única abaixo de 1070 px (conteúdo centralizado) e em duas colunas a partir daí; o texto da hero acompanha a largura da coluna para manter as mesmas quebras de linha.
-- A home não trava a altura da tela: se o conteúdo não couber, a página rola em vez de cortar.
+- A home não trava a altura da tela: se o conteúdo não couber, ela rola em vez de cortar. Quem rola é o `#root` (a página em si fica parada), para as barras do navegador de celular ficarem sempre à mostra.
+- Abaixo de 1070 px: letras padronizadas a partir do subtítulo, livro de amostra com uma página só, cartões centralizados, cabeçalho em linha única até 320 px e sem barras de rolagem à vista.
+- Celular deitado: margens simétricas em relação ao entalhe (`--safe-x`), cartão do leitor e modal da busca ajustados à altura visível.
+- Aparelhos de toque: sem estilos de `:hover` (ficavam presos) e busca com fundo sólido, sem desfoque.
 
 ---
 
