@@ -79,11 +79,12 @@ export default function SearchModal({ isOpen, onClose }) {
 
     openerRef.current = document.activeElement;
     inputRef.current?.focus();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const scroller = document.getElementById('root'); // é o #root que rola, não a página
+    const previousOverflow = scroller.style.overflow;
+    scroller.style.overflow = 'hidden';
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      scroller.style.overflow = previousOverflow;
       openerRef.current?.focus?.();
       moreRef.current?.abort();
       setQuery('');

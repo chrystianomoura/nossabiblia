@@ -36,7 +36,7 @@ async page => {
   const fontPx = () => page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.rb-scroll')).fontSize));
   const geo = () => page.evaluate(() => {
     const r = (s) => document.querySelector(s).getBoundingClientRect();
-    const p = r('.rb-paper'); const a = r('.rb-nav--prev'); const b = r('.rb-nav--next'); const de = document.documentElement;
+    const p = r('.rb-paper'); const a = r('.rb-nav--prev'); const b = r('.rb-nav--next'); const de = document.getElementById('root'); // quem rola é o #root
     return { paper: p, prev: a, next: b, overflowX: de.scrollWidth > innerWidth, vw: innerWidth, vh: innerHeight, pageH: de.scrollHeight };
   });
 
@@ -51,7 +51,7 @@ async page => {
   await page.mouse.wheel(0, 900); await sleep(400);
   const st = await scrollTop();
   log(st > 400, 'a rolagem acontece dentro do cartão (scrollTop ' + Math.round(st) + ')');
-  log((await page.evaluate(() => window.scrollY)) === 0, 'a página em volta não rola');
+  log((await page.evaluate(() => document.getElementById('root').scrollTop)) === 0, 'a página em volta não rola');
   log(await page.evaluate(() => { const s = document.querySelector('.rb-scroll'); return s.offsetWidth === s.clientWidth; }), 'sem barra de rolagem à vista');
 
   // ---------- Números pendurados: um versículo por linha, número na margem ----------

@@ -56,7 +56,7 @@ async page => {
   await page.mouse.click(5, 5); await sleep(300); log(await page.locator('.search-dialog').count() === 0, 'A5 clique fora fecha');
   await page.click('button[aria-label="Buscar na Bíblia"]'); await sleep(300);
   await page.click('button[aria-label="Fechar busca"]'); await sleep(300); log(await page.locator('.search-dialog').count() === 0, 'A6 botão X fecha');
-  const scrollLocked = await (async () => { await page.click('button[aria-label="Buscar na Bíblia"]'); await sleep(300); const a = await page.evaluate(() => document.body.style.overflow); await page.keyboard.press('Escape'); await sleep(300); const b = await page.evaluate(() => document.body.style.overflow); return a === 'hidden' && b !== 'hidden'; })();
+  const scrollLocked = await (async () => { await page.click('button[aria-label="Buscar na Bíblia"]'); await sleep(300); const a = await page.evaluate(() => document.getElementById('root').style.overflow); await page.keyboard.press('Escape'); await sleep(300); const b = await page.evaluate(() => document.getElementById('root').style.overflow); return a === 'hidden' && b !== 'hidden'; })();
   log(scrollLocked, 'A7 a página de fundo trava a rolagem com o modal aberto e destrava ao fechar');
 
   // ---------- B. foco preso (Tab) ----------

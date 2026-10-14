@@ -2,6 +2,9 @@
    Tokens
    ========================================================================== */
 :root {
+  /* Na horizontal o iPhone reserva um lado (entalhe) mais que o outro; as margens usam o maior dos dois nos dois lados,
+     senão o conteúdo, centralizado só na área segura, fica deslocado para o lado oposto ao entalhe. */
+  --safe-x: max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
   color-scheme: light;
 
   --font-serif: 'Newsreader', Georgia, serif;
@@ -77,8 +80,23 @@
 }
 
 html {
-  scroll-padding-top: 96px;
   -webkit-text-size-adjust: 100%;
+}
+
+/* A página não rola: quem rola é o #root. Assim as barras do navegador (celular) ficam sempre à mostra, em vez de recolher
+   e voltar a cada rolagem e esticar/encolher o layout. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-top: 96px;
 }
 
 body {
@@ -88,7 +106,6 @@ body {
   background-attachment: fixed;
   color: var(--text-main);
   line-height: 1.6;
-  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
@@ -328,7 +345,7 @@ select {
    Home
    ========================================================================== */
 .home {
-  min-height: 100dvh;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -337,7 +354,7 @@ select {
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  padding: calc(18px + env(safe-area-inset-top)) calc(28px + env(safe-area-inset-right)) 12px calc(28px + env(safe-area-inset-left));
+  padding: calc(18px + env(safe-area-inset-top)) calc(28px + var(--safe-x)) 12px calc(28px + var(--safe-x));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -380,7 +397,7 @@ select {
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 8px calc(28px + env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) calc(28px + env(safe-area-inset-left));
+  padding: 8px calc(28px + var(--safe-x)) calc(28px + env(safe-area-inset-bottom)) calc(28px + var(--safe-x));
   display: flex;
   align-items: center;
 }
@@ -522,8 +539,8 @@ select {
 @media (max-width: 520px) {
   .navbar,
   .home-main {
-    padding-left: calc(16px + env(safe-area-inset-left));
-    padding-right: calc(16px + env(safe-area-inset-right));
+    padding-left: calc(16px + var(--safe-x));
+    padding-right: calc(16px + var(--safe-x));
   }
 
   .home-main {
@@ -730,7 +747,7 @@ select {
    Leitura
    ========================================================================== */
 .read {
-  min-height: 100dvh;
+  min-height: 100%;
   background: var(--bg-main);
 }
 
@@ -740,7 +757,7 @@ select {
   z-index: 100;
   background: var(--bg-main);
   border-bottom: 1px solid var(--border-light);
-  padding: calc(12px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) 12px calc(24px + env(safe-area-inset-left));
+  padding: calc(12px + env(safe-area-inset-top)) calc(24px + var(--safe-x)) 12px calc(24px + var(--safe-x));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -779,8 +796,8 @@ select {
 .read-main {
   max-width: 720px;
   margin: 0 auto;
-  padding: 56px calc(24px + env(safe-area-inset-right)) calc(96px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));
-  min-height: 70dvh;
+  padding: 56px calc(24px + var(--safe-x)) calc(96px + env(safe-area-inset-bottom)) calc(24px + var(--safe-x));
+  min-height: 70svh;
 }
 
 .read-status {
@@ -801,6 +818,11 @@ select {
 .read-title {
   font-family: var(--font-serif);
   font-size: clamp(34px, 7vw, 46px);
+/* O leitor tem fundo liso; sem isto, a rolagem elástica do iOS (além do fim) mostrava o degradê da página inicial embaixo dele */
+body:has(.read) {
+  background: var(--bg-main);
+}
+
   font-weight: 600;
   letter-spacing: -0.02em;
   text-wrap: balance;
@@ -874,8 +896,8 @@ select {
 @media (max-width: 640px) {
   .read-header {
     position: static;
-    padding-left: calc(14px + env(safe-area-inset-left));
-    padding-right: calc(14px + env(safe-area-inset-right));
+    padding-left: calc(14px + var(--safe-x));
+    padding-right: calc(14px + var(--safe-x));
   }
 
   .read-main {
@@ -1141,7 +1163,7 @@ select {
 .read-main--book {
   max-width: none;
   min-height: 0;
-  padding: 24px calc(24px + env(safe-area-inset-right)) 24px calc(24px + env(safe-area-inset-left));
+  padding: 24px calc(24px + var(--safe-x)) 24px calc(24px + var(--safe-x));
 }
 
 /* O cartão fica centralizado no espaço que sobra abaixo do cabeçalho: a mesma folga em cima e embaixo */
@@ -1157,7 +1179,7 @@ select {
 }
 
 .rb {
-  --rb-h: clamp(380px, calc(100dvh - 215px), 900px); /* altura da área de leitura (o resto do cartão é a barra) */
+  --rb-h: clamp(380px, calc(100dvh - 215px), 900px); /* altura da área de leitura (o resto do cartão é a barra). dvh: o cartão usa toda a área visível, com ou sem as barras do navegador */
   /* A largura do cartão segue a coluna de texto: coluna + margens internas + as duas setas. Para mudar a largura da
      leitura, é só mexer em --rb-col. */
   --rb-col: 760px;
@@ -1235,6 +1257,7 @@ select {
 
 .rb-verse {
   position: relative;
+  width: 100%; /* a margem automática de .read-main tira o esticamento da coluna: sem isto o cartão nasce estreito e expande */
   margin: 0 0 0.5em;
   padding-left: 0; /* sem recuo: o versículo começa na linha da borda da pílula e as linhas seguintes voltam a ela */
 }
@@ -1289,7 +1312,7 @@ select {
   }
 
   .read-main--book {
-    padding: 16px calc(16px + env(safe-area-inset-right)) 20px calc(16px + env(safe-area-inset-left));
+    padding: 16px calc(16px + var(--safe-x)) 20px calc(16px + var(--safe-x));
   }
 }
 

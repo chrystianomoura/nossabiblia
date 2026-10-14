@@ -15,6 +15,11 @@ export default function App() {
   const [notice, setNotice] = useState('');
 
   // ⌘K / Ctrl+K abre e fecha a busca em qualquer tela.
+  // Trocou de tela (início, leitor): quem rola é o #root, que não volta ao topo sozinho como a página volta
+  useEffect(() => {
+    document.getElementById('root').scrollTop = 0;
+  }, [route.view]);
+
   useEffect(() => {
     function onKeyDown(event) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {

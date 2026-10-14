@@ -39,7 +39,7 @@ async page => {
       const measure = () => page.evaluate(() => {
         const issues = []; const info = {};
         const dlg = document.querySelector('.search-dialog').getBoundingClientRect();
-        if (document.documentElement.scrollWidth > innerWidth) issues.push(`rolagem lateral (${document.documentElement.scrollWidth} > ${innerWidth})`);
+        if (document.getElementById('root').scrollWidth > innerWidth) issues.push(`rolagem lateral (${document.getElementById('root').scrollWidth} > ${innerWidth})`);
         if (dlg.left < 0 || dlg.right > innerWidth + 0.5) issues.push(`diálogo fora da tela (${Math.round(dlg.left)}..${Math.round(dlg.right)})`);
         // texto cortado
         for (const el of document.querySelectorAll('.search-dialog .search-filter-tag, .search-filter-opt, .search-version, .search-filter-input, .search-filter-item, .search-result-ref')) {
@@ -93,7 +93,7 @@ async page => {
   await page.evaluate(() => { document.documentElement.style.fontSize = '24px'; window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true })); });
   await page.waitForSelector('.search-input'); await page.fill('.search-input', 'deus'); await sleep(1500);
   await page.click('.search-filter-btn'); await sleep(300);
-  const z = await page.evaluate(() => ({ lateral: document.documentElement.scrollWidth > innerWidth, dlg: document.querySelector('.search-dialog').getBoundingClientRect().right <= innerWidth }));
+  const z = await page.evaluate(() => ({ lateral: document.getElementById('root').scrollWidth > innerWidth, dlg: document.querySelector('.search-dialog').getBoundingClientRect().right <= innerWidth }));
   out.push(`${z.lateral || !z.dlg ? 'FALHOU' : 'OK    '} zoom ~200% + fonte grande (500x400, html 24px): rolagem lateral=${z.lateral}, diálogo dentro=${z.dlg}`);
   return out.join('\n') + '\n\n' + (problems.length ? problems.length + ' TELA(S) COM PROBLEMA' : 'TUDO CERTO');
 }
