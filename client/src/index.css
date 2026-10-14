@@ -683,15 +683,16 @@ select {
    descrição mais longa (Marcações & Notas) deixa de caber em uma linha (~615px de tela, com folga): ao lado do ícone, ela
    quebraria e deixaria a caixa com sobra vazia. */
 @media (max-width: 640px) {
-  /* Cartões enxutos também na largura: uma coluna estreita centralizada, em vez de esticar até as bordas da tela */
+  /* Largura medida pelo cartão de texto mais longo (a maior linha dele tem ~252px, em 17px) mais as laterais: os três cartões
+     têm a mesma largura e sem folga sobrando nas laterais. Se a letra mudar, rever este valor. */
   .benefits {
-    max-width: 300px;
+    max-width: 278px;
   }
 
   .benefit {
     flex-direction: column;
     gap: 8px;
-    padding: 10px 14px 12px;
+    padding: 10px 10px 12px;
     text-align: center;
   }
 
