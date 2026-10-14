@@ -40,14 +40,14 @@ Este documento descreve a especificação funcional e as decisões técnicas da 
 
 ## Marcações (exige conta verificada)
 
-7. **Marcar versículo:** o usuário escolhe uma cor de uma paleta.
+7. **Marcar versículo:** o usuário escolhe uma de **4 cores** (amarelo, verde, azul e rosa, em tons suaves). A marcação é **por versículo** e vale nas duas traduções: uma por versículo, e a tradução em que foi criada só serve para exibir (decisão de 14/10/2026).
 8. **Comentário:** cada marcação pode ter um comentário opcional.
 9. **Pastas:** o usuário cria pastas e organiza as marcações nelas.
 10. **Ordem:** as marcações aparecem com a mais recente primeiro.
 
 ## Favoritos (exige conta verificada)
 
-11. **Favoritar versículo:** favorito e marcação são independentes. O mesmo versículo pode ter as duas coisas.
+11. **Favoritar versículo:** favorito e marcação são independentes. O mesmo versículo pode ter as duas coisas. Um favorito por versículo, valendo nas duas traduções.
 12. **Lista única:** favoritos não podem ser organizados em pastas.
 13. **Ordem:** os favoritos aparecem com o mais recente primeiro.
 
@@ -325,4 +325,5 @@ cron.schedule('*/4 6-23 * * *', async () => {
 17. ✅ **Leitor redesenhado** (ver "Interface do leitor"): cartão vertical para todos os aparelhos, sem piscar entre capítulos, posição lembrada e verificações da tela próprias (`leitor-livro.js`).
 18. ✅ **Decisões fechadas da busca:** a dica "Encontrado na NVT" (quando a busca dá zero na tradução escolhida) **não será feita**; as mensagens de falha ("Não foi possível buscar agora. Verifique a conexão e tente de novo.", "Não foi possível carregar mais.", "Não foi possível carregar essa referência.") **mantêm o ponto final**; os botões de 30 a 38 px de altura (seletor NAA/NVT, botões redondos de 36 px) **ficam como estão**, e o usuário conferiu no aparelho.
 19. ✅ **Celular e telas pequenas:** ponto de quebra único em 1070 px, letras padronizadas a partir do subtítulo, livro de uma página, cartões enxutos e centralizados, cabeçalho em linha única até 320 px, página que não rola (o `#root` rola, para as barras do navegador ficarem à mostra), `svh`/`dvh`, margem simétrica no entalhe, celular deitado, toque sem `:hover` preso, busca com fundo sólido, sem barras de rolagem à vista abaixo do desktop e o leitor que mantém o lugar ao trocar de tradução ou de largura (ver "Navegadores de celular"). Os oito `ui-checks` e os 63 testes passam; o usuário conferiu no aparelho.
-20. ⏳ **Próximo passo:** Fase 4 (Sistema de Autenticação, Cadastro de Usuários, Envio de E-mails com Resend e Marcações Pessoais).
+20. ✅ **Preparação da Fase 4 (14/10/2026):** domínio `nossabiblia.party` com DNS, TLS estrito, DNSSEC e e-mail de entrada (`contato@`); Resend verificado (envio testado e entregue na caixa de entrada); migração `001_fase4_conta.sql` ensaiada em branch separada da Neon (20 testes de regra, todos certos) e **ainda não aplicada na produção**; servidor com CORS de lista fixa, certificado do banco verificado, cabeçalhos de segurança e limite de requisições; `backup.mjs` com envio ao R2 testado (bucket privado, retenção de 90 dias, token restrito); papel de banco `nb_app` criado (menor privilégio, migração 002 ensaiada); contrato da API em `API.md`. A branch de produção da Neon não pôde ser protegida (limite do plano), e a janela de recuperação da Neon é de 6 horas.
+21. ⏳ **Próximo passo:** Fase 4 (Sistema de Autenticação, Cadastro de Usuários, Envio de E-mails com Resend e Marcações Pessoais).

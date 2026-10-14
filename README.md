@@ -249,8 +249,13 @@ nossabiblia/
 │   ├── routes/
 │   │   └── bible.js            # Rotas de livros, capítulos, versículos e busca GIN
 │   ├── db.js                   # Pool de conexões PostgreSQL para o Neon
+│   ├── migrations/
+│   │   └── 001_fase4_conta.sql    # Prepara o esquema da Fase 4 (contas, sessões, marcações por versículo); ensaiada, ainda não aplicada
 │   ├── scripts/
-│   │   └── clean-verse-text.mjs   # Limpa os textos (hífen invisível, acento desmontado); rode após cada carga
+│   │   ├── clean-verse-text.mjs   # Limpa os textos (hífen invisível, acento desmontado); rode após cada carga
+│   │   ├── migrate.mjs            # Aplica as migrações (modo teste por padrão; --apply grava)
+│   │   └── backup.mjs             # Cópia dos dados dos usuários (só leitura): envia ao R2 e confere
+│   │   ├── create-app-role.mjs    # Cria o papel de banco do servidor (menor privilégio; senha só no .env.local)
 │   ├── search.js               # Regras da busca exata (palavra, acento, frase, hífen, ocorrências)
 │   ├── accuracy/
 │   │   ├── oracle.js           # Gabarito independente da busca (lê NAA.json e NVT.json)
@@ -259,6 +264,7 @@ nossabiblia/
 │   ├── search.db.test.js       # Testes contra o banco real (só leitura): contrato da busca e dos filtros
 │   └── index.js                # Servidor Fastify principal
 │
+├── API.md                      # Contrato da API da Fase 4 (rascunho, nada implementado)
 ├── schema.sql                  # DDL completo do PostgreSQL (tabelas, índices GIN e funções)
 ├── seed.sql                    # Dump SQL com os 66 livros e 62.207 versículos
 ├── seed.py                     # Script Python com carga atômica e relatório de integridade
