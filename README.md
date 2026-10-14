@@ -54,6 +54,9 @@ O único custo recorrente é a renovação do domínio.
 - **Migrações versionadas, com ensaio.** Cada migração roda primeiro em modo de teste (transação desfeita no fim) e em uma *branch* separada da Neon; só então é aplicada na produção, com uma guarda que recusa rodar se houver dados que ela trocaria.
 - **Tudo gratuito, com os limites à vista.** A API dorme depois de 15 minutos sem uso: a tela avisa ("Acordando o servidor") em vez de parecer travada. O keep-alive do banco vem desligado porque estouraria as 100 CU-horas mensais da Neon.
 - **Segurança em camadas.** CORS com lista fixa, cabeçalhos de segurança (helmet e CSP no site), limite de requisições por IP, certificado do banco verificado, consultas parametrizadas e entradas hostis cobertas por testes.
+- **Cache pensado na cota gratuita.** O texto bíblico não muda, então a API guarda em memória livros, capítulos e buscas já feitas (com limite de entradas) e manda `Cache-Control` ao navegador: só a primeira leitura de cada coisa acorda o banco da Neon, cuja cota gratuita (100 CU-horas por mês) é o ponto mais frágil de um desenho 100% gratuito.
+- **Um backup só vale se for restaurado.** `restore.mjs` restaura num banco vazio, ensaia antes (transação desfeita), recusa banco com dados e confere contagens. Ele foi ensaiado de ponta a ponta numa branch da Neon, comparando um hash do conteúdo de cada tabela antes e depois, e esse ensaio achou três defeitos que "arquivo enviado e hash conferido" nunca mostraria (ordem das chaves estrangeiras, horários truncados em milissegundos e datas trocadas por fuso).
+- **Limite de requisições que não se burla.** Atrás de proxies o IP vem em `X-Forwarded-For`, que o cliente pode forjar; `TRUST_PROXY` é o número de proxies na frente do servidor, não "confie em tudo".
 - **Honestidade sobre o que não está feito.** A área pessoal (cadastro, marcações, favoritos, progresso) está **desenhada e com o banco pronto** (`API.md`, migrações 001 a 003), mas ainda sem código de aplicação.
 
 ## 🔁 Integração contínua e rotinas
@@ -296,6 +299,7 @@ nossabiblia/
 ├── server/                     # Backend API (Node.js + Fastify)
 │   ├── routes/
 │   │   └── bible.js            # Rotas de livros, capítulos, versículos e busca GIN
+│   ├── memo.js                 # Cache em memória (com limite) das respostas imutáveis; config.js lê TRUST_PROXY
 │   ├── db.js                   # Pool do servidor (papel limitado nb_app, DATABASE_URL_APP)
 │   ├── db-owner.js             # Pool do dono do banco: só migrações, criação do papel e limpeza de texto
 │   ├── db-core.js              # Criação do pool (certificado verificado) e leitura do .env.local
@@ -308,6 +312,7 @@ nossabiblia/
 │   │   ├── migrate.mjs            # Aplica as migrações (modo teste por padrão; --apply grava)
 │   │   └── backup.mjs             # Cópia dos dados dos usuários (só leitura): envia ao R2 e confere
 │   │   ├── create-role.mjs        # Cria um papel de banco sem permissão (nb_app, nb_backup, nb_maint); senha só no .env.local
+│   │   ├── restore.mjs            # Restaura um backup (do R2 ou de arquivo) num banco vazio; ensaia antes de gravar
 │   │   ├── cleanup.mjs            # Faxina diária: contas não verificadas há 7 dias, sessões e bloqueios vencidos (teste por padrão)
 │   ├── search.js               # Regras da busca exata (palavra, acento, frase, hífen, ocorrências)
 │   ├── accuracy/
