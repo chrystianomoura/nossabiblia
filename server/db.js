@@ -17,9 +17,14 @@ if (!dbUrl) {
   throw new Error('DATABASE_URL não configurada em .env.local ou variáveis de ambiente.');
 }
 
+// O certificado do banco é verificado (a Neon usa certificado válido). O `sslmode` sai da URL: o `pg` o trata como um apelido de
+// `verify-full` e avisa que isso vai mudar; a opção `ssl` abaixo diz o que queremos de forma explícita.
+const connectionUrl = new URL(dbUrl);
+connectionUrl.searchParams.delete('sslmode');
+
 const pool = new pg.Pool({
-  connectionString: dbUrl,
-  ssl: { rejectUnauthorized: false },
+  connectionString: connectionUrl.toString(),
+  ssl: { rejectUnauthorized: true },
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
