@@ -209,6 +209,7 @@ nossabiblia/
 │   │   ├── favicon.svg             # Selo NB (SVG com os contornos das letras)
 │   │   └── _redirects              # Fallback de SPA para o Cloudflare Pages
 │   ├── scripts/
+│   │   ├── write-headers.mjs          # Gera dist/_headers (CSP e cabeçalhos de segurança) após o build
 │   │   ├── generate-hero-sample.mjs   # Gera o trecho de Gênesis 1 da home a partir de NAA.json/NVT.json
 │   │   └── ui-checks/                 # Verificações da tela (playwright-cli run-code): comportamento, visual, filtros
 │   ├── src/
