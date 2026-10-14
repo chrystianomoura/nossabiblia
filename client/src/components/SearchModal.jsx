@@ -3,7 +3,7 @@ import { Search, X, BookOpen, ArrowLeftRight, ChevronDown, ListFilter } from 'lu
 import Spinner from './Spinner';
 import ReferenceResults from './ReferenceResults';
 import { navigate, readPath } from '../lib/router';
-import { slugify, useBooks } from '../lib/books';
+import { displayBookName, slugify, useBooks } from '../lib/books';
 import { parseReference } from '../lib/reference';
 
 const number = new Intl.NumberFormat('pt-BR');
@@ -432,7 +432,7 @@ export default function SearchModal({ isOpen, onClose }) {
                       }}
                       onMouseLeave={() => setBookHover(null)}
                     >
-                      <span>{b.name}</span>
+                      <span>{displayBookName(b.name)}</span>
                       <span className="search-filter-item-tm">{b.testament}</span>
                     </li>
                   ))}
@@ -510,7 +510,7 @@ export default function SearchModal({ isOpen, onClose }) {
                     <button type="button" className="search-result" onClick={() => selectResult(r)}>
                       <span className="search-result-ref">
                         <BookOpen size={14} aria-hidden="true" />
-                        <span>{r.book_name} {r.chapter}:{r.verse}</span>
+                        <span>{displayBookName(r.book_name)} {r.chapter}:{r.verse}</span>
                         <span className="search-result-tr" translate="no">({r.translation})</span>
                         {r.occurrences > 1 && (
                           <span

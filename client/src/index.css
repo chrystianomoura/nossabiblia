@@ -22,6 +22,7 @@
 
   /* Acentos devocionais */
   --gold-text: #8A6A24;
+  --num-soft: #9A7B3A; /* número do versículo no leitor: discreto, sem negrito */
   /* Selo "2×": no claro precisa de mais presença sobre o cartão bege (fundo mais dourado, texto mais escuro) */
   --badge-bg: rgba(197, 160, 89, 0.34);
   --badge-text: #5E440F;
@@ -53,6 +54,7 @@
   --border-strong: rgba(234, 231, 225, 0.16);
 
   --gold-text: #D4AF37;
+  --num-soft: #A8914A;
   --badge-bg: rgba(212, 175, 55, 0.15);
   --badge-text: #D4AF37;
   --gold-soft-bg: rgba(212, 175, 55, 0.15);
@@ -726,44 +728,29 @@ select {
 .back-link {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  height: 36px;
+  padding: 0 18px 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: var(--bg-card);
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-main);
   text-decoration: none;
-  padding: 6px 4px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .back-link:hover {
-  color: var(--text-main);
-}
-
-.read-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
+  border-color: var(--text-main);
+  box-shadow: 0 0 0 0.6px var(--text-main);
 }
 
 .read-tools {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.select {
-  max-width: 100%;
-  padding: 6px 12px;
-  border-radius: 16px;
-  border: 1px solid var(--border-strong);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.select:hover {
-  border-color: var(--text-main);
 }
 
 .read-main {
@@ -788,19 +775,9 @@ select {
   font-weight: 600;
 }
 
-.read-eyebrow {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--gold-text);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
 .read-title {
   font-family: var(--font-serif);
-  font-size: clamp(30px, 6vw, 38px);
+  font-size: clamp(34px, 7vw, 46px);
   font-weight: 600;
   letter-spacing: -0.02em;
   text-wrap: balance;
@@ -808,19 +785,24 @@ select {
 
 .read-head {
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: 38px;
 }
 
 .read-text {
   font-family: var(--font-serif);
-  font-size: var(--reading-size, 19px);
+  font-size: var(--reading-size, 21px);
   line-height: 1.9;
   overflow-wrap: break-word;
 }
 
 .verse {
-  margin-right: 6px;
   border-radius: 4px;
+}
+
+.read-text .verse {
+  position: relative;
+  margin: 0 0 0.55em;
+  padding-left: 1.9em; /* a margem onde o número fica pendurado */
 }
 
 .verse.is-target {
@@ -828,8 +810,21 @@ select {
   box-shadow: 0 0 0 4px var(--gold-soft-bg);
 }
 
-.read-text .verse-num {
-  font-size: 0.65em;
+/* Número do versículo pendurado na margem esquerda, pequeno e discreto (no livro aberto e na página única) */
+.read-text .verse-num,
+.rb-scroll .verse-num {
+  position: absolute;
+  left: 0;
+  top: 0.22em;
+  /* A caixa vai até 5 px antes do texto (a margem tem 1.9em do versículo = 3.1667em do número): o número fica
+     junto do versículo, sem colar. */
+  width: calc(3.1667em - 5px);
+  margin: 0;
+  font-size: 0.6em;
+  font-weight: 600;
+  line-height: 1.6;
+  text-align: right;
+  color: var(--num-soft);
 }
 
 .read-footer {
@@ -865,17 +860,17 @@ select {
     padding-right: calc(14px + env(safe-area-inset-right));
   }
 
-  .read-controls {
-    order: 3;
-    width: 100%;
-  }
-
   .read-main {
-    padding-top: 36px;
+    padding-top: 20px;
   }
 
   .back-link span {
     display: none;
+  }
+
+  .back-link {
+    width: 36px;
+    padding: 0;
   }
 
   .read-footer {
@@ -884,6 +879,414 @@ select {
 
   .read-footer .pill-btn {
     width: 100%;
+  }
+}
+
+/* ==========================================================================
+   Barra do leitor e seletor de livro/capítulo
+   ========================================================================== */
+.reader-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.read-main > .reader-bar {
+  margin-bottom: 32px;
+}
+
+.reader-bar > :first-child {
+  justify-self: start;
+}
+
+.reader-bar .seg {
+  justify-self: start; /* no celular a coluna é larga: o seletor NAA/NVT não pode esticar */
+}
+
+@media (min-width: 641px) {
+  .reader-bar .seg {
+    justify-self: center;
+  }
+}
+
+.reader-fonts {
+  justify-self: end;
+  display: flex;
+  gap: 8px;
+}
+
+/* Sem animação de anel nem de fundo ao clicar: o texto muda na hora e o botão não pisca */
+.reader-fonts .icon-btn {
+  transition: none;
+}
+
+.reader-fonts .icon-btn:active:not(:disabled) {
+  background: var(--bg-card);
+}
+
+@media (max-width: 640px) {
+  .reader-bar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .reader-bar > :first-child {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+
+  .picker-btn {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+.picker {
+  position: relative;
+}
+
+.picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px 0 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: var(--bg-card);
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.picker-btn:hover {
+  border-color: var(--text-main);
+  box-shadow: 0 0 0 0.6px var(--text-main);
+}
+
+.picker-chevron {
+  transition: transform 0.2s var(--ease);
+}
+
+.picker-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.picker-pop {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(440px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 290px; /* a busca em cima; embaixo, livros e capítulos com a mesma altura */
+  gap: 6px 12px; /* só um respiro entre a busca e as listas */
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  box-shadow: var(--shadow-modal);
+}
+
+.picker-books,
+.picker-chapters {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+@media (max-width: 480px) {
+  .picker-pop {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 190px 230px;
+  }
+}
+
+.picker-search {
+  grid-column: 1 / -1; /* ocupa a linha toda, acima das duas colunas */
+}
+
+.picker-input {
+  width: 100%;
+  text-align: left;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 17px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  caret-color: var(--text-muted); /* o cursor tem a cor do "Buscar livro" */
+}
+
+.picker-input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.picker-list {
+  position: relative; /* o seletor mede a posição dos livros a partir dela */
+  list-style: none;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none; /* rola, mas sem barra à vista */
+}
+
+.picker-list::-webkit-scrollbar,
+.picker-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.picker-item:hover,
+.picker-item.is-active {
+  background: var(--gold-soft-bg);
+}
+
+.picker-item[aria-current='true'] {
+  color: var(--gold-text);
+}
+
+.picker-item-tm {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.picker-empty {
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.picker-label {
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 4px;
+  position: relative; /* o seletor mede a posição dos capítulos a partir dela */
+  flex: 1;
+  min-height: 0;
+  align-content: start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.picker-ch {
+  height: 34px;
+  border-radius: 10px;
+  background: var(--bg-card-subtle);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.picker-ch:hover {
+  background: var(--gold-soft-bg);
+}
+
+.picker-ch[aria-current='page'] {
+  background: var(--btn-dark);
+  color: var(--btn-dark-text);
+}
+
+/* ==========================================================================
+   Leitor em cartão (tablet e desktop): uma coluna que rola DENTRO do cartão; a página não rola
+   ========================================================================== */
+.read-main--book {
+  max-width: none;
+  min-height: 0;
+  padding: 24px calc(24px + env(safe-area-inset-right)) 24px calc(24px + env(safe-area-inset-left));
+}
+
+/* O cartão fica centralizado no espaço que sobra abaixo do cabeçalho: a mesma folga em cima e embaixo */
+.read--card {
+  display: flex;
+  flex-direction: column;
+}
+
+.read--card .read-main--book {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.rb {
+  --rb-h: clamp(380px, calc(100dvh - 215px), 900px); /* altura da área de leitura (o resto do cartão é a barra) */
+  /* A largura do cartão segue a coluna de texto: coluna + margens internas + as duas setas. Para mudar a largura da
+     leitura, é só mexer em --rb-col. */
+  --rb-col: 760px;
+  --rb-pad: 44px;
+  --rb-nav: 48px;
+  --rb-gap: 12px;
+  display: grid;
+  grid-template-columns: var(--rb-nav) minmax(0, 1fr) var(--rb-nav);
+  align-items: center;
+  gap: var(--rb-gap);
+  max-width: calc(var(--rb-col) + 2 * var(--rb-pad) + 2px + 2 * (var(--rb-nav) + var(--rb-gap)));
+  width: 100%;
+  margin: 0 auto;
+}
+
+.rb-paper {
+  min-width: 0;
+  padding: 12px var(--rb-pad) 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 22px;
+  box-shadow: var(--shadow-book);
+}
+
+.rb-top {
+  padding: 4px 0 12px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* A área de leitura: altura fixa e rolagem vertical própria (a página em volta não rola) */
+.rb-scroll {
+  position: relative; /* os versículos medem a posição a partir dela */
+  height: var(--rb-h);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none; /* sem barra de rolagem à vista; rola normalmente (roda, toque, teclado) */
+  font-family: var(--font-serif);
+  font-size: var(--reading-size, 21px);
+  line-height: 1.75;
+  overflow-wrap: break-word;
+}
+
+.rb-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.rb-scroll:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.rb-col {
+  max-width: var(--rb-col); /* coluna de leitura centralizada: ~75 caracteres por linha */
+  margin: 0 auto;
+  padding: 0 8px 4px;
+}
+
+.rb-scroll--status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rb-title {
+  margin-bottom: 22px;
+  text-align: center;
+}
+
+.rb-title .read-title {
+  font-size: clamp(34px, 3.4vw, 44px);
+  line-height: 1.15;
+}
+
+.rb-verse {
+  position: relative;
+  margin: 0 0 0.5em;
+  padding-left: 1.9em; /* a margem onde o número fica pendurado */
+}
+
+.rb-nav {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: var(--text-main);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rb-nav:hover:not(:disabled) {
+  border-color: var(--text-main);
+  box-shadow: 0 0 0 0.6px var(--text-main);
+}
+
+.rb-nav:disabled {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+/* Tablet em pé e celular: sem espaço para as setas dos lados, elas descem para baixo do cartão */
+@media (max-width: 800px) {
+  .rb {
+    --rb-pad: 28px;
+    --rb-h: clamp(300px, calc(100dvh - 310px), 900px);
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      'paper paper'
+      'prev next';
+    row-gap: 14px;
+    column-gap: 12px;
+  }
+
+  .rb-paper {
+    grid-area: paper;
+  }
+
+  .rb-nav--prev {
+    grid-area: prev;
+    justify-self: end;
+  }
+
+  .rb-nav--next {
+    grid-area: next;
+    justify-self: start;
+  }
+
+  .read-main--book {
+    padding: 16px calc(16px + env(safe-area-inset-right)) 20px calc(16px + env(safe-area-inset-left));
+  }
+}
+
+@media (max-width: 520px) {
+  .rb {
+    --rb-pad: 16px;
+  }
+
+  .rb-paper {
+    border-radius: 18px;
+  }
+
+  /* O seletor nasce na borda esquerda do texto (33px da tela): a largura desconta os dois lados para caber */
+  .picker-pop {
+    width: calc(100vw - 66px);
   }
 }
 

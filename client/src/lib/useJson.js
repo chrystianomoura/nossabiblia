@@ -25,9 +25,15 @@ function fetchJson(url) {
   return inflight.get(url);
 }
 
+// Carrega uma resposta de antemão (vai para o cache) sem mostrar nada; erros são ignorados.
+export function prefetchJson(url) {
+  if (url && !cache.has(url)) fetchJson(url).catch(() => {});
+}
+
 // GET de JSON. `url` nulo não busca. `retry()` refaz a requisição que falhou.
 // - loading: ainda sem resposta para a url atual
 // - slow: loading há mais de 200 ms (é aí que vale mostrar um spinner)
+// - stale: o dado da url anterior, enquanto a nova carrega (para não piscar em branco)
 export function useJson(url) {
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState({});
@@ -39,6 +45,11 @@ export function useJson(url) {
   const error = cached === undefined && settled ? result.error : undefined;
   const loading = Boolean(url) && data === undefined && error === undefined;
   const key = `${url}#${attempt}`;
+
+  // O último dado mostrado: enquanto a url nova carrega, quem quiser pode continuar mostrando o anterior em vez de
+  // ficar em branco (padrão do React para guardar o valor da renderização anterior).
+  const [lastData, setLastData] = useState(undefined);
+  if (data !== undefined && data !== lastData) setLastData(data);
 
   useEffect(() => {
     if (!url || cache.has(url)) return undefined;
@@ -61,6 +72,7 @@ export function useJson(url) {
     data,
     error,
     loading,
+    stale: data === undefined ? lastData : undefined, // o dado anterior, enquanto o novo carrega
     slow: loading && slowKey === key,
     retry: () => setAttempt((n) => n + 1),
   };

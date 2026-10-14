@@ -1,20 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Search, Sun, Moon } from 'lucide-react';
-import Spinner from './Spinner';
-import TranslationToggle from './TranslationToggle';
+import { ArrowLeft, Search, Sun, Moon } from 'lucide-react';
+import ReaderCard from './ReaderCard';
+import { displayBookName } from '../lib/books';
+import ReaderBar from './ReaderBar';
 import Link from './Link';
 import { navigate, readPath } from '../lib/router';
-import { useJson } from '../lib/useJson';
+import { prefetchJson, useJson } from '../lib/useJson';
+import { TRANSLATIONS } from '../lib/translations';
 import { readStorage, writeStorage } from '../lib/storage';
 
-const FONT_MIN = 16;
-const FONT_MAX = 26;
+// Três tamanhos de letra: o padrão, um degrau menor e um maior.
+const FONT_SIZES = [19, 21, 23];
+const FONT_DEFAULT = 21;
 const SWIPE_MIN_X = 80;
 const SWIPE_MAX_Y = 60;
 
 function loadFontSize() {
   const saved = parseInt(readStorage('nb-font-size'), 10);
-  return saved >= FONT_MIN && saved <= FONT_MAX ? saved : 19;
+  if (!(saved > 0)) return FONT_DEFAULT;
+  // Quem tinha outro tamanho salvo (a escala antiga ia de 16 a 26) passa para o mais próximo; no empate, o maior.
+  return FONT_SIZES.reduce((best, size) => (Math.abs(size - saved) <= Math.abs(best - saved) ? size : best), FONT_SIZES[0]);
 }
 
 export default function ReadingView({ route, books, booksError, theme, onToggleTheme, onOpenSearch }) {
@@ -25,25 +30,20 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
 
   const [fontSize, setFontSize] = useState(loadFontSize);
   const chapterUrl = bookId ? `/api/books/${bookId}/chapters/${chapter}?translation=${translation}` : null;
-  const { data, error, loading, slow, retry } = useJson(chapterUrl);
+  const { data, error, slow, retry, stale } = useJson(chapterUrl);
+  // Enquanto o capítulo novo carrega, o anterior continua na tela (nada de piscar em branco).
+  const shown = data ?? (error ? undefined : stale);
+  const isStale = data === undefined && shown !== undefined;
   const touchStart = useRef(null);
 
   useEffect(() => {
     writeStorage('nb-font-size', String(fontSize));
   }, [fontSize]);
 
-  // Rola até o versículo pedido pela busca ou volta ao topo a cada capítulo.
-  useEffect(() => {
-    if (!data) return;
-    const target = verse ? document.getElementById(`v${verse}`) : null;
-    if (target) target.scrollIntoView({ block: 'center' });
-    else window.scrollTo({ top: 0 });
-  }, [data, verse]);
-
   useEffect(() => {
     if (!book) return undefined;
     const previous = document.title;
-    document.title = `${book.name} ${chapter} (${translation}) — Nossa Bíblia`;
+    document.title = `${displayBookName(book.name)} ${chapter} (${translation}) — Nossa Bíblia`;
     return () => { document.title = previous; };
   }, [book, chapter, translation]);
 
@@ -56,6 +56,27 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
     if (chapter < book.chapters_count) next = { slug, chapter: chapter + 1 };
     else if (bookIndex < books.length - 1) next = { slug: books[bookIndex + 1].slug, chapter: 1 };
   }
+
+  // Carrega de antemão o capítulo anterior, o seguinte e a outra tradução deste: a troca fica instantânea.
+  const prevKey = prev ? `${prev.slug}/${prev.chapter}` : '';
+  const nextKey = next ? `${next.slug}/${next.chapter}` : '';
+  useEffect(() => {
+    if (!books || !book || data === undefined) return undefined;
+    const timer = setTimeout(() => {
+      const urlOf = (slugOf, chapterOf, tr) => {
+        const target = books.find((b) => b.slug === slugOf);
+        return target ? `/api/books/${target.id}/chapters/${chapterOf}?translation=${tr}` : null;
+      };
+      for (const key of [prevKey, nextKey]) {
+        if (!key) continue;
+        const [slugOf, chapterOf] = key.split('/');
+        prefetchJson(urlOf(slugOf, chapterOf, translation));
+      }
+      const other = TRANSLATIONS.find((tr) => tr !== translation);
+      if (other) prefetchJson(urlOf(book.slug, chapter, other));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [books, book, data, prevKey, nextKey, translation, chapter]);
 
   const go = (target) => target && navigate(readPath(target.slug, target.chapter, translation));
 
@@ -88,7 +109,8 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
     go(dx > 0 ? prev : next);
   }
 
-  function renderBody() {
+  // Estados sem texto (erro, carregando…). null = ainda quieto (o spinner só aparece se a resposta demorar).
+  function renderStatus() {
     if (booksError) {
       return (
         <div className="read-status" role="alert">
@@ -103,8 +125,7 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
     if (!books) {
       return (
         <div className="read-status" role="status">
-          <Spinner size={24} />
-          <p>Carregando…</p>
+          <span className="sr-only">Carregando</span>
         </div>
       );
     }
@@ -129,121 +150,38 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
       );
     }
 
-    if (loading || !data) {
-      // O spinner só aparece se a resposta demorar; antes disso a área fica quieta.
-      return slow ? (
-        <div className="read-status" role="status">
-          <Spinner size={24} />
-          <p>Carregando as Sagradas Escrituras…</p>
-        </div>
-      ) : null;
-    }
-
-    return (
-      <article className="animate-fade-in">
-        <header className="read-head">
-          <span className="read-eyebrow">
-            {data.book.testament === 'AT' ? 'Antigo Testamento' : 'Novo Testamento'} • <span translate="no">{translation}</span>
-          </span>
-          <h1 className="read-title">{data.book.name} {data.chapter}</h1>
-        </header>
-
-        <div className="read-text">
-          {data.verses.map((v) => (
-            <span
-              key={v.verse}
-              id={`v${v.verse}`}
-              className={`verse${verse && v.verse >= verse && v.verse <= (verseEnd ?? verse) ? ' is-target' : ''}`}
-            >
-              <sup className="verse-num">{v.verse}</sup>
-              {v.text}{' '}
-            </span>
-          ))}
-        </div>
-
-        <footer className="read-footer">
-          <button type="button" className="pill-btn" onClick={() => go(prev)} disabled={!prev}>
-            <ChevronLeft size={16} aria-hidden="true" />
-            <span>Capítulo anterior</span>
-          </button>
-          <button type="button" className="pill-btn pill-btn--dark" onClick={() => go(next)} disabled={!next}>
-            <span>Próximo capítulo</span>
-            <ChevronRight size={16} aria-hidden="true" />
-          </button>
-        </footer>
-      </article>
-    );
+    // Nada na tela enquanto carrega (sem texto e sem bolinha); o aviso fica só para quem usa leitor de tela.
+    return slow ? (
+      <div className="read-status" role="status">
+        <span className="sr-only">Carregando o capítulo</span>
+      </div>
+    ) : null;
   }
 
+  const ready = Boolean(books && book && shown);
+
+  const bar = (
+    <ReaderBar
+      books={books}
+      book={book}
+      slug={slug}
+      chapter={chapter}
+      translation={translation}
+      fontSize={fontSize}
+      fontSizes={FONT_SIZES}
+      onFontSize={setFontSize}
+    />
+  );
+
   return (
-    <div className="read">
+    <div className="read read--card">
       <header className="read-header">
         <Link to="/" className="back-link">
           <ArrowLeft size={18} aria-hidden="true" />
           <span>Voltar ao início</span>
         </Link>
 
-        {book && (
-          <div className="read-controls">
-            <label className="sr-only" htmlFor="book-select">Livro</label>
-            <select
-              id="book-select"
-              name="book"
-              className="select"
-              value={slug}
-              onChange={(e) => navigate(readPath(e.target.value, 1, translation))}
-            >
-              <optgroup label="Antigo Testamento">
-                {books.filter((b) => b.testament === 'AT').map((b) => (
-                  <option key={b.id} value={b.slug}>{b.name}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Novo Testamento">
-                {books.filter((b) => b.testament === 'NT').map((b) => (
-                  <option key={b.id} value={b.slug}>{b.name}</option>
-                ))}
-              </optgroup>
-            </select>
-
-            <label className="sr-only" htmlFor="chapter-select">Capítulo</label>
-            <select
-              id="chapter-select"
-              name="chapter"
-              className="select"
-              value={chapter}
-              onChange={(e) => navigate(readPath(slug, e.target.value, translation))}
-            >
-              {Array.from({ length: book.chapters_count }, (_, i) => i + 1).map((c) => (
-                <option key={c} value={c}>Cap. {c}</option>
-              ))}
-            </select>
-
-            <TranslationToggle
-              value={translation}
-              onChange={(t) => navigate(readPath(slug, chapter, t))}
-            />
-          </div>
-        )}
-
         <div className="read-tools">
-          <button
-            type="button"
-            className="icon-btn icon-btn--text"
-            onClick={() => setFontSize((s) => Math.max(FONT_MIN, s - 2))}
-            disabled={fontSize <= FONT_MIN}
-            aria-label="Diminuir tamanho da letra"
-          >
-            A-
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--text"
-            onClick={() => setFontSize((s) => Math.min(FONT_MAX, s + 2))}
-            disabled={fontSize >= FONT_MAX}
-            aria-label="Aumentar tamanho da letra"
-          >
-            A+
-          </button>
           <button
             type="button"
             className="icon-btn"
@@ -266,12 +204,24 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
 
       <main
         id="main"
-        className="read-main"
+        className="read-main read-main--book"
         style={{ '--reading-size': `${fontSize}px` }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {renderBody()}
+        <ReaderCard
+          bar={bar}
+          data={ready ? shown : null}
+          stale={isStale}
+          status={renderStatus()}
+          chapterKey={`${slug}/${chapter}/${translation}`}
+          verse={verse}
+          verseEnd={verseEnd}
+          hasPrev={Boolean(prev)}
+          hasNext={Boolean(next)}
+          onPrevChapter={() => go(prev)}
+          onNextChapter={() => go(next)}
+        />
       </main>
     </div>
   );

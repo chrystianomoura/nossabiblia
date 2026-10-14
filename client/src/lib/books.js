@@ -9,6 +9,11 @@ export function slugify(name) {
     .replace(/^-|-$/g, '');
 }
 
+// Nomes mostrados na tela quando diferem do nome gravado no banco. O banco, as URLs (`/ler/lamentacoes-de-jeremias/3`) e o
+// que se digita na busca ("lamentações de jeremias") continuam com o nome completo.
+const DISPLAY_NAMES = { 'Lamentações de Jeremias': 'Lamentações' };
+export const displayBookName = (name) => DISPLAY_NAMES[name] ?? name;
+
 let cache = null;
 let pending = null;
 

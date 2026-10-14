@@ -1,12 +1,13 @@
 import { BookOpen, ChevronRight } from 'lucide-react';
 import Spinner from './Spinner';
+import { displayBookName } from '../lib/books';
 import { useJsonList } from '../lib/useJson';
 
 const plural = (n, one, many) => (n === 1 ? one : many);
 
 function refLabel({ book, chapter, verse, verseEnd }) {
   const range = verse ? `:${verse}${verseEnd ? `-${verseEnd}` : ''}` : '';
-  return `${book.name} ${chapter}${range}`;
+  return `${displayBookName(book.name)} ${chapter}${range}`;
 }
 
 // Cartão de um livro digitado sem número ("mat" → Mateus): abre o capítulo 1.
@@ -15,7 +16,7 @@ function BookCard({ book, onOpen }) {
     <button type="button" className="search-result search-result--go search-result--book" onClick={() => onOpen({ book, chapter: 1 })}>
       <span className="search-result-ref">
         <BookOpen size={14} aria-hidden="true" />
-        <span>{book.name}</span>
+        <span>{displayBookName(book.name)}</span>
         <ChevronRight size={16} className="search-result-go" aria-hidden="true" />
       </span>
       <span className="search-result-meta">
@@ -70,7 +71,7 @@ function resolve(candidate, state, translation) {
   if (error?.type === 'chapter') {
     return {
       type: 'message',
-      node: <><strong>{book.name}</strong> tem {book.chapters_count} {plural(book.chapters_count, 'capítulo', 'capítulos')}</>,
+      node: <><strong>{displayBookName(book.name)}</strong> tem {book.chapters_count} {plural(book.chapters_count, 'capítulo', 'capítulos')}</>,
     };
   }
   if (error) return { type: 'message', node: 'Esse intervalo de versículos não é válido' };
@@ -84,7 +85,7 @@ function resolve(candidate, state, translation) {
   if (verse && shown.length === 0) {
     return {
       type: 'message',
-      node: <><strong>{book.name} {chapter}</strong> tem {total} {plural(total, 'versículo', 'versículos')} na {translation}</>,
+      node: <><strong>{displayBookName(book.name)} {chapter}</strong> tem {total} {plural(total, 'versículo', 'versículos')} na {translation}</>,
     };
   }
   return { type: 'card', candidate, shown, total };
