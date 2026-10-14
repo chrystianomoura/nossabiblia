@@ -8,14 +8,14 @@
 //   node server/scripts/backup.mjs --no-upload  só grava em ./backups (sem R2)
 // Variáveis do .env.local para o R2: R2_ACCOUNT_ID, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.
 // O arquivo tem hashes de senha e e-mails: bucket privado, token restrito a ele, retenção de 90 dias (regra do bucket).
-// Só leitura no banco.
+// Só leitura no banco (papel nb_backup).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import pool from '../db.js';
+import { createPool } from '../db-core.js';
 
 // Ordem das tabelas: quem é referenciado vem antes, para a restauração respeitar as chaves estrangeiras.
 const TABLES = ['users', 'sessions', 'bookmark_folders', 'bookmarks', 'favorites', 'daily_verses', 'daily_progress', 'email_blocks', 'themes', 'theme_verses'];
@@ -31,6 +31,13 @@ if (!noUpload && !r2Ready) console.warn('Aviso: variáveis do R2 incompletas; o 
 
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 
+// Papel só de leitura (nb_backup, DATABASE_URL_BACKUP). Sem ele (uso local), cai no papel do servidor, que também lê.
+const dbUrl = process.env.DATABASE_URL_BACKUP ?? process.env.DATABASE_URL_APP;
+if (!dbUrl) {
+  console.error('DATABASE_URL_BACKUP (ou DATABASE_URL_APP) não configurada.');
+  process.exit(1);
+}
+const pool = createPool(dbUrl, process.env.DATABASE_URL_BACKUP ? 'nb_backup' : 'nb_app');
 const client = await pool.connect();
 try {
   // Uma transação de leitura com fotografia única: todas as tabelas refletem o mesmo instante.
