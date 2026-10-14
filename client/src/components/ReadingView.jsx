@@ -8,6 +8,7 @@ import { navigate, readPath } from '../lib/router';
 import { prefetchJson, useJson } from '../lib/useJson';
 import { TRANSLATIONS } from '../lib/translations';
 import { readStorage, writeStorage } from '../lib/storage';
+import { apiUrl } from '../lib/api';
 
 // Três tamanhos de letra: o padrão, um degrau menor e um maior.
 const FONT_SIZES = [19, 21, 23];
@@ -29,7 +30,7 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
   const bookId = book?.id;
 
   const [fontSize, setFontSize] = useState(loadFontSize);
-  const chapterUrl = bookId ? `/api/books/${bookId}/chapters/${chapter}?translation=${translation}` : null;
+  const chapterUrl = bookId ? apiUrl(`/api/books/${bookId}/chapters/${chapter}?translation=${translation}`) : null;
   const { data, error, slow, retry, stale } = useJson(chapterUrl);
   // Enquanto o capítulo novo carrega, o anterior continua na tela (nada de piscar em branco).
   const shown = data ?? (error ? undefined : stale);
@@ -65,7 +66,7 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
     const timer = setTimeout(() => {
       const urlOf = (slugOf, chapterOf, tr) => {
         const target = books.find((b) => b.slug === slugOf);
-        return target ? `/api/books/${target.id}/chapters/${chapterOf}?translation=${tr}` : null;
+        return target ? apiUrl(`/api/books/${target.id}/chapters/${chapterOf}?translation=${tr}`) : null;
       };
       for (const key of [prevKey, nextKey]) {
         if (!key) continue;

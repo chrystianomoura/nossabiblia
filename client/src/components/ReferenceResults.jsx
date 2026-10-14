@@ -2,6 +2,7 @@ import { BookOpen, ChevronRight } from 'lucide-react';
 import Spinner from './Spinner';
 import { displayBookName } from '../lib/books';
 import { useJsonList } from '../lib/useJson';
+import { apiUrl } from '../lib/api';
 
 const plural = (n, one, many) => (n === 1 ? one : many);
 
@@ -93,7 +94,7 @@ function resolve(candidate, state, translation) {
 
 export default function ReferenceResults({ parsed, translation, onOpen }) {
   const candidates = parsed.kind === 'reference' ? parsed.candidates : [];
-  const urls = candidates.map((c) => (c.error ? null : `/api/books/${c.book.id}/chapters/${c.chapter}?translation=${translation}`));
+  const urls = candidates.map((c) => (c.error ? null : apiUrl(`/api/books/${c.book.id}/chapters/${c.chapter}?translation=${translation}`)));
   const { states, loading, slow, retry } = useJsonList(urls);
 
   if (parsed.kind === 'book') {

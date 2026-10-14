@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { apiUrl } from './api';
 
 export function slugify(name) {
   return name
@@ -19,7 +20,7 @@ let pending = null;
 
 function loadBooks() {
   if (cache) return Promise.resolve(cache);
-  pending ??= fetch('/api/books')
+  pending ??= fetch(apiUrl('/api/books'))
     .then((res) => {
       if (!res.ok) throw new Error('Falha ao carregar os livros.');
       return res.json();

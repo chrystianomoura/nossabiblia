@@ -5,6 +5,7 @@ import ReferenceResults from './ReferenceResults';
 import { navigate, readPath } from '../lib/router';
 import { displayBookName, slugify, useBooks } from '../lib/books';
 import { parseReference } from '../lib/reference';
+import { apiUrl } from '../lib/api';
 
 const number = new Intl.NumberFormat('pt-BR');
 const plural = (n, one, many) => (n === 1 ? one : many);
@@ -27,7 +28,7 @@ const NO_FILTER = { testament: null, bookId: null };
 const plain = (text) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 const searchUrl = (term, translation, offset = 0, { testament, bookId } = NO_FILTER) =>
-  `/api/search?q=${encodeURIComponent(term)}&translation=${translation}&offset=${offset}` +
+  apiUrl(`/api/search?q=${encodeURIComponent(term)}&translation=${translation}&offset=${offset}`) +
   (testament ? `&testament=${testament}` : '') +
   (bookId ? `&book_id=${bookId}` : '');
 
