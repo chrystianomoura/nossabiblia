@@ -192,7 +192,7 @@ No leitor, as setas do teclado e o gesto de deslizar trocam de capítulo (també
 ## ♿ Acessibilidade e Responsividade
 
 - Navegação completa por teclado, indicador de foco visível, *skip link*, `aria-label` nos botões de ícone e diálogo de busca com foco preso.
-- Layout em coluna única abaixo de 1040 px (conteúdo centralizado) e em duas colunas a partir daí; o texto da hero acompanha a largura da coluna para manter as mesmas quebras de linha.
+- Layout em coluna única abaixo de 1070 px (conteúdo centralizado) e em duas colunas a partir daí; o texto da hero acompanha a largura da coluna para manter as mesmas quebras de linha.
 - A home não trava a altura da tela: se o conteúdo não couber, a página rola em vez de cortar.
 
 ---

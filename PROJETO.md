@@ -159,8 +159,12 @@ Decididas com o usuário, vendo o resultado na tela:
 
 ## Página inicial: Bíblia de amostra e botões em telas pequenas
 
-- **Uma ou duas páginas conforme o espaço:** o livro aberto da home mostra duas páginas só se cada uma tiver largura de leitura (~210 px, ou seja, o espaço do texto do cartão acima de 440 px); com menos que isso, uma coluna só, **sem o vão entre as páginas**. Em tablet e celular (abaixo de 1040 px, onde a página rola) a coluna única usa a letra do leitor (21 px, entrelinha 1,75, número do versículo como no leitor); na tela única do desktop (1040 px ou mais) segue com a letra pequena da amostra para o livro caber na altura da tela.
+- **Duas páginas só no desktop:** o livro aberto da home mostra duas páginas lado a lado na tela única do desktop (1070 px ou mais), com a letra pequena da amostra (12,5 a 14,5 px) para o livro caber na altura. Abaixo de 1070 px ele tem **uma página só**, sem o vão entre elas, na mesma letra do subtítulo (19 px, entrelinha 1,6) e com o título do capítulo em 26 px; duas páginas com essa letra ficariam estreitas demais (~22 caracteres por linha).
 - **Botões "Criar Conta Gratuita" e "Começar a Ler Agora":** o mesmo tamanho em todos os aparelhos (235 px, só o conteúdo, centralizados), nunca esticados até as bordas. Com as colunas empilhadas, o vão do primeiro botão para o cartão é igual ao de cima do botão (18 px).
+- **Letras padronizadas abaixo do desktop (1070 px):** o subtítulo (19 px) é a régua. Título da página 36 px, título do capítulo no livro 26 px, texto da Bíblia 19 px, descrição dos cartões 17 px, títulos dos cartões e botões 15 px, seletor NAA/NVT 14 px. No desktop os valores seguem proporcionais à coluna.
+- **Ponto de quebra único em 1070 px:** é a largura em que o livro deixa de caber em duas páginas; abaixo dela a página inteira vira coluna única, como no celular (nunca duas colunas com o livro em uma só).
+- **Cartões "Marcações & Notas", "Progresso diário", "Leitura sem distrações":** todos com a largura do maior e centralizados. Até 640 px (onde a descrição mais longa deixa de caber em uma linha, ~615 px, com folga) o conteúdo empilha: ícone em cima, título e descrição centralizados. O ícone é só um contorno dourado (sem preenchimento), porque o dourado translúcido virava oliva sujo sobre o cartão azul do tema escuro.
+- **Cabeçalho em linha única até 320 px:** abaixo de 520 px a marca (selo e nome) e os botões encolhem com a largura da tela e nunca quebram linha.
 
 ## Regras transversais
 

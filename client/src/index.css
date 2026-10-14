@@ -304,6 +304,12 @@ select {
   transform: translateX(5px);
 }
 
+@media (hover: hover) {
+  .btn-primary:hover .btn-arrow {
+    transform: translateX(5px);
+  }
+}
+
 /* Seletor [ NAA | NVT ] com pílula deslizante */
 .seg {
   position: relative;
@@ -315,12 +321,6 @@ select {
   border-radius: 20px;
   user-select: none;
 }
-@media (hover: hover) {
-  .btn-primary:hover .btn-arrow {
-    transform: translateX(5px);
-  }
-}
-
 
 .seg-pill {
   position: absolute;
@@ -475,7 +475,7 @@ select {
 }
 
 /* Tela única no desktop; rolagem normal em telas pequenas */
-@media (min-width: 1040px) {
+@media (min-width: 1070px) {
   .home-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: clamp(24px, 3.5vw, 48px);
@@ -513,7 +513,7 @@ select {
 }
 
 /* Tablet e celular: coluna única, centralizada */
-@media (max-width: 1039px) {
+@media (max-width: 1069px) {
   .home-main {
     padding-top: 32px;
   }
@@ -533,6 +533,19 @@ select {
     text-align: center;
     text-wrap: balance;
     margin-inline: auto;
+  }
+
+  /* Letras padronizadas abaixo do desktop, a partir do subtítulo (19px): título, cards, botões e seletor em harmonia */
+  .hero-title {
+    font-size: 36px;
+  }
+
+  .btn-primary {
+    font-size: 15px;
+  }
+
+  .book-top .seg-btn {
+    font-size: 14px;
   }
 
   .home-benefits {
@@ -558,31 +571,41 @@ select {
     padding-top: 24px;
   }
 
+  /* O cabeçalho cabe sempre em uma linha só: a marca e os botões encolhem com a largura da tela (até 320px) */
   .navbar {
-    flex-wrap: wrap;
-    gap: 8px 12px;
+    flex-wrap: nowrap;
+    gap: clamp(6px, 2.5vw, 12px);
   }
 
   .brand {
-    gap: 8px;
+    gap: clamp(6px, 2vw, 8px);
+    flex-shrink: 1;
+    min-width: 0;
   }
 
   .brand-mark {
-    width: 38px;
-    height: 38px;
+    width: clamp(30px, 9.5vw, 38px);
+    height: clamp(30px, 9.5vw, 38px);
   }
 
   .brand-name {
-    font-size: clamp(17px, 5.2vw, 21px);
+    font-size: clamp(15px, 5vw, 21px);
+    white-space: nowrap;
   }
 
   .navbar-actions {
-    gap: 8px;
+    gap: clamp(5px, 2vw, 8px);
     margin-left: auto;
   }
 
+  .navbar-actions .icon-btn {
+    width: clamp(32px, 9.5vw, 36px);
+    height: clamp(32px, 9.5vw, 36px);
+  }
+
   .navbar-actions .pill-btn {
-    padding: 7px 14px;
+    padding: 7px clamp(10px, 3.5vw, 14px);
+    font-size: clamp(12.5px, 3.7vw, 13.5px);
   }
 }
 
@@ -609,7 +632,9 @@ select {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: var(--gold-strong-bg);
+  /* Só contorno dourado, sem preenchimento: o fundo dourado translúcido virava um oliva sujo sobre o cartão azul do tema escuro */
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--gold-text) 45%, transparent);
   color: var(--gold-text);
   display: flex;
   align-items: center;
@@ -630,6 +655,29 @@ select {
   color: color-mix(in srgb, var(--text-main) 82%, transparent);
   line-height: 1.4;
   text-wrap: pretty;
+}
+
+/* Abaixo do desktop (vem depois das regras acima, para vencer): descrição 17px e título 15px, em harmonia com o subtítulo */
+@media (max-width: 1069px) {
+  .benefit-text {
+    font-size: 17px;
+  }
+
+  .benefit-title {
+    font-size: 15px;
+  }
+}
+
+/* Celular e tablet estreito: o conteúdo dos cartões centralizado (ícone em cima, texto no meio). O ponto de quebra é onde a
+   descrição mais longa (Marcações & Notas) deixa de caber em uma linha (~615px de tela, com folga): ao lado do ícone, ela
+   quebraria e deixaria a caixa com sobra vazia. */
+@media (max-width: 640px) {
+  .benefit {
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px;
+    text-align: center;
+  }
 }
 
 /* ==========================================================================
@@ -711,21 +759,23 @@ select {
   user-select: none;
 }
 
-/* Duas páginas só se cada uma tiver largura de leitura (~220px); com menos que isso, uma coluna só */
-@container (max-width: 440px) {
+/* Abaixo do desktop o livro tem uma página só, na mesma letra do subtítulo (19px): duas páginas lado a lado não têm largura
+   de leitura com essa letra. Na tela única do desktop (1070 px ou mais) a coluna é estreita e o livro precisa caber na
+   altura da tela, então segue com duas páginas e a letra pequena da amostra. */
+@media (max-width: 1069px) {
   /* Uma coluna só: sem o vão entre as páginas */
   .book-spreads {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
+    font-size: 19px;
+    line-height: 1.6;
   }
 
-  /* A letra grande do leitor só quando a página rola (tablet e celular): na tela única do desktop (1040 px ou mais) a
-     coluna é estreita e o livro precisa caber na altura da tela, então segue com a letra pequena da amostra */
-  @media (max-width: 1039px) {
-    .book-spreads {
-      font-size: 21px;
-      line-height: 1.75;
-    }
+  /* Título do capítulo: um degrau acima do texto (19px), como o subtítulo está para os cards */
+  .book-page-title {
+    font-size: 26px;
+    line-height: 1.2;
+    margin-bottom: 14px;
   }
 
   .book-spreads p {
@@ -757,6 +807,11 @@ select {
 /* ==========================================================================
    Leitura
    ========================================================================== */
+/* O leitor tem fundo liso; sem isto, a rolagem elástica do iOS (além do fim) mostrava o degradê da página inicial embaixo dele */
+body:has(.read) {
+  background: var(--bg-main);
+}
+
 .read {
   min-height: 100%;
   background: var(--bg-main);
@@ -820,11 +875,6 @@ select {
   display: flex;
   flex-direction: column;
   align-items: center;
-/* O leitor tem fundo liso; sem isto, a rolagem elástica do iOS (além do fim) mostrava o degradê da página inicial embaixo dele */
-body:has(.read) {
-  background: var(--bg-main);
-}
-
   gap: 12px;
 }
 
@@ -1114,6 +1164,12 @@ body:has(.read) {
   background: var(--gold-soft-bg);
 }
 
+@media (hover: hover) {
+  .picker-item:hover {
+    background: var(--gold-soft-bg);
+  }
+}
+
 .picker-item[aria-current='true'] {
   color: var(--gold-text);
 }
@@ -1177,12 +1233,6 @@ body:has(.read) {
    Leitor em cartão (tablet e desktop): uma coluna que rola DENTRO do cartão; a página não rola
    ========================================================================== */
 .read-main--book {
-@media (hover: hover) {
-  .picker-item:hover {
-    background: var(--gold-soft-bg);
-  }
-}
-
   max-width: none;
   min-height: 0;
   padding: 24px calc(24px + var(--safe-x)) 24px calc(24px + var(--safe-x));
@@ -1196,6 +1246,7 @@ body:has(.read) {
 
 .read--card .read-main--book {
   flex: 1;
+  width: 100%; /* a margem automática de .read-main tira o esticamento da coluna: sem isto o cartão nasce estreito e expande */
   display: flex;
   align-items: center;
 }
@@ -1257,7 +1308,6 @@ body:has(.read) {
 
 .rb-col {
   max-width: var(--rb-col); /* coluna de leitura centralizada: ~75 caracteres por linha */
-  width: 100%; /* a margem automática de .read-main tira o esticamento da coluna: sem isto o cartão nasce estreito e expande */
   margin: 0 auto;
   padding: 0 0 4px; /* sem margem lateral: o texto alinha com a barra */
 }
@@ -1722,6 +1772,12 @@ body:has(.read) {
   background: var(--gold-soft-bg);
 }
 
+@media (hover: hover) {
+  .search-result:hover {
+    background: var(--gold-soft-bg);
+  }
+}
+
 .search-result-ref {
   display: flex;
   align-items: center;
@@ -1783,12 +1839,6 @@ body:has(.read) {
   position: relative;
   padding-right: 52px;
 }
-@media (hover: hover) {
-  .search-result:hover {
-    background: var(--gold-soft-bg);
-  }
-}
-
 
 .search-result--go .search-result-go {
   position: absolute;
@@ -1834,6 +1884,26 @@ body:has(.read) {
 .search-result-text strong {
   font-weight: 700;
   color: var(--text-main);
+}
+
+/* Aparelhos de toque: o fundo da busca é a cor sólida do tema, sem desfoque. A faixa entre a página e o teclado (barra de
+   preenchimento do iOS) fica fora da página e mostra a cor do tema; assim ela se confunde com o fundo, sem emenda. */
+@media (hover: none) {
+  .search-overlay {
+    background: var(--bg-main);
+    backdrop-filter: none;
+  }
+
+  /* Ao subir ou baixar o teclado, a janela do navegador muda de altura com um atraso e, por uns instantes, o fundo da busca
+     não cobre tudo (aparecia a página de trás). Com a busca aberta, a página de trás fica invisível. */
+  #root:has(.search-overlay) > :not(.search-overlay, .toast, .skip-link) {
+    visibility: hidden;
+  }
+
+  /* Sobre o fundo sólido a sombra grande vira uma mancha embaixo da barra */
+  .search-dialog {
+    box-shadow: none;
+  }
 }
 
 @media (max-width: 520px) {
@@ -1904,23 +1974,3 @@ body:has(.read) {
 .search-input::-webkit-search-cancel-button {
   display: none;
 }
-/* Aparelhos de toque: o fundo da busca é a cor sólida do tema, sem desfoque. A faixa entre a página e o teclado (barra de
-   preenchimento do iOS) fica fora da página e mostra a cor do tema; assim ela se confunde com o fundo, sem emenda. */
-@media (hover: none) {
-  .search-overlay {
-    background: var(--bg-main);
-    backdrop-filter: none;
-  }
-
-  /* Ao subir ou baixar o teclado, a janela do navegador muda de altura com um atraso e, por uns instantes, o fundo da busca
-     não cobre tudo (aparecia a página de trás). Com a busca aberta, a página de trás fica invisível. */
-  #root:has(.search-overlay) > :not(.search-overlay, .toast, .skip-link) {
-    visibility: hidden;
-  }
-
-  /* Sobre o fundo sólido a sombra grande vira uma mancha embaixo da barra */
-  .search-dialog {
-    box-shadow: none;
-  }
-}
-
