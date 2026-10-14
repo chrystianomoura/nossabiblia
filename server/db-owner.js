@@ -1,5 +1,5 @@
 // Pool do DONO do banco (DATABASE_URL): só para o que precisa de poder de DDL ou de escrita no conteúdo: migrações
-// (migrate.mjs), criação do papel do servidor (create-app-role.mjs) e limpeza dos textos (clean-verse-text.mjs).
+// (migrate.mjs), criação de papéis (create-role.mjs) e limpeza dos textos (clean-verse-text.mjs).
 // O servidor NÃO usa este pool (ele usa db.js, com o papel limitado).
 import { createPool } from './db-core.js';
 
