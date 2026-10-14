@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import pool from '../db.js';
+import pool from '../db-owner.js';
 
 const apply = process.argv.includes('--apply');
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'migrations');

@@ -1,37 +1,18 @@
-import fs from 'fs';
-import path from 'path';
-import pg from 'pg';
-import dotenv from 'dotenv';
+// Pool do SERVIDOR: usa o papel `nb_app` (DATABASE_URL_APP), que lê o conteúdo da Bíblia e lê e grava os dados de usuário,
+// mas não cria, altera nem apaga tabelas (migração 002). O dono do banco fica só para as migrações e a manutenção (db-owner.js).
+// Em produção a variável é obrigatória: não cair de volta para o dono sem querer. Fora dela, sem DATABASE_URL_APP, usa o dono e avisa.
+import { createPool } from './db-core.js';
 
-// Carrega .env.local prioritariamente ou .env
-const envLocal = path.resolve('.env.local');
-if (fs.existsSync(envLocal)) {
-  dotenv.config({ path: envLocal });
-} else {
-  dotenv.config();
-}
-
-const dbUrl = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED;
-
+let dbUrl = process.env.DATABASE_URL_APP;
 if (!dbUrl) {
-  throw new Error('DATABASE_URL não configurada em .env.local ou variáveis de ambiente.');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('DATABASE_URL_APP não configurada: em produção o servidor só conecta com o papel limitado (nb_app).');
+  }
+  dbUrl = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED;
+  if (!dbUrl) throw new Error('DATABASE_URL_APP (ou DATABASE_URL) não configurada em .env.local ou variáveis de ambiente.');
+  console.warn('Aviso: DATABASE_URL_APP ausente; usando o papel dono do banco (só aceitável em desenvolvimento).');
 }
 
-// O certificado do banco é verificado (a Neon usa certificado válido). O `sslmode` sai da URL: o `pg` o trata como um apelido de
-// `verify-full` e avisa que isso vai mudar; a opção `ssl` abaixo diz o que queremos de forma explícita.
-const connectionUrl = new URL(dbUrl);
-connectionUrl.searchParams.delete('sslmode');
-
-const pool = new pg.Pool({
-  connectionString: connectionUrl.toString(),
-  ssl: { rejectUnauthorized: true },
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-});
-
-pool.on('error', (err) => {
-  console.error('Erro inesperado no cliente do pool PostgreSQL:', err);
-});
+const pool = createPool(dbUrl, 'nb_app');
 
 export default pool;

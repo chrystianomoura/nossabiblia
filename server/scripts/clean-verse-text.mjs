@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import pool from '../db.js';
+import pool from '../db-owner.js';
 
 const apply = process.argv.includes('--apply');
 const CLEAN = `normalize(replace(text, chr(173), ''), NFC)`;

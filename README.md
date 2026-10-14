@@ -248,9 +248,11 @@ nossabiblia/
 ├── server/                     # Backend API (Node.js + Fastify)
 │   ├── routes/
 │   │   └── bible.js            # Rotas de livros, capítulos, versículos e busca GIN
-│   ├── db.js                   # Pool de conexões PostgreSQL para o Neon
+│   ├── db.js                   # Pool do servidor (papel limitado nb_app, DATABASE_URL_APP)
+│   ├── db-owner.js             # Pool do dono do banco: só migrações, criação do papel e limpeza de texto
+│   ├── db-core.js              # Criação do pool (certificado verificado) e leitura do .env.local
 │   ├── migrations/
-│   │   └── 001_fase4_conta.sql    # Prepara o esquema da Fase 4 (contas, sessões, marcações por versículo); ensaiada, ainda não aplicada
+│   │   └── 001_fase4_conta.sql    # Prepara o esquema da Fase 4 (contas, sessões, marcações por versículo); aplicada na produção
 │   ├── scripts/
 │   │   ├── clean-verse-text.mjs   # Limpa os textos (hífen invisível, acento desmontado); rode após cada carga
 │   │   ├── migrate.mjs            # Aplica as migrações (modo teste por padrão; --apply grava)

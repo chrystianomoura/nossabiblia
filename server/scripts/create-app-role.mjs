@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import pg from 'pg';
-import pool from '../db.js';
+import pool from '../db-owner.js';
 
 const ROLE = 'nb_app';
 const envPath = '.env.local';
