@@ -37,6 +37,8 @@ const headers = `/*
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
+  # no-transform: a Cloudflare não reescreve o HTML (ela injetaria, por conta própria, o script do Web Analytics, que a CSP bloqueia)
+  Cache-Control: no-transform
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
