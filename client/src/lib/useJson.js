@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { trackedFetch } from './api';
 
 // Cache de respostas por URL, vivo enquanto a aba estiver aberta. Texto bíblico não muda, então não revalida.
 // Só respostas bem-sucedidas entram; erros são tentados de novo.
@@ -12,7 +13,7 @@ function fetchJson(url) {
   if (cache.has(url)) return Promise.resolve(cache.get(url));
 
   if (!inflight.has(url)) {
-    const request = fetch(url)
+    const request = trackedFetch(url)
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || 'Não foi possível carregar.');

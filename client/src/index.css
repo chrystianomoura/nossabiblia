@@ -1996,6 +1996,21 @@ body:has(.read) {
   transition: opacity 0.2s ease, transform 0.25s var(--ease);
 }
 
+.wake-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* sem isto a largura fica limitada à metade da tela (o toast nasce em left: 50%) e o texto quebra em 4 linhas no celular */
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  white-space: normal;
+  text-align: left;
+}
+
+.wake-notice svg {
+  flex-shrink: 0;
+}
+
 .toast.is-visible {
   opacity: 1;
   transform: translate(-50%, 0);

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Home from './components/Home';
 import ReadingView from './components/ReadingView';
 import SearchModal from './components/SearchModal';
+import WakeNotice from './components/WakeNotice';
 import { useBooks } from './lib/books';
 import { parseRoute, useLocation } from './lib/router';
 import { useTheme } from './lib/theme';
@@ -62,6 +63,8 @@ export default function App() {
       )}
 
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+      <WakeNotice />
 
       <div className={`toast${notice ? ' is-visible' : ''}`} role="status" aria-live="polite">
         {notice}

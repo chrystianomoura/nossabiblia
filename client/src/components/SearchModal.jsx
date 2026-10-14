@@ -5,7 +5,7 @@ import ReferenceResults from './ReferenceResults';
 import { navigate, readPath } from '../lib/router';
 import { displayBookName, slugify, useBooks } from '../lib/books';
 import { parseReference } from '../lib/reference';
-import { apiUrl } from '../lib/api';
+import { apiUrl, trackedFetch } from '../lib/api';
 
 const number = new Intl.NumberFormat('pt-BR');
 const plural = (n, one, many) => (n === 1 ? one : many);
@@ -111,7 +111,7 @@ export default function SearchModal({ isOpen, onClose }) {
       setError(false);
       setLoadingMore(false);
       setMoreError(false);
-      fetch(searchUrl(term, translation, 0, filter), { signal: controller.signal })
+      trackedFetch(searchUrl(term, translation, 0, filter), { signal: controller.signal })
         .then((res) => {
           if (!res.ok) throw new Error('Falha na busca.');
           return res.json();
@@ -286,7 +286,7 @@ export default function SearchModal({ isOpen, onClose }) {
     setMoreError(false);
 
     try {
-      const res = await fetch(searchUrl(term, translation, shown.items.length, filter), { signal: controller.signal });
+      const res = await trackedFetch(searchUrl(term, translation, shown.items.length, filter), { signal: controller.signal });
       if (!res.ok) throw new Error('Falha ao carregar mais.');
       const data = await res.json();
       setResults((current) =>
