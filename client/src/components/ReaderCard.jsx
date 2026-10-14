@@ -94,9 +94,23 @@ export default function ReaderCard({
       }, 200);
     };
     el.addEventListener('scroll', onScroll, { passive: true });
+
+    // Largura da janela mudou (arrastar a borda, girar o celular): o texto se reorganiza em outras linhas, então volta ao
+    // versículo que estava no topo, como na troca da letra. Só a altura mudar (barras do navegador) não mexe no texto.
+    let lastWidth = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === lastWidth) return;
+      lastWidth = el.clientWidth;
+      const saved = anchor.current;
+      const node = saved ? el.querySelector(`#${saved.id}`) : null;
+      if (node) el.scrollTop = node.offsetTop + saved.fraction * node.offsetHeight;
+    });
+    observer.observe(el);
+
     return () => {
       clearTimeout(timer);
       el.removeEventListener('scroll', onScroll);
+      observer.disconnect();
     };
   }, [data, stale, chapterKey]);
 
