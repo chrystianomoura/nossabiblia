@@ -1,5 +1,10 @@
 # Nossa Bíblia 📖
 
+[![CI](https://github.com/chrystianomoura/nossabiblia/actions/workflows/ci.yml/badge.svg)](https://github.com/chrystianomoura/nossabiblia/actions/workflows/ci.yml)
+[![Rotinas](https://github.com/chrystianomoura/nossabiblia/actions/workflows/rotinas.yml/badge.svg)](https://github.com/chrystianomoura/nossabiblia/actions/workflows/rotinas.yml)
+
+**No ar: [nossabiblia.party](https://nossabiblia.party)** · projeto de portfólio full stack (do navegador ao banco), publicado com custo zero.
+
 Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, com foco em simplicidade, busca instantânea de alta fidelidade e experiência devocional profunda.
 
 ---
@@ -13,6 +18,48 @@ Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, c
 - **Privacidade & Foco:** Sem rede social, sem `@arrobas`, sem algoritmos de engajamento forçado ou notificações invasivas.
 - **Design Devocional:** Tipografia editorial (Newsreader na leitura e nos títulos, Plus Jakarta Sans na interface e Archivo na marca), fundo de iluminação natural acolhedor e tema claro e escuro, que respeita a preferência do sistema e fica salvo no navegador.
 - **Marca:** selo **NB** (letras N e B da Archivo expandida) com o nome "Nossa Bíblia" em Archivo; o favicon é o mesmo selo em SVG.
+
+---
+
+## 🏗️ Arquitetura em produção
+
+```mermaid
+flowchart LR
+  U["Navegador<br/>React 19 + Vite"] -->|HTML, JS e CSS| CF["Cloudflare<br/>nossabiblia.party<br/>Worker com arquivos estáticos"]
+  U -->|JSON, CORS só do site oficial| API["Render (grátis)<br/>api.nossabiblia.party<br/>Node + Fastify"]
+  API -->|papel nb_app<br/>certificado verificado| DB[("Neon<br/>PostgreSQL 18<br/>62.207 versículos")]
+  API -. "e-mail (Fase 4)" .-> RS["Resend<br/>nao-responda@nossabiblia.party"]
+  GH["GitHub Actions<br/>CI + rotinas diárias"] -->|nb_backup, só leitura| DB
+  GH -->|"nb_maint, faxina"| DB
+  GH -->|"backup conferido (sha256)"| R2[("Cloudflare R2<br/>bucket privado, 90 dias")]
+  P["git push main"] --> GH
+  P --> CF
+```
+
+| Peça | Onde | Custo |
+|---|---|---|
+| Site (SPA estática) | Cloudflare, deploy a cada push no `main`, HTTPS, CSP com hash do script do tema | R$ 0 |
+| API | Render (plano gratuito), `/healthz` sem banco | R$ 0 |
+| Banco | Neon, três papéis de menor privilégio (`nb_app`, `nb_backup`, `nb_maint`) | R$ 0 |
+| Backup | GitHub Actions → R2 (privado, retenção de 90 dias, envio conferido baixando de volta e comparando o hash) | R$ 0 |
+| DNS, e-mail de entrada, certificados | Cloudflare (DNSSEC, SPF, DKIM, DMARC) | R$ 0 |
+| E-mail de saída | Resend, domínio verificado (a Fase 4 ainda vai usá-lo) | R$ 0 |
+
+O único custo recorrente é a renovação do domínio.
+
+## 🧠 Decisões de engenharia e trade-offs
+
+- **Busca exata, não aproximada.** O índice GIN do PostgreSQL só acha *candidatos*; quem decide é uma conferência no texto, com o **mesmo padrão** gerado para o PostgreSQL e para o JavaScript. A bateria de precisão compara a busca com um gabarito independente (varredura de caracteres sobre os arquivos originais): ~104 mil conferências.
+- **Menor privilégio no banco.** O servidor conecta como `nb_app` (lê o conteúdo, lê e grava dados de usuário; não cria nem apaga tabelas). O backup usa um papel só de leitura e a faxina, outro que só apaga em três tabelas. O dono do banco fica só para as migrações.
+- **Migrações versionadas, com ensaio.** Cada migração roda primeiro em modo de teste (transação desfeita no fim) e em uma *branch* separada da Neon; só então é aplicada na produção, com uma guarda que recusa rodar se houver dados que ela trocaria.
+- **Tudo gratuito, com os limites à vista.** A API dorme depois de 15 minutos sem uso: a tela avisa ("Acordando o servidor") em vez de parecer travada. O keep-alive do banco vem desligado porque estouraria as 100 CU-horas mensais da Neon.
+- **Segurança em camadas.** CORS com lista fixa, cabeçalhos de segurança (helmet e CSP no site), limite de requisições por IP, certificado do banco verificado, consultas parametrizadas e entradas hostis cobertas por testes.
+- **Honestidade sobre o que não está feito.** A área pessoal (cadastro, marcações, favoritos, progresso) está **desenhada e com o banco pronto** (`API.md`, migrações 001 a 003), mas ainda sem código de aplicação.
+
+## 🔁 Integração contínua e rotinas
+
+- **CI** (`.github/workflows/ci.yml`): a cada push e pull request roda lint, os testes que não dependem do banco e o build do site (que também confere a amostra da home). Os testes contra o banco de produção e a bateria de precisão rodam só localmente, de propósito.
+- **Rotinas diárias** (`.github/workflows/rotinas.yml`, 03:30 de São Paulo): backup dos dados dos usuários para o R2 (baixa de volta e compara o hash) e faxina das contas não verificadas há mais de 7 dias, sessões e bloqueios de e-mail vencidos.
 
 ---
 
@@ -253,12 +300,15 @@ nossabiblia/
 │   ├── db-owner.js             # Pool do dono do banco: só migrações, criação do papel e limpeza de texto
 │   ├── db-core.js              # Criação do pool (certificado verificado) e leitura do .env.local
 │   ├── migrations/
-│   │   └── 001_fase4_conta.sql    # Prepara o esquema da Fase 4 (contas, sessões, marcações por versículo); aplicada na produção
+│   │   ├── 001_fase4_conta.sql    # Prepara o esquema da Fase 4 (contas, sessões, marcações por versículo); aplicada na produção
+│   │   ├── 002_papel_app.sql      # Permissões mínimas do papel do servidor (nb_app)
+│   │   └── 003_papeis_rotinas.sql # Permissões mínimas das rotinas: backup (só leitura) e faxina (ler e apagar em 3 tabelas)
 │   ├── scripts/
 │   │   ├── clean-verse-text.mjs   # Limpa os textos (hífen invisível, acento desmontado); rode após cada carga
 │   │   ├── migrate.mjs            # Aplica as migrações (modo teste por padrão; --apply grava)
 │   │   └── backup.mjs             # Cópia dos dados dos usuários (só leitura): envia ao R2 e confere
-│   │   ├── create-app-role.mjs    # Cria o papel de banco do servidor (menor privilégio; senha só no .env.local)
+│   │   ├── create-role.mjs        # Cria um papel de banco sem permissão (nb_app, nb_backup, nb_maint); senha só no .env.local
+│   │   ├── cleanup.mjs            # Faxina diária: contas não verificadas há 7 dias, sessões e bloqueios vencidos (teste por padrão)
 │   ├── search.js               # Regras da busca exata (palavra, acento, frase, hífen, ocorrências)
 │   ├── accuracy/
 │   │   ├── oracle.js           # Gabarito independente da busca (lê NAA.json e NVT.json)
