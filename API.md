@@ -69,9 +69,24 @@ onde foi criada. Cores: `amarelo`, `verde`, `azul`, `rosa`. Comentário até 2.0
 | `GET /api/progress/year` | Do dia de abertura até hoje (36). |
 | `POST /api/daily-verse` | `theme_id` → sorteia um versículo do tema. Um por dia (`409 versiculo_do_dia_ja_gerado`: "versículo do dia já gerado; reflita e medite sobre ele"). |
 
-## Pontos ainda em aberto (decisão sua)
+## Decisões fechadas (15/10/2026)
 
-1. Apagar uma pasta: as marcações ficam **sem pasta** (proposta) ou também são apagadas?
-2. O positivo do dia é chamado pelo cliente **uma vez por dia** (proposta) ou o servidor registra a cada leitura?
-3. Quantas marcações, pastas e sessões por usuário no máximo (sugestão: limites no servidor, ajustáveis).
-4. Os textos dos e-mails (confirmação, reenvio, recuperação) e o remetente `Nossa Bíblia <nao-responda@nossabiblia.party>`.
+1. **Apagar uma pasta apaga as marcações dela.** A tela pede confirmação antes ("Apagar a pasta X e as N marcações dela?").
+2. **Positivo do dia: o cliente avisa uma vez por dia** (guarda a data no `localStorage`); o servidor é idempotente e decide o dia
+   pelo horário de São Paulo.
+3. **Limites por usuário** (constantes ajustáveis): 1.000 marcações, 1.000 favoritos, 30 pastas, 5 sessões (a mais antiga cai).
+   Ao atingir: `409 limite_atingido`.
+
+4. **Textos dos e-mails** (remetente `Nossa Bíblia <nao-responda@nossabiblia.party>`; HTML simples com botão e link por extenso,
+   mais versão em texto puro; sem imagens remotas; "você", assinatura "Nossa Bíblia"). Uso único em todos os links.
+   - Confirmação (24 h): assunto "Confirme seu e-mail na Nossa Bíblia"; "Olá, {nome}! Para ativar sua conta na Nossa Bíblia, confirme
+     seu e-mail" + botão "Confirmar meu e-mail"; "Se você não criou uma conta, ignore este e-mail."
+   - Reenvio (24 h, o link anterior deixa de valer): assunto "Seu novo link de confirmação – Nossa Bíblia"; botão "Confirmar meu
+     e-mail"; "Se você não pediu este e-mail, ignore-o."
+   - Recuperação de senha (1 h): assunto "Redefinir sua senha – Nossa Bíblia"; "Recebemos um pedido para redefinir a senha da sua
+     conta" + botão "Escolher nova senha"; "Se não foi você, ignore este e-mail: sua senha continua a mesma. Depois de redefinir, as
+     outras sessões abertas são encerradas."
+
+## Ainda em aberto
+
+Nada no contrato. Falta configurar o Turnstile da Cloudflare (cadastro e recuperação) e testar a entrega em Outlook e iCloud.
