@@ -85,3 +85,33 @@ test('sessões: a sexta derruba a mais antiga (limite de 5)', { skip }, async ()
   assert.ok(!hashes.includes(hashToken(tokens[0])));
   assert.ok(hashes.includes(hashToken(tokens[5])));
 });
+
+import { login, authenticate, logout } from './accounts.js';
+
+test('login: senha certa abre sessão (conta não verificada entra); errada e e-mail inexistente dão a mesma resposta', { skip }, async () => {
+  await register(base(6), { db, send: async () => {} });
+  const ok = await login(mail(6), 'senha-segura-1', { db });
+  assert.equal(ok.user.is_verified, false);
+  assert.equal(ok.user.password_hash, undefined);
+  await assert.rejects(login(mail(6), 'errada-errada', { db }), (e) => e.status === 401 && e.message === 'E-mail ou senha incorretos');
+  await assert.rejects(login(mail('nao-existe'), 'senha-segura-1', { db }), (e) => e.status === 401 && e.message === 'E-mail ou senha incorretos');
+});
+
+test('sessão: authenticate acha o usuário, recusa vencida/desconhecida, renova após 1 h e logout apaga', { skip }, async () => {
+  await register(base(7), { db, send: async () => {} });
+  const { sessionToken, user } = await login(mail(7), 'senha-segura-1', { db });
+  assert.equal((await authenticate(sessionToken, { db })).email, mail(7));
+  assert.equal(await authenticate('x'.repeat(43), { db }), null);
+
+  await db.query(`UPDATE sessions SET last_seen_at = NOW() - interval '2 hours', expires_at = NOW() + interval '1 day' WHERE user_id = $1`, [user.id ?? (await db.query('SELECT id FROM users WHERE email=$1', [mail(7)])).rows[0].id]);
+  await authenticate(sessionToken, { db });
+  const renovada = (await db.query(`SELECT expires_at > NOW() + interval '29 days' AS renovou FROM sessions WHERE token_hash = $1`, [hashToken(sessionToken)])).rows[0];
+  assert.equal(renovada.renovou, true);
+
+  await db.query(`UPDATE sessions SET expires_at = NOW() - interval '1 minute' WHERE token_hash = $1`, [hashToken(sessionToken)]);
+  assert.equal(await authenticate(sessionToken, { db }), null);
+
+  const t2 = (await login(mail(7), 'senha-segura-1', { db })).sessionToken;
+  await logout(t2, { db });
+  assert.equal(await authenticate(t2, { db }), null);
+});

@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import pool from './db.js';
 import bibleRoutes from './routes/bible.js';
@@ -8,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import { startKeepAlive } from './keepalive.js';
 import { parseTrustProxy, parseAllowedOrigins } from './config.js';
 import { createOriginGuard } from './http/origin-guard.js';
+import { parseJsonAllowEmpty } from './http/json-parser.js';
 
 const fastify = Fastify({
   // Atrás de proxies (Render, Cloudflare) o IP real vem no cabeçalho. TRUST_PROXY = número de proxies na frente (ver server/config.js);
@@ -28,11 +30,15 @@ await fastify.register(cors, {
   credentials: true,
 });
 
+fastify.removeContentTypeParser('application/json');
+fastify.addContentTypeParser('application/json', { parseAs: 'string' }, parseJsonAllowEmpty);
+
 // Contra CSRF: toda requisição que altera dados (POST, PUT, PATCH, DELETE) precisa vir de uma origem da lista.
 fastify.addHook('onRequest', createOriginGuard(allowedOrigins));
 
 // Cabeçalhos de segurança e limite de requisições por IP (a busca faz conferência de texto e é a rota mais cara).
 await fastify.register(helmet);
+await fastify.register(cookie);
 await fastify.register(rateLimit, {
   max: Number(process.env.RATE_LIMIT_MAX || 600),
   timeWindow: '1 minute',

@@ -1,7 +1,8 @@
 // Rotas da conta. Mesmo molde das outras: lê o pedido, valida (server/auth/validation.js), chama o serviço e responde.
-import { validateRegister } from '../auth/validation.js';
-import { serializeSessionCookie } from '../auth/session.js';
-import { register, verifyEmail, AccountError } from '../services/accounts.js';
+import { validateRegister, normalizeEmail } from '../auth/validation.js';
+import { serializeSessionCookie, clearSessionCookie, sessionCookieName } from '../auth/session.js';
+import { createAttemptLimiter } from '../http/attempt-limiter.js';
+import { register, verifyEmail, login, logout, authenticate, publicUser, AccountError } from '../services/accounts.js';
 import { verifyTurnstile } from '../services/turnstile.js';
 
 function fail(request, reply, err) {
@@ -44,6 +45,52 @@ export default async function authRoutes(fastify) {
         is_verified: true,
         verified_at: user.verified_at,
       };
+    } catch (err) {
+      return fail(request, reply, err);
+    }
+  });
+
+  // Login: 10 tentativas por IP por 15 min (plugin) e 10 por e-mail por 15 min (contador próprio); acerto zera o do e-mail.
+  const loginLimit = { rateLimit: { max: 10, timeWindow: '15 minutes' } };
+  const emailAttempts = createAttemptLimiter({ max: 10, windowMs: 15 * 60 * 1000 });
+
+  fastify.post('/auth/login', { config: loginLimit }, async (request, reply) => {
+    const email = normalizeEmail(request.body?.email);
+    const password = request.body?.password;
+    if (!email || email.length > 255 || typeof password !== 'string' || !password || password.length > 128) {
+      return reply.code(401).send({ error: 'E-mail ou senha incorretos', code: 'credenciais_invalidas' });
+    }
+    const limit = emailAttempts.hit(email);
+    if (!limit.allowed) {
+      reply.header('Retry-After', limit.retryAfter);
+      return reply.code(429).send({ error: 'Muitas tentativas. Tente de novo mais tarde.', code: 'muitas_tentativas', retry_after: limit.retryAfter });
+    }
+    try {
+      const { user, sessionToken } = await login(email, password);
+      emailAttempts.reset(email);
+      reply.header('Set-Cookie', serializeSessionCookie(sessionToken));
+      return user;
+    } catch (err) {
+      return fail(request, reply, err);
+    }
+  });
+
+  fastify.post('/auth/logout', async (request, reply) => {
+    try {
+      await logout(request.cookies?.[sessionCookieName()]);
+    } catch (err) {
+      request.log.error(err); // mesmo com falha no banco, o cookie é apagado no navegador
+    }
+    reply.header('Set-Cookie', clearSessionCookie());
+    return reply.code(204).send();
+  });
+
+  fastify.get('/me', async (request, reply) => {
+    try {
+      const user = await authenticate(request.cookies?.[sessionCookieName()]);
+      reply.header('Cache-Control', 'private, no-store');
+      if (!user) return reply.code(401).send({ error: 'Você não está conectado.', code: 'sem_sessao' });
+      return publicUser(user);
     } catch (err) {
       return fail(request, reply, err);
     }
