@@ -30,6 +30,7 @@ test('cadastro: e-mail bloqueado (403) e e-mail em uso (409)', async () => {
   await assert.rejects(register(input, { db: bloqueado, send: async () => {} }), (e) => e.status === 403 && e.code === 'email_bloqueado');
   const emUso = fakeDb((sql) => {
     if (sql.includes('email_blocks')) return { rowCount: 0, rows: [] };
+    if (sql.includes('count(*)')) return { rowCount: 1, rows: [{ n: 0 }] };
     throw Object.assign(new Error('dup'), { code: '23505' });
   });
   await assert.rejects(register(input, { db: emUso, send: async () => {} }), (e) => e.status === 409 && e.code === 'email_em_uso');
@@ -75,4 +76,17 @@ test('texto do e-mail: assunto aprovado e nome escapado no HTML', () => {
   assert.equal(m.subject, 'Confirme seu e-mail na Nossa Bíblia');
   assert.ok(!m.html.includes('<b>Ana</b>'));
   assert.equal(verificationEmail({ firstName: 'Ana', token: 'abc', resend: true }).subject, 'Seu novo link de confirmação – Nossa Bíblia');
+});
+
+test('e-mail: saudação em linha própria, botão centralizado e © com o ano no rodapé (HTML e texto)', () => {
+  for (const resend of [false, true]) {
+    const m = verificationEmail({ firstName: 'Ana', token: 'abc', resend, year: 2031 });
+    assert.match(m.html, /<p[^>]*font-size:22px[^>]*>Olá, Ana!<\/p>/);
+    assert.ok(m.html.indexOf('Olá, Ana!') < m.html.indexOf('<table'), 'a saudação vem antes do botão');
+    assert.match(m.html, /<table[^>]*align="center"/);
+    assert.match(m.html, /&copy; 2031 Nossa Bíblia/);
+    assert.match(m.text, /^Olá, Ana!\n\n/);
+    assert.match(m.text, /© 2031 Nossa Bíblia$/);
+  }
+  assert.ok(!verificationEmail({ firstName: 'Ana', token: 'abc' }).html.includes('Olá, Ana! Para ativar'));
 });

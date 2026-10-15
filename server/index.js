@@ -44,6 +44,16 @@ await fastify.register(rateLimit, {
   timeWindow: '1 minute',
 });
 
+// O plugin de limite lança um erro 429 em inglês ("Too Many Requests"). A tela mostra o campo `error` e espera o código estável,
+// então os 429 saem no mesmo formato das demais respostas da API, em português, com o tempo de espera.
+fastify.setErrorHandler((error, request, reply) => {
+  if (error.statusCode === 429) {
+    const retryAfter = Number(reply.getHeader('retry-after')) || undefined;
+    return reply.code(429).send({ error: 'Muitas tentativas. Aguarde um pouco e tente de novo.', code: 'muitas_tentativas', retry_after: retryAfter });
+  }
+  return reply.send(error);
+});
+
 // Verificação de vida SEM banco, para a hospedagem chamar com frequência (o Render a chama a cada poucos segundos): usar o
 // /health aqui manteria a Neon sempre acordada e gastaria as 100 CU-horas gratuitas do mês.
 // Diagnóstico do IP (só com DEBUG_PROXY=on): mostra o que os proxies da hospedagem enviam, para descobrir quantos são (TRUST_PROXY).
