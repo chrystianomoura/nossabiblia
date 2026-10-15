@@ -43,3 +43,7 @@ backups/
 
 # Estado local do Wrangler
 .wrangler/
+
+# Teste de fumaça (Playwright)
+client/test-results/
+client/playwright-report/

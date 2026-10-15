@@ -1,0 +1,26 @@
+# Atualizações semanais de dependências (o GitHub abre um pull request por grupo; o CI diz se quebrou algo).
+# Correções de SEGURANÇA não esperam a semana: o Dependabot as abre assim que sai o aviso (ligado nas configurações do repositório).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday, time: '06:00', timezone: America/Sao_Paulo }
+    open-pull-requests-limit: 5
+    groups:
+      servidor:
+        patterns: ['*']
+        update-types: [minor, patch]
+    commit-message: { prefix: 'chore(deps)' }
+  - package-ecosystem: npm
+    directory: /client
+    schedule: { interval: weekly, day: monday, time: '06:00', timezone: America/Sao_Paulo }
+    open-pull-requests-limit: 5
+    groups:
+      cliente:
+        patterns: ['*']
+        update-types: [minor, patch]
+    commit-message: { prefix: 'chore(deps)' }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday, time: '06:00', timezone: America/Sao_Paulo }
+    commit-message: { prefix: 'chore(ci)' }

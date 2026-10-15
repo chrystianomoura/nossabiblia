@@ -19,7 +19,7 @@ jobs:
   verificar:
     name: Lint, testes e build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,9 +33,24 @@ jobs:
         run: |
           npm ci
           npm --prefix client ci
+      - name: Vulnerabilidades conhecidas nas dependências de produção (falha se houver nível alto ou crítico)
+        run: |
+          npm audit --omit=dev --audit-level=high
+          npm --prefix client audit --omit=dev --audit-level=high
       - name: Lint do cliente
         run: npm --prefix client run lint
       - name: Testes (regras da busca e referências; os de banco são pulados)
         run: npm test
       - name: Build do site (confere a amostra da home e gera os cabeçalhos)
         run: npm --prefix client run build
+      - name: Navegador do teste de fumaça (Chromium)
+        run: npx --prefix client playwright install --with-deps chromium
+      - name: Teste de fumaça da tela (site compilado, API simulada, desktop e celular)
+        run: npm --prefix client run test:e2e
+      - name: Relatório do teste de fumaça, se falhar
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-e2e
+          path: client/test-results
+          retention-days: 7

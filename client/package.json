@@ -11,18 +11,20 @@
     "preview": "vite preview",
     "sample": "node scripts/generate-hero-sample.mjs",
     "sample:check": "node scripts/generate-hero-sample.mjs --check",
-    "postbuild": "node scripts/write-headers.mjs"
+    "postbuild": "node scripts/write-headers.mjs && node scripts/write-seo.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
-    "lucide-react": "^1.55.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "lucide-react": "^1.57.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
-    "oxlint": "^1.81.0",
+    "oxlint": "^1.88.0",
     "vite": "^8.3.0"
   }
 }
