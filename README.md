@@ -19,6 +19,30 @@ Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, c
 - **Design Devocional:** Tipografia editorial (Newsreader na leitura e nos títulos, Plus Jakarta Sans na interface e Archivo na marca), fundo de iluminação natural acolhedor e tema claro e escuro, que respeita a preferência do sistema e fica salvo no navegador.
 - **Marca:** selo **NB** (letras N e B da Archivo expandida) com o nome "Nossa Bíblia" em Archivo; o favicon é o mesmo selo em SVG.
 
+### Estado do projeto
+
+| | |
+|---|---|
+| ✅ **Pronto e no ar** | Leitura (NAA e NVT), busca exata de palavra e por referência, filtros, layout para celular, tablet e desktop, tema claro e escuro |
+| ✅ **Infraestrutura** | Site, API, banco, backup e e-mail publicados em domínio próprio, com CI, rotinas diárias e custo zero |
+| 🔜 **Próxima fase** | Cadastro com confirmação por e-mail, marcações, favoritos, progresso diário (o esquema do banco e o contrato da API já existem: `API.md`, `server/migrations/`) |
+
+---
+
+## 🛠️ Stack Tecnológica
+
+| Camada | Tecnologia / Serviço | Finalidade |
+|---|---|---|
+| **Banco de Dados** | PostgreSQL 18 ([Neon](https://neon.tech)) | 62.207 versículos com `tsvector` e índice GIN; três papéis de menor privilégio; migrações versionadas |
+| **Backend** | Node.js 24 + [Fastify](https://fastify.dev/) | API REST: leitura, busca exata e (na próxima fase) contas. `helmet`, limite de requisições, CORS com lista fixa e cache em memória |
+| **Frontend** | React 19 + [Vite](https://vitejs.dev/) | SPA responsiva, com rotas próprias via History API (sem biblioteca de roteamento) |
+| **Estilização** | CSS puro (tokens de design) em um único `index.css` | Modo escuro nativo, animações só de `transform`/`opacity`, `prefers-reduced-motion` respeitado |
+| **Ícones** | [Lucide React](https://lucide.dev/) | Iconografia minimalista |
+| **Hospedagem** | Cloudflare (site e DNS), [Render](https://render.com) (API) | Deploy a cada push; a API só atualiza depois que o CI passa |
+| **Backup** | GitHub Actions + Cloudflare R2 | Cópia diária dos dados dos usuários, enviada e conferida; restauração ensaiada |
+| **E-mail** | [Resend](https://resend.com) | Envio transacional (a Fase 4 vai usá-lo); domínio verificado com SPF, DKIM e DMARC |
+| **Qualidade** | GitHub Actions, `node:test`, oxlint, Playwright | CI a cada push; bateria de precisão e verificações de tela rodam localmente |
+
 ---
 
 ## 🏗️ Arquitetura em produção
@@ -42,7 +66,7 @@ flowchart LR
 | API | Render (plano gratuito), `/healthz` sem banco | R$ 0 |
 | Banco | Neon, três papéis de menor privilégio (`nb_app`, `nb_backup`, `nb_maint`) | R$ 0 |
 | Backup | GitHub Actions → R2 (privado, retenção de 90 dias, envio conferido baixando de volta e comparando o hash) | R$ 0 |
-| DNS, e-mail de entrada, certificados | Cloudflare (DNSSEC, SPF, DKIM, DMARC) | R$ 0 |
+| DNS, e-mail de entrada, certificados | Cloudflare (TLS estrito, SPF, DKIM, DMARC; DNSSEC em ativação) | R$ 0 |
 | E-mail de saída | Resend, domínio verificado (a Fase 4 ainda vai usá-lo) | R$ 0 |
 
 O único custo recorrente é a renovação do domínio.
@@ -63,18 +87,6 @@ O único custo recorrente é a renovação do domínio.
 
 - **CI** (`.github/workflows/ci.yml`): a cada push e pull request roda lint, os testes que não dependem do banco e o build do site (que também confere a amostra da home). Os testes contra o banco de produção e a bateria de precisão rodam só localmente, de propósito.
 - **Rotinas diárias** (`.github/workflows/rotinas.yml`, 03:30 de São Paulo): backup dos dados dos usuários para o R2 (baixa de volta e compara o hash) e faxina das contas não verificadas há mais de 7 dias, sessões e bloqueios de e-mail vencidos.
-
----
-
-## 🛠️ Stack Tecnológica
-
-| Camada | Tecnologia / Serviço | Finalidade |
-|---|---|---|
-| **Banco de Dados** | PostgreSQL 18 ([Neon](https://neon.tech)) | Armazenamento de 62.207 versículos com `tsvector` e índice GIN de alta performance |
-| **Backend** | Node.js + [Fastify](https://fastify.dev/) | API REST assíncrona ultraveloz, keep-alive opcional (`KEEPALIVE=on`) e rotas de busca/leitura |
-| **Frontend** | React 19 + [Vite](https://vitejs.dev/) | SPA responsiva (celular, tablet e desktop), com rotas próprias via History API, sem biblioteca de roteamento |
-| **Ícones** | [Lucide React](https://lucide.dev/) | Iconografia minimalista e elegante |
-| **Estilização** | CSS puro (Design Tokens) em um único `index.css` | Classes por componente, modo escuro nativo, animações só de `transform`/`opacity` e `prefers-reduced-motion` respeitado |
 
 ---
 
@@ -168,7 +180,7 @@ O script é idempotente (rodar de novo não encontra mais nada) e atualiza o ín
 
 | Comando | O que faz | Tempo |
 |---|---|---|
-| `npm test` | **63 testes**: regras da busca, referências, filtros e contrato contra o banco (só leitura; os de banco são pulados sem `DATABASE_URL`) | ~50 s |
+| `npm test` | **77 testes**: regras da busca, referências, cache, configuração de proxy e, contra o banco (só leitura), o contrato da busca, dos filtros e do cache. **46 rodam no CI**; os 31 que dependem do banco são pulados sem `DATABASE_URL` | ~60 s |
 | `npm run test:accuracy` | **Bateria de precisão**: 15 camadas, cerca de 104 mil conferências contra um gabarito independente (inclui os filtros) | ~18 min |
 | `ACCURACY_SCALE=0.2 npm run test:accuracy` | A mesma bateria em escala pequena, para uma rodada rápida | ~3 min |
 | `playwright-cli ... run-code --filename=client/scripts/ui-checks/<arquivo>.js` | **Verificações da tela** no navegador (comportamento e visual); ver abaixo | 1 a 5 min cada |
@@ -235,7 +247,7 @@ O estado da leitura vive na URL, então há link direto, o botão voltar funcion
 
 **O leitor** é um cartão só, para todos os aparelhos: o texto do capítulo (um parágrafo por versículo, com o número na margem) rola **dentro** do cartão e a página em volta fica parada. No desktop e no tablet deitado as setas de capítulo ficam nos lados; em telas de até 800 px elas descem para baixo do cartão. O versículo começa na linha da borda esquerda da pílula do livro (sem recuo; o número é um sobrescrito dourado) e o cartão é estreito, com um pequeno respiro nas laterais. Há três tamanhos de letra (19, 21 e 23 px; o padrão é 21) e **trocar a letra não faz perder o lugar** (o versículo do topo continua no topo); o seletor de livro e capítulo (busca por nome, sem exigir acento, que só ganha o cursor depois do clique; a lista de livros volta à rolagem em que ficou ao reabrir) e a troca NAA/NVT. Ao trocar de capítulo o texto anterior fica na tela até o novo chegar (nada pisca em branco), e o capítulo vizinho e a outra tradução são carregados de antemão. A posição de leitura é lembrada no histórico do navegador (F5, Voltar e Avançar voltam ao mesmo ponto; a URL não muda) e a última leitura fica guardada em `nb-last-read` (ainda sem uso na tela). "Lamentações de Jeremias" aparece como "Lamentações" na tela; o banco e a URL continuam com o nome completo.
 
-No leitor, as setas do teclado e o gesto de deslizar trocam de capítulo (também passam para o livro seguinte ou anterior), e há botões equivalentes. Em hospedagem estática (Cloudflare Pages) as rotas dependem de `client/public/_redirects`, que já está no repositório.
+No leitor, as setas do teclado e o gesto de deslizar trocam de capítulo (também passam para o livro seguinte ou anterior), e há botões equivalentes. Como o site é estático, `client/wrangler.jsonc` manda qualquer endereço que não seja um arquivo para o `index.html` (o roteamento é do navegador).
 
 ---
 
@@ -256,10 +268,9 @@ No leitor, as setas do teclado e o gesto de deslizar trocam de capítulo (també
 nossabiblia/
 ├── client/                     # Frontend SPA (Vite + React)
 │   ├── public/
-│   │   ├── favicon.svg             # Selo NB (SVG com os contornos das letras)
-│   │   └── _redirects              # Fallback de SPA para o Cloudflare Pages
+│   │   └── favicon.svg             # Selo NB (SVG com os contornos das letras)
 │   ├── scripts/
-│   │   ├── write-headers.mjs          # Gera dist/_headers (CSP e cabeçalhos de segurança) após o build
+│   │   ├── write-headers.mjs          # Gera dist/_headers (CSP, cabeçalhos de segurança e de cache) após o build
 │   │   ├── generate-hero-sample.mjs   # Gera o trecho de Gênesis 1 da home a partir de NAA.json/NVT.json
 │   │   └── ui-checks/                 # Verificações da tela (playwright-cli run-code): comportamento, visual, filtros
 │   ├── src/
@@ -277,10 +288,12 @@ nossabiblia/
 │   │   │   ├── ReadingView.jsx         # Leitor: rotas, carga, teclado, gestos e carga antecipada
 │   │   │   ├── SearchModal.jsx         # Busca instantânea estilo Spotlight, com os filtros (testamento e livro)
 │   │   │   ├── Spinner.jsx             # Indicador de carregamento
-│   │   │   └── TranslationToggle.jsx   # Seletor NAA | NVT
+│   │   │   ├── TranslationToggle.jsx   # Seletor NAA | NVT
+│   │   │   └── WakeNotice.jsx          # Aviso "Acordando o servidor" (a API gratuita dorme após 15 min sem uso)
 │   │   ├── data/
 │   │   │   └── hero-sample.json        # Gênesis 1:1-9 em NAA e NVT, embutido no bundle (gerado)
 │   │   ├── lib/
+│   │   │   ├── api.js                  # Endereço da API (VITE_API_URL) e rastreio de chamadas lentas
 │   │   │   ├── books.js                # Lista de livros (carregada uma vez) e slugs
 │   │   │   ├── reference.js            # Entende referências ("salmos 23", "joão 3:16-18", "mat")
 │   │   │   ├── reference.test.js       # Testes do analisador de referências
@@ -294,33 +307,43 @@ nossabiblia/
 │   │   └── main.jsx                # Ponto de entrada React
 │   ├── index.html              # HTML, fontes Google Fonts e tema aplicado antes da primeira pintura
 │   ├── package.json            # Dependências do cliente
-│   └── vite.config.js          # Configuração Vite com proxy reverso da API
+│   ├── wrangler.jsonc          # Publicação no Cloudflare: arquivos estáticos de dist/, rotas do app caem no index.html
+│   └── vite.config.js          # Configuração Vite com proxy reverso da API (só em desenvolvimento)
 │
 ├── server/                     # Backend API (Node.js + Fastify)
 │   ├── routes/
-│   │   └── bible.js            # Rotas de livros, capítulos, versículos e busca GIN
-│   ├── memo.js                 # Cache em memória (com limite) das respostas imutáveis; config.js lê TRUST_PROXY
-│   ├── db.js                   # Pool do servidor (papel limitado nb_app, DATABASE_URL_APP)
-│   ├── db-owner.js             # Pool do dono do banco: só migrações, criação do papel e limpeza de texto
-│   ├── db-core.js              # Criação do pool (certificado verificado) e leitura do .env.local
+│   │   └── bible.js            # Rotas de livros, capítulos, versículos e busca GIN (com cache em memória)
 │   ├── migrations/
-│   │   ├── 001_fase4_conta.sql    # Prepara o esquema da Fase 4 (contas, sessões, marcações por versículo); aplicada na produção
+│   │   ├── 001_fase4_conta.sql    # Esquema da Fase 4: contas, sessões, marcações por versículo
 │   │   ├── 002_papel_app.sql      # Permissões mínimas do papel do servidor (nb_app)
-│   │   └── 003_papeis_rotinas.sql # Permissões mínimas das rotinas: backup (só leitura) e faxina (ler e apagar em 3 tabelas)
+│   │   └── 003_papeis_rotinas.sql # Permissões mínimas do backup (só leitura) e da faxina (ler e apagar em 3 tabelas)
 │   ├── scripts/
-│   │   ├── clean-verse-text.mjs   # Limpa os textos (hífen invisível, acento desmontado); rode após cada carga
 │   │   ├── migrate.mjs            # Aplica as migrações (modo teste por padrão; --apply grava)
-│   │   └── backup.mjs             # Cópia dos dados dos usuários (só leitura): envia ao R2 e confere
-│   │   ├── create-role.mjs        # Cria um papel de banco sem permissão (nb_app, nb_backup, nb_maint); senha só no .env.local
-│   │   ├── restore.mjs            # Restaura um backup (do R2 ou de arquivo) num banco vazio; ensaia antes de gravar
-│   │   ├── cleanup.mjs            # Faxina diária: contas não verificadas há 7 dias, sessões e bloqueios vencidos (teste por padrão)
-│   ├── search.js               # Regras da busca exata (palavra, acento, frase, hífen, ocorrências)
+│   │   ├── create-role.mjs        # Cria um papel de banco sem permissão (senha só no .env.local, nunca impressa)
+│   │   ├── backup.mjs             # Cópia dos dados dos usuários: envia ao R2, baixa de volta e confere o hash
+│   │   ├── restore.mjs            # Restaura um backup num banco vazio; ensaia antes de gravar
+│   │   ├── cleanup.mjs            # Faxina diária: contas não verificadas há 7 dias, sessões e bloqueios vencidos
+│   │   └── clean-verse-text.mjs   # Limpa os textos (hífen invisível, acento desmontado); rode após cada carga
 │   ├── accuracy/
 │   │   ├── oracle.js           # Gabarito independente da busca (lê NAA.json e NVT.json)
 │   │   └── search.accuracy.js  # Bateria de precisão: 15 camadas, incluindo filtros (npm run test:accuracy)
-│   ├── search.test.js          # Testes das regras (puros)
-│   ├── search.db.test.js       # Testes contra o banco real (só leitura): contrato da busca e dos filtros
-│   └── index.js                # Servidor Fastify principal
+│   ├── index.js                # Servidor Fastify: CORS, helmet, limite de requisições, /healthz e rotas
+│   ├── search.js               # Regras da busca exata (palavra, acento, frase, hífen, ocorrências)
+│   ├── memo.js                 # Cache em memória com limite de entradas (só guarda sucesso)
+│   ├── config.js               # Lê TRUST_PROXY (número de proxies, não "confie em tudo")
+│   ├── db.js                   # Pool do servidor: papel limitado nb_app (DATABASE_URL_APP)
+│   ├── db-owner.js             # Pool do dono do banco: só migrações, criação de papéis e limpeza de texto
+│   ├── db-core.js              # Criação do pool (certificado verificado) e leitura do .env.local
+│   ├── keepalive.js            # Mantém a Neon acordada (desligado por padrão: KEEPALIVE=on)
+│   ├── search.test.js          # Testes das regras da busca (puros)
+│   ├── memo.test.js            # Testes do cache em memória (puros)
+│   ├── config.test.js          # Testes da leitura de TRUST_PROXY (puros)
+│   ├── search.db.test.js       # Contra o banco real (só leitura): contrato da busca e dos filtros
+│   └── cache.db.test.js        # Contra o banco real (só leitura): cache, Cache-Control e erros não guardados
+│
+├── .github/workflows/
+│   ├── ci.yml                  # Lint, testes sem banco e build a cada push e pull request
+│   └── rotinas.yml             # 03:30 (São Paulo): backup para o R2 e, depois, a faxina
 │
 ├── API.md                      # Contrato da API da Fase 4 (rascunho, nada implementado)
 ├── schema.sql                  # DDL completo do PostgreSQL (tabelas, índices GIN e funções)
@@ -344,11 +367,25 @@ nossabiblia/
 - **PostgreSQL** ou uma conta no [Neon](https://neon.tech) com branch criada
 
 ### 2. Configurar Variáveis de Ambiente
-Crie um arquivo `.env.local` na raiz do projeto com sua string de conexão:
+Em desenvolvimento basta um `.env.local` (fora do Git) com a conexão do banco:
 ```env
 DATABASE_URL=postgresql://usuario:senha@ep-exemplo.us-east-2.aws.neon.tech/neondb?sslmode=require
-PORT=3001
 ```
+Sem `DATABASE_URL_APP` o servidor usa essa conexão e avisa; em produção ela é obrigatória e é um papel limitado. Todas as variáveis:
+
+| Variável | Quem usa | Para quê |
+|---|---|---|
+| `DATABASE_URL` | scripts de manutenção | Dono do banco: migrações, criação de papéis e limpeza de texto |
+| `DATABASE_URL_APP` | servidor | Papel `nb_app`: lê o conteúdo, lê e grava dados de usuário; não altera o esquema |
+| `DATABASE_URL_BACKUP` / `DATABASE_URL_MAINT` | rotinas do GitHub | Papéis `nb_backup` (só leitura) e `nb_maint` (faxina) |
+| `DATABASE_URL_RESTORE` | `restore.mjs` | Destino da restauração; sem valor padrão, de propósito |
+| `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | backup e restauração | Bucket privado do R2, com chave restrita a ele |
+| `RESEND_API_KEY` | e-mail (Fase 4) | Envio transacional |
+| `ALLOWED_ORIGINS` | servidor | Origens aceitas no CORS (padrão: o domínio oficial e `localhost:3000`) |
+| `TRUST_PROXY` | servidor | Número de proxies na frente do servidor (na Render, `3`) |
+| `RATE_LIMIT_MAX` | servidor | Requisições por minuto por IP (padrão 600) |
+| `KEEPALIVE` | servidor | `on` mantém a Neon acordada (gasta a cota gratuita; desligado por padrão) |
+| `VITE_API_URL` | build do site | Endereço da API publicada (vazio em desenvolvimento: o proxy do Vite cuida) |
 
 ### 3. Instalar Dependências
 ```bash
@@ -382,13 +419,26 @@ Outros comandos úteis:
 ```bash
 npm run build:client          # Build de produção do frontend (client/dist)
 npm run clean:text            # Mostra o que a limpeza dos textos mudaria (com `-- --apply` grava; rode após qualquer seed)
-npm test                      # 63 testes da busca, das referências e dos filtros (os do banco são pulados sem DATABASE_URL)
+npm test                      # 77 testes (46 sem banco, que são os do CI; os 31 do banco são pulados sem DATABASE_URL)
+node server/scripts/migrate.mjs         # ensaia as migrações pendentes (tudo desfeito no fim); com --apply grava
+node server/scripts/cleanup.mjs         # mostra o que a faxina apagaria (com --apply apaga)
+node server/scripts/backup.mjs          # exporta os dados dos usuários, envia ao R2 e confere
+node server/scripts/restore.mjs r2:latest  # ensaia a restauração do último backup (DATABASE_URL_RESTORE obrigatória)
 npm run test:accuracy         # Bateria de precisão: ~104 mil conferências contra um gabarito independente (~18 min, só leitura)
 ACCURACY_SCALE=0.2 npm run test:accuracy   # a mesma bateria em escala pequena (~3 min)
 npm --prefix client run lint  # Lint do frontend (oxlint)
 npm --prefix client run sample # Regenera o trecho de Gênesis 1 da home (se NAA.json/NVT.json mudarem)
 npm --prefix client run sample:check # Confere se o trecho está em dia (o build já faz isso sozinho)
 ```
+
+---
+
+## 🚢 Como é publicado
+
+- **Site:** o Cloudflare constrói a cada push no `main` (`npm ci && npm run build`, raiz `client`, variáveis `NODE_VERSION=24` e `VITE_API_URL`) e publica `dist/` como arquivos estáticos (`client/wrangler.jsonc`). O build gera `dist/_headers` (CSP com o hash do script do tema, `nosniff`, `frame DENY`, cache de um ano só para arquivos com hash no nome).
+- **API:** a Render constrói a partir do `main` e só implanta depois que o CI passa (`npm ci`, `npm run start`, verificação de saúde em `/healthz`, que não toca no banco). Variáveis: `NODE_ENV`, `NODE_VERSION`, `TRUST_PROXY`, `ALLOWED_ORIGINS`, `DATABASE_URL_APP`.
+- **Banco:** migrações aplicadas com `migrate.mjs`, sempre depois de um ensaio em modo de teste e, para mudanças estruturais, numa *branch* separada da Neon.
+- **Plano gratuito, com os limites à vista:** a API dorme depois de 15 minutos sem uso (a tela avisa), a Neon dá 100 CU-horas por mês (por isso o cache em memória e o keep-alive desligado) e o R2 tem retenção de 90 dias.
 
 ---
 
