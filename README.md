@@ -403,7 +403,7 @@ Sem `DATABASE_URL_APP` o servidor usa essa conexão e avisa; em produção ela �
 | `EMAIL_BLOCK_KEY` | servidor | Chave (32+ caracteres) do HMAC do bloqueio de e-mail apagado; obrigatória para o cadastro |
 | `TURNSTILE_SECRET` | servidor | Segredo do Turnstile; sem ele, em produção, o cadastro é recusado (falha fechada) |
 | `EMAIL_DAILY_CAP` | servidor | Teto de cadastros por 24 h (padrão 80; o plano grátis do Resend dá 100 e-mails por dia) |
-| `REGISTER_RATE_MAX` / `LOGIN_RATE_MAX` / `VERIFY_RATE_MAX` / `RESEND_RATE_MAX` | servidor | Limites por IP das rotas da conta (padrões 10 por hora, 10 por 15 min, 20 por hora, 10 por hora) |
+| `REGISTER_RATE_MAX` / `LOGIN_RATE_MAX` / `VERIFY_RATE_MAX` / `RESEND_RATE_MAX` / `FORGOT_RATE_MAX` / `RESET_RATE_MAX` | servidor | Limites por IP das rotas da conta (padrões 10 por hora, 10 por 15 min, 20 por hora, 10 por hora, 5 por hora, 10 por hora) |
 | `PWNED_CHECK` | servidor | `on`/`off` da checagem de senha vazada (padrão: ligada em produção) |
 | `DATABASE_URL_TEST` | testes de abuso | Branch de teste da Neon; os testes de escrita só rodam nela e recusam a URL de produção |
 | `ALLOWED_ORIGINS` | servidor | Origens aceitas no CORS (padrão: o domínio oficial e `localhost:3000`) |

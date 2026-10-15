@@ -35,8 +35,8 @@ como estão. Regras de negócio: `PROJETO.md` (números entre parênteses).
 | `POST /api/auth/login` | `email, password` → `200`, cookie | `401` genérico. Conta não verificada entra, com recursos bloqueados (38). |
 | `POST /api/auth/logout` | → `204` | Encerra esta sessão. |
 | `POST /api/auth/logout-all` | → `204` | Apaga todas as sessões do usuário (44). |
-| `POST /api/auth/forgot-password` | `email` → `202` genérico | Sempre 202, exista ou não (43). Token com validade curta. |
-| `POST /api/auth/reset-password` | `token, password, password_confirm` → `204` | Uso único; encerra as outras sessões. |
+| `POST /api/auth/forgot-password` | `email, turnstile` → `202` genérico | Sempre 202 com a mesma mensagem, exista a conta ou não (43): um único UPDATE roda nos dois casos e o e-mail sai em segundo plano, então nem a resposta nem o tempo revelam o cadastro. Uma conta recebe no máximo 1 e-mail a cada 15 min; o link vale 1 h e substitui o anterior. Se o envio falhar, o link é descartado e a conta pode tentar de novo na hora. **Implementada.** |
+| `POST /api/auth/reset-password` | `token, password, password_confirm` → `204` | Uso único; a senha é conferida antes de gastar o link (erro de digitação não o queima), recusa senha vazada, **encerra todas as sessões** da conta e limpa o cookie. `400 token_invalido`. **Implementada.** |
 | `GET /api/me` | → `{ first_name, last_name, email, is_verified, verified_at }` | Para o aviso fixo de conta não verificada (38). |
 | `GET /api/me/export` | → arquivo JSON | Todos os dados, com a data de cada marcação e favorito (45). Só conta verificada. |
 | `DELETE /api/me` | `password` → `204` | Apaga a conta e tudo (46); se verificada, grava o bloqueio de e-mail (HMAC) por 30 dias (47). |
@@ -97,6 +97,8 @@ responde `429` (ou `503` no teto diário) no formato da API: `{ "error": "<texto
 | Cadastro por IP | 10 por hora (`REGISTER_RATE_MAX`) | Cabe uma igreja, escola ou família no mesmo Wi-Fi; contra robô quem trabalha é o Turnstile |
 | Login por IP | 10 por 15 min (`LOGIN_RATE_MAX`) | |
 | Login por e-mail | 10 por 15 min | **Decisão:** depois de 10 erros, nem a senha certa entra até a janela passar. Protege contra força bruta, ao custo de quem não é o dono da conta poder travar a vítima por 15 min. Revisitar se virar problema |
+| "Esqueci minha senha" por IP | 5 por hora (`FORGOT_RATE_MAX`) | Mais Turnstile e 1 e-mail por conta a cada 15 min |
+| Redefinir senha por IP | 10 por hora (`RESET_RATE_MAX`) | |
 | Reenvio por IP | 10 por hora (`RESEND_RATE_MAX`) | Além da regra por conta (1º imediato, depois 12 h) |
 | Confirmação por IP | 20 por hora (`VERIFY_RATE_MAX`) | O token tem 256 bits, então chutar não funciona; o limite só poupa o servidor |
 | Teto diário de cadastros | 80 por 24 h (`EMAIL_DAILY_CAP`), `503 limite_diario` | Cada cadastro gasta 1 e-mail e o plano grátis do Resend dá 100 por dia; a folga é para os reenvios. Conta no banco: sobrevive a reinício |
@@ -109,7 +111,7 @@ responde `429` (ou `503` no teto diário) no formato da API: `{ "error": "<texto
 15 min parada) e não são compartilhados se houver mais de uma instância. É proteção básica, não garantia; se a conta crescer, mover para
 o banco ou um Redis. A `TRUST_PROXY` precisa continuar medida (ver AGENTS/README): com número errado todos compartilham um contador.
 
-Testes: `server/auth/abuse.http.test.js` (70 testes, ~3 min) sobe o servidor de verdade contra a branch de teste da Neon e um Resend
+Testes: `server/auth/abuse.http.test.js` (91 testes, ~4 min) sobe o servidor de verdade contra a branch de teste da Neon e um Resend
 falso; só roda com `DATABASE_URL_TEST` e recusa a URL de produção.
 
 ## Ainda em aberto

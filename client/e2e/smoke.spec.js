@@ -127,7 +127,7 @@ const respondeJson = (route, status, body) => route.fulfill({ status, contentTyp
 test('as telas da conta carregam sem violar a política de conteúdo (inclusive o script do Turnstile) e sem rolagem lateral', async ({ page }) => {
   await registrarViolacoes(page);
   await simularTurnstile(page);
-  for (const caminho of ['/cadastrar', '/entrar', '/confirmar']) {
+  for (const caminho of ['/cadastrar', '/entrar', '/confirmar', '/esqueci-senha', '/redefinir-senha']) {
     await page.goto(caminho);
     await page.waitForSelector('.auth-card');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), caminho).toBe(true);
@@ -222,4 +222,79 @@ test('os campos da conta param de aceitar digitação nos mesmos limites do serv
   expect((await page.getByLabel('Nome', { exact: true }).inputValue()).length).toBe(100);
   await page.goto('/entrar');
   expect(await page.getByLabel('Senha', { exact: true }).getAttribute('maxlength')).toBe('128');
+});
+
+test('login: o link "Esqueci minha senha" leva à recuperação', async ({ page }) => {
+  await page.goto('/entrar');
+  await page.getByRole('link', { name: 'Esqueci minha senha' }).click();
+  await expect(page).toHaveURL(/\/esqueci-senha$/);
+  await expect(page.getByRole('heading', { name: 'Esqueci minha senha' })).toBeVisible();
+});
+
+test('esqueci minha senha: manda e-mail + token do desafio e mostra a mesma mensagem, sem dizer se a conta existe', async ({ page }) => {
+  await simularTurnstile(page);
+  let corpo;
+  await page.route('**/api/auth/forgot-password', (route) => { corpo = route.request().postDataJSON(); return respondeJson(route, 202, { message: 'Se esse e-mail estiver cadastrado, enviaremos as instruções.' }); });
+  await page.goto('/esqueci-senha');
+  await expect(page.getByRole('button', { name: 'Enviar instruções' })).toBeDisabled(); // espera o desafio
+  await page.getByLabel('E-mail').fill('qualquer@exemplo.com');
+  await page.getByRole('button', { name: 'Enviar instruções' }).click();
+  await expect(page.getByRole('heading', { name: 'Verifique seu e-mail' })).toBeVisible();
+  await expect(page.getByText('Se esse e-mail estiver cadastrado,')).toBeVisible();
+  expect(corpo.email).toBe('qualquer@exemplo.com');
+  expect(corpo.turnstile).toMatch(/^token-de-teste-\d+$/);
+});
+
+test('esqueci minha senha: e-mail inválido mostra o erro no campo e o limite (429) aparece em português', async ({ page }) => {
+  await simularTurnstile(page);
+  let n = 0;
+  await page.route('**/api/auth/forgot-password', (route) => {
+    n += 1;
+    if (n === 1) return respondeJson(route, 400, { error: 'Informe um e-mail válido.', code: 'dados_invalidos', fields: { email: 'Informe um e-mail válido' } });
+    return respondeJson(route, 429, { error: 'Muitas tentativas. Aguarde um pouco e tente de novo.', code: 'muitas_tentativas', retry_after: 3000 });
+  });
+  await page.goto('/esqueci-senha');
+  await page.getByLabel('E-mail').fill('sem-arroba');
+  await page.getByRole('button', { name: 'Enviar instruções' }).click();
+  await expect(page.getByText('Informe um e-mail válido')).toBeVisible();
+  await page.getByRole('button', { name: 'Enviar instruções' }).click();
+  await expect(page.getByRole('alert')).toContainText('Muitas tentativas');
+});
+
+test('redefinir senha: o token sai do endereço, erros aparecem no campo e o sucesso leva ao login', async ({ page }) => {
+  let corpo;
+  let n = 0;
+  await page.route('**/api/auth/reset-password', (route) => {
+    corpo = route.request().postDataJSON();
+    n += 1;
+    if (n === 1) return respondeJson(route, 400, { error: 'Confira os campos.', code: 'dados_invalidos', fields: { password_confirm: 'As senhas não são iguais' } });
+    return route.fulfill({ status: 204 });
+  });
+  await page.route('**/api/me', (route) => respondeJson(route, 401, { error: 'x', code: 'sem_sessao' }));
+  await page.goto('/redefinir-senha?token=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG');
+  await expect(page.getByRole('heading', { name: 'Nova senha' })).toBeVisible();
+  await expect(page).toHaveURL(/\/redefinir-senha$/); // sem ?token=
+  await page.getByLabel('Nova senha', { exact: true }).fill('nova-senha-forte-7');
+  await page.getByLabel('Confirme a nova senha').fill('outra-coisa-aqui');
+  await page.getByRole('button', { name: 'Redefinir senha' }).click();
+  await expect(page.getByText('As senhas não são iguais')).toBeVisible();
+  expect(corpo.token).toBe('abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG');
+  await page.getByLabel('Confirme a nova senha').fill('nova-senha-forte-7');
+  await page.getByRole('button', { name: 'Redefinir senha' }).click();
+  await expect(page.getByRole('heading', { name: 'Senha redefinida' })).toBeVisible();
+  await page.getByRole('link', { name: 'Entrar' }).last().click();
+  await expect(page).toHaveURL(/\/entrar$/);
+});
+
+test('redefinir senha: link vencido ou sem token mostra "Link inválido" e leva a pedir outro', async ({ page }) => {
+  await page.route('**/api/auth/reset-password', (route) => respondeJson(route, 400, { error: 'Este link não é mais válido.', code: 'token_invalido' }));
+  await page.goto('/redefinir-senha'); // sem token
+  await expect(page.getByRole('heading', { name: 'Link inválido' })).toBeVisible();
+  await page.goto('/redefinir-senha?token=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG');
+  await page.getByLabel('Nova senha', { exact: true }).fill('nova-senha-forte-7');
+  await page.getByLabel('Confirme a nova senha').fill('nova-senha-forte-7');
+  await page.getByRole('button', { name: 'Redefinir senha' }).click();
+  await expect(page.getByRole('heading', { name: 'Link inválido' })).toBeVisible();
+  await page.getByRole('link', { name: 'Pedir novo link' }).click();
+  await expect(page).toHaveURL(/\/esqueci-senha$/);
 });

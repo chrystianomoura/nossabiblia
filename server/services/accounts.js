@@ -4,10 +4,12 @@ const defaultPool = { query: async (...a) => (await import('../db.js')).default.
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { newToken, hashToken, emailBlockHash } from '../auth/tokens.js';
 import { SESSION_DAYS, MAX_SESSIONS_PER_USER } from '../auth/session.js';
-import { verificationEmail } from '../auth/emails.js';
+import { verificationEmail, resetPasswordEmail } from '../auth/emails.js';
 import { sendEmail } from './email.js';
 
 const VERIFICATION_HOURS = 24;
+const RESET_MINUTES = 60; // validade do link de redefinição
+const RESET_COOLDOWN_MINUTES = 15; // no máximo um e-mail de recuperação por conta a cada 15 min (4 por hora)
 const RESEND_COOLDOWN_HOURS = 12; // regra 39: o 1º reenvio é imediato; depois, só 12 h depois do último envio
 // Teto de cadastros (= e-mails de confirmação) por 24 h. O plano grátis do Resend dá 100 envios por dia; passar disso derruba o envio
 // para todo mundo. Conta os cadastros no banco (sobrevive a reinício da API) e deixa folga para os reenvios.
@@ -173,4 +175,41 @@ export async function resendVerification(userId, { db = defaultPool, send = send
     ).catch(() => {});
     throw new AccountError(502, 'email_nao_enviado', 'Não foi possível enviar o e-mail agora. Tente de novo em instantes.', { cause: err });
   }
+}
+
+// "Esqueci minha senha". Responde igual exista a conta ou não (o chamador sempre devolve 202): um único UPDATE roda nos dois casos, então
+// nem a resposta nem o tempo revelam o cadastro. O e-mail sai em segundo plano (`background`) pelo mesmo motivo: enviar leva centenas de ms
+// e só acontece para quem tem conta. Uma conta recebe no máximo um e-mail a cada 15 min, mesmo que o link anterior ainda valha.
+export async function requestPasswordReset(email, { db = defaultPool, send = sendEmail, onError = () => {} } = {}) {
+  const { token, hash } = newToken();
+  const r = await db.query(
+    `UPDATE users SET reset_password_token_hash = $2, reset_password_expires_at = NOW() + make_interval(mins => $3::int)
+      WHERE email = $1
+        AND (reset_password_expires_at IS NULL OR reset_password_expires_at <= NOW() + make_interval(mins => ($3::int - $4::int)))
+      RETURNING first_name`,
+    [email, hash, RESET_MINUTES, RESET_COOLDOWN_MINUTES],
+  );
+  if (!r.rowCount) return { sent: false, background: Promise.resolve() };
+  const background = send({ to: email, ...resetPasswordEmail({ firstName: r.rows[0].first_name, token }) }).catch(async (err) => {
+    // Sem e-mail, o link não existe para ninguém: libera a conta para tentar de novo agora.
+    await db.query('UPDATE users SET reset_password_token_hash = NULL, reset_password_expires_at = NULL WHERE reset_password_token_hash = $1', [hash]).catch(() => {});
+    onError(err);
+  });
+  return { sent: true, background };
+}
+
+// Redefine a senha com o link do e-mail: uso único (o hash é apagado no mesmo UPDATE), validade de 1 h, e encerra TODAS as sessões da
+// conta (quem tinha a senha antiga, inclusive um invasor, perde o acesso).
+export async function resetPassword(token, password, { db = defaultPool } = {}) {
+  const invalid = () => new AccountError(400, 'token_invalido', 'Este link não é mais válido. Peça um novo link para redefinir a senha.');
+  if (typeof token !== 'string' || token.length < 20 || token.length > 200) throw invalid();
+  const passwordHash = await hashPassword(password);
+  const r = await db.query(
+    `UPDATE users SET password_hash = $2, reset_password_token_hash = NULL, reset_password_expires_at = NULL
+      WHERE reset_password_token_hash = $1 AND reset_password_expires_at > NOW()
+      RETURNING id`,
+    [hashToken(token), passwordHash],
+  );
+  if (!r.rowCount) throw invalid();
+  await db.query('DELETE FROM sessions WHERE user_id = $1', [r.rows[0].id]);
 }

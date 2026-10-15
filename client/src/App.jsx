@@ -7,12 +7,14 @@ import VerifyNotice from './components/VerifyNotice';
 import RegisterPage from './components/RegisterPage';
 import LoginPage from './components/LoginPage';
 import ConfirmPage from './components/ConfirmPage';
+import ForgotPage from './components/ForgotPage';
+import ResetPage from './components/ResetPage';
 import { loadSession } from './lib/auth';
 import { useBooks } from './lib/books';
 import { parseRoute, useLocation } from './lib/router';
 import { useTheme } from './lib/theme';
 
-const AUTH_PAGES = { register: RegisterPage, login: LoginPage, confirm: ConfirmPage };
+const AUTH_PAGES = { register: RegisterPage, login: LoginPage, confirm: ConfirmPage, forgot: ForgotPage, reset: ResetPage };
 
 function AuthView({ Page, ...props }) {
   return <Page {...props} />;

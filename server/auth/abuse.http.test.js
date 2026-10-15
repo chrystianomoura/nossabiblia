@@ -462,6 +462,16 @@ describe('produção: cookie e falha fechada', opts, () => {
     assert.equal(fake.calls.length, 0);
   });
 
+  test('sem TURNSTILE_SECRET o "esqueci minha senha" também é recusado e nenhum e-mail sai', async () => {
+    const email = `${uniq('prodf')}@${EMAIL_DOMAIN}`; await seedUser(email);
+    fake.clear();
+    const r = await http.post('/api/auth/forgot-password', { email });
+    assert.equal(r.status, 400);
+    assert.equal(r.json.code, 'turnstile_invalido');
+    await new Promise((res) => setTimeout(res, 300));
+    assert.equal(fake.calls.length, 0);
+  });
+
   test('cookie de sessão em produção: __Host-, Secure, HttpOnly, SameSite=Lax, Path=/, sem Domain; e o logout o apaga com os mesmos atributos', async () => {
     const email = `${uniq('ck')}@${EMAIL_DOMAIN}`; await seedUser(email);
     const r = await http.post('/api/auth/login', { email, password: 'senha-segura-1' });
@@ -573,7 +583,7 @@ describe('senha vazada (Pwned Passwords)', opts, () => {
   before(async () => {
     pwned = await startFakePwned();
     pwned.flag('senha-vazada-123');
-    srv = await startServer(fake, { REGISTER_RATE_MAX: '1000', PWNED_CHECK: 'on', PWNED_API_URL: pwned.url });
+    srv = await startServer(fake, { REGISTER_RATE_MAX: '1000', FORGOT_RATE_MAX: '1000', RESET_RATE_MAX: '1000', PWNED_CHECK: 'on', PWNED_API_URL: pwned.url });
     http = client(srv.base);
   });
   after(async () => { await srv.stop(); await pwned.close(); });
@@ -592,6 +602,19 @@ describe('senha vazada (Pwned Passwords)', opts, () => {
   test('senha que não está na lista passa', async () => {
     const r = await http.post('/api/auth/register', validUser(uniq('pw'), { password: 'uma-senha-bem-diferente-9', password_confirm: 'uma-senha-bem-diferente-9' }));
     assert.equal(r.status, 201);
+  });
+
+  test('redefinir com senha vazada → 400 e o link NÃO é gasto (dá para escolher outra)', async () => {
+    const email = `${uniq('pwr')}@${EMAIL_DOMAIN}`; await seedUser(email);
+    fake.clear();
+    await http.post('/api/auth/forgot-password', { email });
+    for (let i = 0; i < 40 && !fake.calls.length; i++) await new Promise((r) => setTimeout(r, 100));
+    const token = tokenFrom(fake.calls.at(-1));
+    const vazada = await http.post('/api/auth/reset-password', { token, password: 'senha-vazada-123', password_confirm: 'senha-vazada-123' });
+    assert.equal(vazada.status, 400);
+    assert.match(vazada.json.fields.password, /vazamentos/);
+    const ok = await http.post('/api/auth/reset-password', { token, password: 'uma-senha-bem-diferente-9', password_confirm: 'uma-senha-bem-diferente-9' });
+    assert.equal(ok.status, 204);
   });
 
   test('serviço de senhas fora do ar ou travado: o cadastro NÃO é bloqueado (falha aberta) e não demora mais que ~2 s', { timeout: 20000 }, async () => {
@@ -768,5 +791,172 @@ describe('reenvio da confirmação (regra 39: 1º imediato, depois 12 h)', opts,
   test('o servidor só registrou erro por causa do Resend simulado (nenhum erro interno de banco ou de código)', () => {
     const estranhas = srv.errorLines().filter((l) => !l.includes('Resend respondeu'));
     assert.deepEqual(estranhas, []);
+  });
+});
+
+// ------------------------------------------------------------------------------------------------------------------------------
+describe('recuperação de senha (esqueci / redefinir)', opts, () => {
+  let srv; let http;
+  before(async () => { srv = await startServer(fake, { REGISTER_RATE_MAX: '1000', LOGIN_RATE_MAX: '1000', FORGOT_RATE_MAX: '1000', RESET_RATE_MAX: '1000' }); http = client(srv.base); });
+  after(async () => { await srv.stop(); });
+
+  const waitFor = async (fn, ms = 4000) => { const t = Date.now(); while (Date.now() - t < ms) { if (fn()) return true; await new Promise((r) => setTimeout(r, 50)); } return false; };
+  const forgot = (email, extra) => http.post('/api/auth/forgot-password', { email }, extra);
+  const reset = (token, password = 'nova-senha-forte-7', extra = {}) => http.post('/api/auth/reset-password', { token, password, password_confirm: password, ...extra });
+  const novaConta = async (opts2 = {}) => { const email = `${uniq('rp')}@${EMAIL_DOMAIN}`; await seedUser(email, opts2); return email; };
+  const pedeELe = async (email) => { fake.clear(); const r = await forgot(email); assert.equal(r.status, 202); assert.ok(await waitFor(() => fake.calls.length >= 1), 'o e-mail de recuperação não saiu'); return tokenFrom(fake.calls.at(-1)); };
+
+  test('esqueci: a resposta é IDÊNTICA com conta e sem conta (202, mesmo corpo); o e-mail só sai para quem tem conta', async () => {
+    const email = await novaConta();
+    fake.clear();
+    const com = await forgot(email);
+    const sem = await forgot(`${uniq('naoexiste')}@${EMAIL_DOMAIN}`);
+    assert.equal(com.status, 202);
+    assert.equal(sem.status, 202);
+    assert.deepEqual(com.json, sem.json);
+    assert.equal(com.json.message, 'Se esse e-mail estiver cadastrado, enviaremos as instruções.');
+    assert.ok(await waitFor(() => fake.calls.length >= 1));
+    await new Promise((r) => setTimeout(r, 300));
+    assert.deepEqual(fake.calls.map((c) => c.to), [email]);
+    assert.equal(fake.calls[0].subject, 'Redefinir sua senha – Nossa Bíblia');
+    assert.match(fake.calls[0].text, /\/redefinir-senha\?token=/);
+  });
+
+  test('esqueci: o tempo de resposta não revela se a conta existe (mediana, diferença < 250 ms)', async () => {
+    const email = await novaConta();
+    const med = (xs) => xs.sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+    const time = async (e) => { const t = performance.now(); await forgot(e); return performance.now() - t; };
+    const com = []; const sem = [];
+    for (let i = 0; i < 4; i++) {
+      // zera a espera de 15 min entre as medições para a conta existente realmente atualizar e enviar
+      await db.query('UPDATE users SET reset_password_expires_at = NULL, reset_password_token_hash = NULL WHERE email = $1', [email]);
+      com.push(await time(email)); sem.push(await time(`${uniq('x')}@${EMAIL_DOMAIN}`));
+    }
+    assert.ok(Math.abs(med(com) - med(sem)) < 250, `com conta ${Math.round(med(com))} ms, sem conta ${Math.round(med(sem))} ms`);
+  });
+
+  test('esqueci: no máximo 1 e-mail por conta a cada 15 min (pedir sem parar não enche a caixa de ninguém)', async () => {
+    const email = await novaConta();
+    fake.clear();
+    for (let i = 0; i < 10; i++) assert.equal((await forgot(email)).status, 202);
+    await waitFor(() => fake.calls.length >= 1); await new Promise((r) => setTimeout(r, 400));
+    assert.equal(fake.calls.length, 1, `saíram ${fake.calls.length} e-mails`);
+    // passados 15 min do último, libera outro; com 10 min ainda não
+    await db.query(`UPDATE users SET reset_password_expires_at = NOW() + interval '50 minutes' WHERE email = $1`, [email]);
+    await forgot(email); await new Promise((r) => setTimeout(r, 400));
+    assert.equal(fake.calls.length, 1, 'com 10 min do último ainda bloqueia');
+    await db.query(`UPDATE users SET reset_password_expires_at = NOW() + interval '44 minutes' WHERE email = $1`, [email]);
+    await forgot(email);
+    assert.ok(await waitFor(() => fake.calls.length === 2), 'com 16 min do último libera');
+  });
+
+  test('esqueci: e-mail mal formado → 400 no campo; corpo estranho → 4xx; nunca 500', async () => {
+    assert.equal((await forgot('sem-arroba')).status, 400);
+    for (const body of [{}, { email: 12 }, { email: ['a@b.co'] }, { email: { $ne: '' } }, { email: 'a'.repeat(300) + '@x.co' }, null]) {
+      const r = await http.post('/api/auth/forgot-password', body);
+      assert.ok(r.status === 400, `${JSON.stringify(body)?.slice(0, 40)} → ${r.status}`);
+    }
+    assert.deepEqual(srv.errorLines(), []);
+  });
+
+  test('esqueci: se o Resend falhar a resposta continua 202 (não vaza nada) e a conta pode tentar de novo na hora', async () => {
+    const email = await novaConta();
+    fake.clear(); fake.setMode('erro500');
+    try {
+      assert.equal((await forgot(email)).status, 202);
+      await waitFor(() => fake.calls.length >= 1); await new Promise((r) => setTimeout(r, 300));
+    } finally { fake.setMode('ok'); }
+    const linha = (await db.query('SELECT reset_password_token_hash AS h FROM users WHERE email = $1', [email])).rows[0];
+    assert.equal(linha.h, null, 'sem e-mail, o link não pode ficar guardado');
+    fake.clear();
+    assert.equal((await forgot(email)).status, 202);
+    assert.ok(await waitFor(() => fake.calls.length === 1), 'a nova tentativa sai imediatamente');
+  });
+
+  test('esqueci: conta não verificada também pode recuperar a senha', async () => {
+    const email = await novaConta({ verified: false });
+    fake.clear();
+    await forgot(email);
+    assert.ok(await waitFor(() => fake.calls.length === 1));
+  });
+
+  test('redefinir: link válido troca a senha (a antiga para de valer), é de uso único e encerra TODAS as sessões', async () => {
+    const email = await novaConta();
+    const s1 = (await http.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie;
+    const s2 = (await http.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie;
+    assert.equal((await http.get('/api/me', { cookie: s1 })).status, 200);
+    const token = await pedeELe(email);
+    const r = await reset(token);
+    assert.equal(r.status, 204);
+    assert.match(r.setCookie[0] || '', /^nb_session=;/, 'limpa o cookie do navegador');
+    assert.equal((await http.post('/api/auth/login', { email, password: 'senha-segura-1' })).status, 401, 'a senha antiga não vale mais');
+    assert.equal((await http.post('/api/auth/login', { email, password: 'nova-senha-forte-7' })).status, 200);
+    for (const c of [s1, s2]) assert.equal((await http.get('/api/me', { cookie: c })).status, 401, 'sessões antigas encerradas');
+    assert.equal((await reset(token, 'outra-senha-forte-8')).status, 400, 'o link é de uso único');
+  });
+
+  test('redefinir: 10 pedidos simultâneos com o MESMO link → exatamente 1 vence', async () => {
+    const email = await novaConta();
+    const token = await pedeELe(email);
+    const rs = await Promise.all(Array.from({ length: 10 }, (_, i) => reset(token, `senha-da-corrida-${i}-x`)));
+    const codes = rs.map((r) => r.status).sort();
+    assert.equal(codes.filter((c) => c === 204).length, 1, `códigos: ${codes}`);
+    assert.equal(codes.filter((c) => c === 400).length, 9);
+  });
+
+  test('redefinir: link vencido (> 1 h) é recusado e a senha não muda', async () => {
+    const email = await novaConta();
+    const token = await pedeELe(email);
+    await db.query(`UPDATE users SET reset_password_expires_at = NOW() - interval '1 second' WHERE email = $1`, [email]);
+    assert.equal((await reset(token)).status, 400);
+    assert.equal((await http.post('/api/auth/login', { email, password: 'senha-segura-1' })).status, 200);
+  });
+
+  test('redefinir: senha inválida (curta, longa, diferente, só espaços) → 400 e o link NÃO é gasto', async () => {
+    const email = await novaConta();
+    const token = await pedeELe(email);
+    for (const body of [{ password: 'curta', password_confirm: 'curta' }, { password: 'a'.repeat(129), password_confirm: 'a'.repeat(129) }, { password: 'senha-boa-123', password_confirm: 'senha-diferente' }, { password: '        ', password_confirm: '        ' }, { password: { a: 1 }, password_confirm: { a: 1 } }]) {
+      const r = await http.post('/api/auth/reset-password', { token, ...body });
+      assert.equal(r.status, 400, JSON.stringify(body).slice(0, 40));
+      assert.ok(r.json.fields && (r.json.fields.password || r.json.fields.password_confirm));
+    }
+    assert.equal((await reset(token)).status, 204, 'o link continuou valendo depois dos erros de digitação');
+  });
+
+  test('redefinir: tokens malformados e de outro tipo (o do cadastro) → 400, nunca 500', async () => {
+    fake.clear();
+    const email = `${uniq('rt')}@${EMAIL_DOMAIN}`;
+    assert.equal((await http.post('/api/auth/register', validUser(email.split('@')[0]))).status, 201);
+    const tokenDeCadastro = tokenFrom(fake.calls.at(-1));
+    for (const token of ['', 'a', 'a'.repeat(5000), { $gt: '' }, ['x'], 123456789, null, undefined, `'; DROP TABLE users;--`.padEnd(30, 'x'), tokenDeCadastro]) {
+      const r = await reset(token);
+      assert.equal(r.status, 400, `token ${JSON.stringify(token)?.slice(0, 30)} → ${r.status}`);
+    }
+    assert.equal((await http.postRaw('/api/auth/reset-password', '', { headers: { 'Content-Type': 'application/json' } })).status, 400);
+    assert.equal((await http.post('/api/auth/verify', { token: tokenDeCadastro })).status, 200, 'o link do cadastro continua valendo para confirmar');
+    assert.deepEqual(srv.errorLines().filter((l) => !l.includes('Resend respondeu')), []);
+  });
+
+  test('um pedido novo (depois dos 15 min) invalida o link anterior', async () => {
+    const email = await novaConta();
+    const antigo = await pedeELe(email);
+    await db.query(`UPDATE users SET reset_password_expires_at = NOW() + interval '40 minutes' WHERE email = $1`, [email]);
+    fake.clear();
+    await forgot(email);
+    assert.ok(await waitFor(() => fake.calls.length === 1));
+    const novo = tokenFrom(fake.calls[0]);
+    assert.notEqual(novo, antigo);
+    assert.equal((await reset(antigo)).status, 400);
+    assert.equal((await reset(novo)).status, 204);
+  });
+
+  test('o limite por IP do "esqueci" barra o excesso (429 muitas_tentativas)', async () => {
+    const lim = await startServer(fake, { FORGOT_RATE_MAX: '3' });
+    try {
+      const h = client(lim.base);
+      const codes = [];
+      for (let i = 0; i < 5; i++) codes.push((await h.post('/api/auth/forgot-password', { email: `${uniq('l')}@${EMAIL_DOMAIN}` })).status);
+      assert.deepEqual(codes, [202, 202, 202, 429, 429]);
+    } finally { await lim.stop(); }
   });
 });

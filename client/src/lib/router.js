@@ -29,9 +29,9 @@ export function readPath(slug, chapter, translation = 'NAA', verse = null, verse
 }
 
 export function parseRoute({ pathname, search }) {
-  const account = pathname.match(/^\/(cadastrar|entrar|confirmar)\/?$/);
+  const account = pathname.match(/^\/(cadastrar|entrar|confirmar|esqueci-senha|redefinir-senha)\/?$/);
   if (account) {
-    const view = { cadastrar: 'register', entrar: 'login', confirmar: 'confirm' }[account[1]];
+    const view = { cadastrar: 'register', entrar: 'login', confirmar: 'confirm', 'esqueci-senha': 'forgot', 'redefinir-senha': 'reset' }[account[1]];
     return { view, next: search.get('next'), token: search.get('token') };
   }
 

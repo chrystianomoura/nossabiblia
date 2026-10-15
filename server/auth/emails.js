@@ -31,3 +31,17 @@ export function verificationEmail({ firstName, token, resend = false, year = new
   const text = `Olá, ${firstName}!\n\n${intro}\n\nConfirmar meu e-mail: ${link}\n\nO link vale por 24 horas.\n${outro}\n\n© ${year} Nossa Bíblia`;
   return { subject, html: layout({ greeting, intro, button: 'Confirmar meu e-mail', link, outro: `O link vale por 24 horas. ${outro}`, year }), text };
 }
+
+// Recuperação de senha (1 h). Mesmo molde do e-mail de confirmação; o texto vem do API.md (decisão 4).
+export function resetPasswordEmail({ firstName, token, year = new Date().getFullYear() }) {
+  const link = `${appUrl()}/redefinir-senha?token=${encodeURIComponent(token)}`;
+  const greeting = `Olá, ${esc(firstName)}!`;
+  const intro = 'Recebemos um pedido para redefinir a senha da sua conta.';
+  const outro = 'Se não foi você, ignore este e-mail: sua senha continua a mesma. Depois de redefinir, as outras sessões abertas são encerradas.';
+  const text = `Olá, ${firstName}!\n\n${intro}\n\nEscolher nova senha: ${link}\n\nO link vale por 1 hora e só pode ser usado uma vez.\n${outro}\n\n© ${year} Nossa Bíblia`;
+  return {
+    subject: 'Redefinir sua senha – Nossa Bíblia',
+    html: layout({ greeting, intro, button: 'Escolher nova senha', link, outro: `O link vale por 1 hora e só pode ser usado uma vez. ${outro}`, year }),
+    text,
+  };
+}

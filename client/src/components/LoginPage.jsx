@@ -45,6 +45,7 @@ export default function LoginPage({ route, ...props }) {
         {alert && <p className="auth-alert" role="alert">{alert}</p>}
         <button type="submit" className="btn-primary auth-submit" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
       </form>
+      <p className="auth-alt"><Link to="/esqueci-senha" className="auth-link">Esqueci minha senha</Link></p>
       <p className="auth-alt">Ainda não tem conta? <Link to={`/cadastrar${query}`} className="auth-link">Criar conta</Link></p>
     </AuthLayout>
   );

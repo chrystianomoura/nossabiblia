@@ -82,6 +82,17 @@ export function verifyEmail(token) {
   return verifying.get(token);
 }
 
+// Recuperação de senha. `forgot` sempre responde 202 (exista a conta ou não); `reset` recebe o token do e-mail e devolve 204.
+export function forgotPassword(email, turnstile) {
+  return authRequest('POST', '/api/auth/forgot-password', { email, turnstile });
+}
+
+export async function resetPassword(token, password, password_confirm) {
+  const r = await authRequest('POST', '/api/auth/reset-password', { token, password, password_confirm });
+  if (r.ok) await refreshSession(); // o servidor encerrou as sessões da conta: este navegador deixa de estar conectado
+  return r;
+}
+
 // Pede um novo link de confirmação (a conta precisa estar conectada). 204 = enviado; 429 `reenvio_bloqueado` traz `retry_after`.
 export function resendVerification() {
   return authRequest('POST', '/api/auth/resend-verification');

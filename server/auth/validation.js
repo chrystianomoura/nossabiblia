@@ -27,6 +27,15 @@ export function normalizeEmail(raw) {
   return typeof raw === 'string' ? raw.trim().toLowerCase() : '';
 }
 
+// Senha e confirmação (cadastro e redefinição usam a mesma regra). Devolve a senha e põe o erro em `fields`.
+function checkPassword(b, fields) {
+  const password = typeof b.password === 'string' ? b.password : '';
+  if (password.length < MIN_PASSWORD || !password.trim()) fields.password = `A senha precisa ter pelo menos ${MIN_PASSWORD} caracteres`;
+  else if (password.length > MAX_PASSWORD) fields.password = `A senha pode ter no máximo ${MAX_PASSWORD} caracteres`;
+  else if (password !== b.password_confirm) fields.password_confirm = 'As senhas não são iguais';
+  return password;
+}
+
 export function validateRegister(body) {
   const b = body && typeof body === 'object' ? body : {};
   const fields = {};
@@ -38,11 +47,27 @@ export function validateRegister(body) {
   if (!email || email.length > LIMITS.email || !EMAIL_RE.test(email) || email.indexOf('@') > LIMITS.emailLocal) fields.email = 'Informe um e-mail válido';
   else if (email !== normalizeEmail(b.email_confirm)) fields.email_confirm = 'Os e-mails não são iguais';
 
-  const password = typeof b.password === 'string' ? b.password : '';
-  if (password.length < MIN_PASSWORD || !password.trim()) fields.password = `A senha precisa ter pelo menos ${MIN_PASSWORD} caracteres`;
-  else if (password.length > MAX_PASSWORD) fields.password = `A senha pode ter no máximo ${MAX_PASSWORD} caracteres`;
-  else if (password !== b.password_confirm) fields.password_confirm = 'As senhas não são iguais';
+  const password = checkPassword(b, fields);
 
   if (Object.keys(fields).length) return { fields };
   return { value: { first_name, last_name, email, password } };
+}
+
+// "Esqueci minha senha": só o e-mail. Um e-mail mal formado dá erro de formulário (isso não revela se a conta existe).
+export function validateForgot(body) {
+  const email = normalizeEmail(body && typeof body === 'object' ? body.email : '');
+  if (!email || email.length > LIMITS.email || !EMAIL_RE.test(email) || email.indexOf('@') > LIMITS.emailLocal) {
+    return { fields: { email: 'Informe um e-mail válido' } };
+  }
+  return { value: { email } };
+}
+
+// Redefinição: token + nova senha. A senha é conferida ANTES de gastar o token, para um erro de digitação não queimar o link.
+export function validateReset(body) {
+  const b = body && typeof body === 'object' ? body : {};
+  const fields = {};
+  const token = typeof b.token === 'string' ? b.token : '';
+  const password = checkPassword(b, fields);
+  if (Object.keys(fields).length) return { fields, token };
+  return { value: { token, password } };
 }

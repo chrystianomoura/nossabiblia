@@ -1,8 +1,8 @@
 // Rotas da conta. Mesmo molde das outras: lê o pedido, valida (server/auth/validation.js), chama o serviço e responde.
-import { validateRegister, normalizeEmail } from '../auth/validation.js';
+import { validateRegister, validateForgot, validateReset, normalizeEmail } from '../auth/validation.js';
 import { serializeSessionCookie, clearSessionCookie, sessionCookieName } from '../auth/session.js';
 import { createAttemptLimiter } from '../http/attempt-limiter.js';
-import { register, verifyEmail, resendVerification, login, logout, authenticate, publicUser, AccountError } from '../services/accounts.js';
+import { register, verifyEmail, resendVerification, requestPasswordReset, resetPassword, login, logout, authenticate, publicUser, AccountError } from '../services/accounts.js';
 import { verifyTurnstile } from '../services/turnstile.js';
 import { isPwned } from '../services/pwned.js';
 
@@ -21,6 +21,8 @@ export default async function authRoutes(fastify) {
   // Limites por IP (o contador do @fastify/rate-limit; atrás dos proxies o IP certo depende de TRUST_PROXY).
   // Cadastro: 10 por hora por IP (uma igreja, escola ou família no mesmo Wi-Fi cabe; contra robô quem trabalha é o Turnstile).
   const registerLimit = { rateLimit: { max: Number(process.env.REGISTER_RATE_MAX || 10), timeWindow: '1 hour' } };
+  const forgotLimit = { rateLimit: { max: Number(process.env.FORGOT_RATE_MAX || 5), timeWindow: '1 hour' } };
+  const resetLimit = { rateLimit: { max: Number(process.env.RESET_RATE_MAX || 10), timeWindow: '1 hour' } };
   const resendLimit = { rateLimit: { max: Number(process.env.RESEND_RATE_MAX || 10), timeWindow: '1 hour' } };
 
   // Corpo das rotas da conta: 16 KB bastam (o maior pedido real tem uns 600 bytes); o padrão do Fastify é 1 MB.
@@ -117,6 +119,37 @@ export default async function authRoutes(fastify) {
       const user = await authenticate(request.cookies?.[sessionCookieName()]);
       if (!user) return reply.code(401).send({ error: 'Você não está conectado.', code: 'sem_sessao' });
       await resendVerification(user.id);
+      return reply.code(204).send();
+    } catch (err) {
+      return fail(request, reply, err);
+    }
+  });
+
+  // "Esqueci minha senha": sempre 202 com a mesma mensagem, exista a conta ou não (regra 43). Turnstile e limite por IP; o e-mail sai em
+  // segundo plano, e uma conta recebe no máximo um a cada 15 min.
+  fastify.post('/auth/forgot-password', { config: forgotLimit, bodyLimit: BODY_LIMIT }, async (request, reply) => {
+    const parsed = validateForgot(request.body);
+    if (parsed.fields) return reply.code(400).send({ error: 'Informe um e-mail válido.', code: 'dados_invalidos', fields: parsed.fields });
+    if (!(await verifyTurnstile(request.body.turnstile, request.ip))) {
+      return reply.code(400).send({ error: 'Não foi possível confirmar que você não é um robô. Tente de novo.', code: 'turnstile_invalido' });
+    }
+    try {
+      await requestPasswordReset(parsed.value.email, { onError: (err) => request.log.error(err) });
+    } catch (err) {
+      request.log.error(err); // mesmo com falha interna a resposta é a mesma: não vaza se a conta existe
+    }
+    return reply.code(202).send({ message: 'Se esse e-mail estiver cadastrado, enviaremos as instruções.' });
+  });
+
+  fastify.post('/auth/reset-password', { config: resetLimit, bodyLimit: BODY_LIMIT }, async (request, reply) => {
+    const parsed = validateReset(request.body);
+    if (parsed.fields) return reply.code(400).send({ error: 'Confira os campos.', code: 'dados_invalidos', fields: parsed.fields });
+    if (await isPwned(parsed.value.password)) {
+      return reply.code(400).send({ error: 'Confira os campos.', code: 'dados_invalidos', fields: { password: 'Essa senha já apareceu em vazamentos de dados. Escolha outra.' } });
+    }
+    try {
+      await resetPassword(parsed.value.token, parsed.value.password);
+      reply.header('Set-Cookie', clearSessionCookie()); // se este navegador tinha sessão da conta, ela acabou de ser encerrada
       return reply.code(204).send();
     } catch (err) {
       return fail(request, reply, err);

@@ -8,7 +8,7 @@ test('aceita caminhos do próprio site', () => {
 });
 
 test('recusa destino fora do site, com contrabarra, controle ou telas da conta', () => {
-  for (const ruim of ['//evil.com', 'https://evil.com', '/\\evil.com', '/a\nb', 'javascript:alert(1)', '', undefined, null, 5, '/entrar', '/cadastrar?x=1', '/confirmar', 'x'.repeat(501)]) {
+  for (const ruim of ['//evil.com', 'https://evil.com', '/\\evil.com', '/a\nb', 'javascript:alert(1)', '', undefined, null, 5, '/entrar', '/cadastrar?x=1', '/confirmar', '/esqueci-senha', '/redefinir-senha?token=abc', 'x'.repeat(501)]) {
     assert.equal(safeNext(ruim), '/', String(ruim));
   }
 });
