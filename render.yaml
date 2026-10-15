@@ -1,0 +1,27 @@
+# Blueprint da Render: a API descrita como código, para refazer o serviço sem depender de memória nem de cliques.
+# Escrito a partir do serviço que está no ar (nossabiblia-api); a Render não validou este arquivo contra o serviço existente, então
+# não o aplique por cima dele sem antes conferir o plano de mudanças que ela mostra. Mapa completo: infra/LEIA-ME.md.
+services:
+  - type: web
+    name: nossabiblia-api
+    runtime: node
+    region: ohio # perto da Neon (também em Ohio): cada consulta ao banco é bem mais rápida
+    plan: free # dorme após 15 minutos sem uso; a tela avisa ("Acordando o servidor")
+    branch: main
+    buildCommand: npm ci
+    startCommand: npm run start
+    healthCheckPath: /healthz # não consulta o banco, de propósito (a Render chama a cada poucos segundos)
+    autoDeployTrigger: checksPass # só implanta depois que o CI passa
+    domains:
+      - api.nossabiblia.party # o CNAME `api` na Cloudflare aponta para nossabiblia-api.onrender.com (ver infra/dns.md)
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY # número de proxies na frente (Cloudflare, borda da Render e o proxy interno): medido em produção
+        value: '3'
+      - key: ALLOWED_ORIGINS
+        value: https://nossabiblia.party,https://www.nossabiblia.party
+      - key: DATABASE_URL_APP # papel nb_app (menor privilégio); o valor é segredo e se coloca no painel
+        sync: false

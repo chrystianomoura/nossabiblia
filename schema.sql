@@ -1,4 +1,10 @@
 -- ==============================================================================
+-- ATENÇÃO: este arquivo é o esquema INICIAL (histórico). A FONTE DA VERDADE do esquema atual são as migrações em server/migrations/
+-- (001 a 003), que o transformam: tokens só em hash, e-mail normalizado, sessão por cookie opaco, marcação e favorito por versículo,
+-- papéis de banco de menor privilégio. Banco novo: rode este arquivo e depois `node server/scripts/migrate.mjs --apply`.
+-- Alguns comentários abaixo citam números de regra do PROJETO que não batem com a numeração atual.
+-- ==============================================================================
+-- ==============================================================================
 -- PROJETO: Nossa Bíblia
 -- ARQUIVO: schema.sql
 -- DESCRIÇÃO: Estrutura DDL completa para PostgreSQL

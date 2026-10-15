@@ -41,7 +41,7 @@ Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, c
 | **Hospedagem** | Cloudflare (site e DNS), [Render](https://render.com) (API) | Deploy a cada push; a API só atualiza depois que o CI passa |
 | **Backup** | GitHub Actions + Cloudflare R2 | Cópia diária dos dados dos usuários, enviada e conferida; restauração ensaiada |
 | **E-mail** | [Resend](https://resend.com) | Envio transacional (a Fase 4 vai usá-lo); domínio verificado com SPF, DKIM e DMARC |
-| **Qualidade** | GitHub Actions, `node:test`, oxlint, Playwright | CI a cada push; bateria de precisão e verificações de tela rodam localmente |
+| **Qualidade** | GitHub Actions, `node:test`, oxlint, Playwright, Dependabot | CI a cada push (auditoria, lint, testes e teste de fumaça da tela); bateria de precisão e verificações de tela detalhadas rodam localmente |
 
 ---
 
@@ -66,7 +66,7 @@ flowchart LR
 | API | Render (plano gratuito), `/healthz` sem banco | R$ 0 |
 | Banco | Neon, três papéis de menor privilégio (`nb_app`, `nb_backup`, `nb_maint`) | R$ 0 |
 | Backup | GitHub Actions → R2 (privado, retenção de 90 dias, envio conferido baixando de volta e comparando o hash) | R$ 0 |
-| DNS, e-mail de entrada, certificados | Cloudflare (TLS estrito, SPF, DKIM, DMARC; DNSSEC em ativação) | R$ 0 |
+| DNS, e-mail de entrada, certificados | Cloudflare (TLS estrito, CAA, SPF, DKIM, DMARC em quarentena, `www` redirecionando para o domínio principal; DNSSEC aguardando a publicação automática do DS) | R$ 0 |
 | E-mail de saída | Resend, domínio verificado (a Fase 4 ainda vai usá-lo) | R$ 0 |
 
 O único custo recorrente é a renovação do domínio.
@@ -77,10 +77,13 @@ O único custo recorrente é a renovação do domínio.
 - **Menor privilégio no banco.** O servidor conecta como `nb_app` (lê o conteúdo, lê e grava dados de usuário; não cria nem apaga tabelas). O backup usa um papel só de leitura e a faxina, outro que só apaga em três tabelas. O dono do banco fica só para as migrações.
 - **Migrações versionadas, com ensaio.** Cada migração roda primeiro em modo de teste (transação desfeita no fim) e em uma *branch* separada da Neon; só então é aplicada na produção, com uma guarda que recusa rodar se houver dados que ela trocaria.
 - **Tudo gratuito, com os limites à vista.** A API dorme depois de 15 minutos sem uso: a tela avisa ("Acordando o servidor") em vez de parecer travada. O keep-alive do banco vem desligado porque estouraria as 100 CU-horas mensais da Neon.
-- **Segurança em camadas.** CORS com lista fixa, cabeçalhos de segurança (helmet e CSP no site), limite de requisições por IP, certificado do banco verificado, consultas parametrizadas e entradas hostis cobertas por testes.
+- **Segurança em camadas.** CORS com lista fixa, cabeçalhos de segurança (helmet e CSP no site, HSTS que sobe aos poucos: 1 dia agora, meses depois de uma semana sem problema), DNS com CAA (só quatro autoridades podem emitir certificado) e DMARC em quarentena (provado com SPF, DKIM e DMARC = PASS no Gmail), limite de requisições por IP, certificado do banco verificado, consultas parametrizadas e entradas hostis cobertas por testes.
 - **Cache pensado na cota gratuita.** O texto bíblico não muda, então a API guarda em memória livros, capítulos e buscas já feitas (com limite de entradas) e manda `Cache-Control` ao navegador: só a primeira leitura de cada coisa acorda o banco da Neon, cuja cota gratuita (100 CU-horas por mês) é o ponto mais frágil de um desenho 100% gratuito.
 - **Um backup só vale se for restaurado.** `restore.mjs` restaura num banco vazio, ensaia antes (transação desfeita), recusa banco com dados e confere contagens. Ele foi ensaiado de ponta a ponta numa branch da Neon, comparando um hash do conteúdo de cada tabela antes e depois, e esse ensaio achou três defeitos que "arquivo enviado e hash conferido" nunca mostraria (ordem das chaves estrangeiras, horários truncados em milissegundos e datas trocadas por fuso).
 - **Limite de requisições que não se burla.** Atrás de proxies o IP vem em `X-Forwarded-For`, que o cliente pode forjar; `TRUST_PROXY` é o número de proxies na frente do servidor, não "confie em tudo".
+- **Cadeia de suprimentos e infraestrutura como código.** O CI barra vulnerabilidade alta ou crítica, o Dependabot atualiza toda semana (e as de segurança na hora), as ações do GitHub e as dependências sem uso saíram, e a API, o DNS e o mapa da infraestrutura estão no repositório (`render.yaml`, `infra/`), não só em painéis.
+- **Privacidade por padrão.** As fontes são servidas pelo próprio site (nenhuma visita entrega o IP ao Google) e a política de conteúdo só aceita o próprio site e a API.
+- **Servidor em camadas.** Rotas só lêem e respondem; a validação e o acesso ao banco têm lugar próprio; a conta da próxima fase entra nesse molde.
 - **Honestidade sobre o que não está feito.** A área pessoal (cadastro, marcações, favoritos, progresso) está **desenhada e com o banco pronto** (`API.md`, migrações 001 a 003), mas ainda sem código de aplicação.
 
 ## 🔁 Integração contínua e rotinas
@@ -180,7 +183,8 @@ O script é idempotente (rodar de novo não encontra mais nada) e atualiza o ín
 
 | Comando | O que faz | Tempo |
 |---|---|---|
-| `npm test` | **77 testes**: regras da busca, referências, cache, configuração de proxy e, contra o banco (só leitura), o contrato da busca, dos filtros e do cache. **46 rodam no CI**; os 31 que dependem do banco são pulados sem `DATABASE_URL` | ~60 s |
+| `npm test` | **81 testes**: regras da busca, referências, validação, cache, configuração de proxy e, contra o banco (só leitura), o contrato da busca, dos filtros e do cache. **50 rodam no CI**; os 31 que dependem do banco são pulados sem `DATABASE_URL` | ~60 s |
+| `npm --prefix client run test:e2e` | **Teste de fumaça da tela** (Playwright): o site compilado, servido com os cabeçalhos reais, num navegador de verdade e com a API simulada com os textos do `NAA.json`: 10 cenários em desktop e celular (leitura, busca, referência, erro de rede, tema escuro, rolagem lateral e a política de conteúdo, inclusive que ela **bloqueia** script injetado). Roda no CI | ~5 s |
 | `npm run test:accuracy` | **Bateria de precisão**: 15 camadas, cerca de 104 mil conferências contra um gabarito independente (inclui os filtros) | ~18 min |
 | `ACCURACY_SCALE=0.2 npm run test:accuracy` | A mesma bateria em escala pequena, para uma rodada rápida | ~3 min |
 | `playwright-cli ... run-code --filename=client/scripts/ui-checks/<arquivo>.js` | **Verificações da tela** no navegador (comportamento e visual); ver abaixo | 1 a 5 min cada |
@@ -228,7 +232,7 @@ playwright-cli close
 | `leitor-livro.js` | O leitor em cartão: rolagem por dentro (a página não rola), troca de capítulo por seta e teclado, fim de livro, `?v=`, F5 na mesma posição, três tamanhos de letra e a troca de letra sem perder o lugar, seletor (centro da lista, rolagem que não pula ao escolher), Lamentações e 7 tamanhos de tela (setas nos lados ou embaixo, seletor cabendo) |
 | `filtros-traducao.js` | Escolher Salmos digitando, trocar NAA/NVT mantendo o filtro e digitar rápido |
 
-**Segurança:** só rodam contra `localhost` (recusam outra página e abortam qualquer requisição para fora dele, exceto as fontes do Google) e só leem (GET). Os textos de ataque que usam (XSS, injeção de SQL, emoji, caracteres de controle) são dados de teste, não um incidente. Credenciais nunca entram nesses arquivos: na Fase 4, use variável de ambiente ou um arquivo ignorado pelo git. O lint do cliente os aceita (a pasta é tratada à parte, porque cada arquivo é uma função solta para o `run-code`).
+**Segurança:** só rodam contra `localhost` (recusam outra página e abortam qualquer requisição para fora dele, exceto o próprio site) e só leem (GET). Os textos de ataque que usam (XSS, injeção de SQL, emoji, caracteres de controle) são dados de teste, não um incidente. Credenciais nunca entram nesses arquivos: na Fase 4, use variável de ambiente ou um arquivo ignorado pelo git. O lint do cliente os aceita (a pasta é tratada à parte, porque cada arquivo é uma função solta para o `run-code`).
 
 Cobrem o que dá para automatizar; **não** cobrem leitor de tela de verdade, Safari/Firefox, carga no banco nem o julgamento de se uma regra é a certa.
 
@@ -268,9 +272,13 @@ No leitor, as setas do teclado e o gesto de deslizar trocam de capítulo (també
 nossabiblia/
 ├── client/                     # Frontend SPA (Vite + React)
 │   ├── public/
-│   │   └── favicon.svg             # Selo NB (SVG com os contornos das letras)
+│   │   ├── favicon.svg             # Selo NB (SVG com os contornos das letras)
+│   │   ├── fonts/                  # Newsreader, Plus Jakarta Sans e Archivo (só o subconjunto latin, hospedadas aqui)
+│   │   ├── og.png                  # Imagem de prévia ao compartilhar o link (1200x630)
+│   │   └── robots.txt              # Libera a indexação e aponta o sitemap (o sitemap.xml é gerado no build)
 │   ├── scripts/
-│   │   ├── write-headers.mjs          # Gera dist/_headers (CSP, cabeçalhos de segurança e de cache) após o build
+│   │   ├── write-headers.mjs          # Gera dist/_headers (CSP, HSTS, cabeçalhos de segurança e de cache) após o build
+│   │   ├── write-seo.mjs              # Gera dist/sitemap.xml: a home e os 1.189 capítulos
 │   │   ├── generate-hero-sample.mjs   # Gera o trecho de Gênesis 1 da home a partir de NAA.json/NVT.json
 │   │   └── ui-checks/                 # Verificações da tela (playwright-cli run-code): comportamento, visual, filtros
 │   ├── src/
@@ -305,14 +313,18 @@ nossabiblia/
 │   │   ├── App.jsx                 # Raiz: rotas, atalho ⌘K, tema e avisos
 │   │   ├── index.css               # Design system: tokens e estilos de todos os componentes
 │   │   └── main.jsx                # Ponto de entrada React
-│   ├── index.html              # HTML, fontes Google Fonts e tema aplicado antes da primeira pintura
+│   ├── index.html              # HTML, prévia de compartilhamento (Open Graph) e tema aplicado antes da primeira pintura
+│   ├── e2e/                    # Teste de fumaça (Playwright): servidor com os cabeçalhos reais, API simulada e os cenários
+│   ├── playwright.config.js    # Desktop e celular; sobe o site compilado em http://localhost:4173
 │   ├── package.json            # Dependências do cliente
 │   ├── wrangler.jsonc          # Publicação no Cloudflare: arquivos estáticos de dist/, rotas do app caem no index.html
 │   └── vite.config.js          # Configuração Vite com proxy reverso da API (só em desenvolvimento)
 │
 ├── server/                     # Backend API (Node.js + Fastify)
 │   ├── routes/
-│   │   └── bible.js            # Rotas de livros, capítulos, versículos e busca GIN (com cache em memória)
+│   │   └── bible.js            # Rotas públicas: só lê o pedido, valida, chama o serviço e responde (nada de SQL aqui)
+│   ├── services/               # Acesso ao banco e cache: books, chapters, verse-search, daily-verse (a conta entra aqui, no mesmo molde)
+│   ├── http/                   # validation.js (valida os parâmetros) e cache.js (o Cache-Control das respostas imutáveis)
 │   ├── migrations/
 │   │   ├── 001_fase4_conta.sql    # Esquema da Fase 4: contas, sessões, marcações por versículo
 │   │   ├── 002_papel_app.sql      # Permissões mínimas do papel do servidor (nb_app)
@@ -324,6 +336,7 @@ nossabiblia/
 │   │   ├── restore.mjs            # Restaura um backup num banco vazio; ensaia antes de gravar
 │   │   ├── cleanup.mjs            # Faxina diária: contas não verificadas há 7 dias, sessões e bloqueios vencidos
 │   │   └── clean-verse-text.mjs   # Limpa os textos (hífen invisível, acento desmontado); rode após cada carga
+│   ├── ensaio-restauracao/     # Roteiro repetível que prova o backup: dados falsos, comparação por hash e passo a passo
 │   ├── accuracy/
 │   │   ├── oracle.js           # Gabarito independente da busca (lê NAA.json e NVT.json)
 │   │   └── search.accuracy.js  # Bateria de precisão: 15 camadas, incluindo filtros (npm run test:accuracy)
@@ -336,16 +349,21 @@ nossabiblia/
 │   ├── db-core.js              # Criação do pool (certificado verificado) e leitura do .env.local
 │   ├── keepalive.js            # Mantém a Neon acordada (desligado por padrão: KEEPALIVE=on)
 │   ├── search.test.js          # Testes das regras da busca (puros)
+│   ├── validation.test.js      # Testes da validação dos parâmetros (puros)
 │   ├── memo.test.js            # Testes do cache em memória (puros)
 │   ├── config.test.js          # Testes da leitura de TRUST_PROXY (puros)
 │   ├── search.db.test.js       # Contra o banco real (só leitura): contrato da busca e dos filtros
 │   └── cache.db.test.js        # Contra o banco real (só leitura): cache, Cache-Control e erros não guardados
 │
-├── .github/workflows/
-│   ├── ci.yml                  # Lint, testes sem banco e build a cada push e pull request
-│   └── rotinas.yml             # 03:30 (São Paulo): backup para o R2 e, depois, a faxina
+├── .github/
+│   ├── dependabot.yml          # Atualizações semanais de dependências (e as de segurança na hora)
+│   └── workflows/
+│       ├── ci.yml              # Auditoria, lint, testes sem banco, build e teste de fumaça a cada push e pull request
+│       └── rotinas.yml         # 03:30 (São Paulo): backup para o R2 e, depois, a faxina
 │
 ├── API.md                      # Contrato da API da Fase 4 (rascunho, nada implementado)
+├── render.yaml                 # A API na Render descrita como código (Blueprint)
+├── infra/                      # Mapa da infraestrutura (LEIA-ME.md) e os registros DNS (dns.md)
 ├── schema.sql                  # DDL completo do PostgreSQL (tabelas, índices GIN e funções)
 ├── seed.sql                    # Dump SQL com os 66 livros e 62.207 versículos
 ├── seed.py                     # Script Python com carga atômica e relatório de integridade
@@ -419,7 +437,8 @@ Outros comandos úteis:
 ```bash
 npm run build:client          # Build de produção do frontend (client/dist)
 npm run clean:text            # Mostra o que a limpeza dos textos mudaria (com `-- --apply` grava; rode após qualquer seed)
-npm test                      # 77 testes (46 sem banco, que são os do CI; os 31 do banco são pulados sem DATABASE_URL)
+npm test                      # 81 testes (50 sem banco, que são os do CI; os 31 do banco são pulados sem DATABASE_URL)
+npm --prefix client run test:e2e   # teste de fumaça da tela (precisa do build antes: npm --prefix client run build)
 node server/scripts/migrate.mjs         # ensaia as migrações pendentes (tudo desfeito no fim); com --apply grava
 node server/scripts/cleanup.mjs         # mostra o que a faxina apagaria (com --apply apaga)
 node server/scripts/backup.mjs          # exporta os dados dos usuários, envia ao R2 e confere
