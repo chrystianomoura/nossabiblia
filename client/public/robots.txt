@@ -1,0 +1,5 @@
+# Tudo pode ser indexado: a leitura da Bíblia é pública.
+User-agent: *
+Allow: /
+
+Sitemap: https://nossabiblia.party/sitemap.xml
