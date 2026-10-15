@@ -5,7 +5,8 @@ import rateLimit from '@fastify/rate-limit';
 import pool from './db.js';
 import bibleRoutes from './routes/bible.js';
 import { startKeepAlive } from './keepalive.js';
-import { parseTrustProxy } from './config.js';
+import { parseTrustProxy, parseAllowedOrigins } from './config.js';
+import { createOriginGuard } from './http/origin-guard.js';
 
 const fastify = Fastify({
   // Atrás de proxies (Render, Cloudflare) o IP real vem no cabeçalho. TRUST_PROXY = número de proxies na frente (ver server/config.js);
@@ -19,14 +20,15 @@ const fastify = Fastify({
 // CORS: só as origens da lista (domínio oficial e o desenvolvimento local). Com cookie de sessão, aceitar qualquer origem
 // deixaria qualquer site agir em nome do usuário. Requisições sem `Origin` (mesma origem, curl, testes) não passam por aqui.
 // No desenvolvimento o navegador chega pelo proxy do Vite (mesma origem), então a lista nem é consultada.
-const allowedOrigins = (process.env.ALLOWED_ORIGINS
-  || 'https://nossabiblia.party,https://www.nossabiblia.party,http://localhost:3000')
-  .split(',').map((o) => o.trim()).filter(Boolean);
+const allowedOrigins = parseAllowedOrigins(process.env.ALLOWED_ORIGINS);
 
 await fastify.register(cors, {
   origin: allowedOrigins,
   credentials: true,
 });
+
+// Contra CSRF: toda requisição que altera dados (POST, PUT, PATCH, DELETE) precisa vir de uma origem da lista.
+fastify.addHook('onRequest', createOriginGuard(allowedOrigins));
 
 // Cabeçalhos de segurança e limite de requisições por IP (a busca faz conferência de texto e é a rota mais cara).
 await fastify.register(helmet);

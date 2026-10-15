@@ -17,3 +17,9 @@ test('TRUST_PROXY: "true" ainda funciona, e lista de IPs ou faixas passa como ve
   assert.equal(parseTrustProxy('true'), true);
   assert.equal(parseTrustProxy('10.0.0.0/8'), '10.0.0.0/8');
 });
+
+test('ALLOWED_ORIGINS: padrão do domínio oficial e do desenvolvimento; lista separada por vírgula, sem espaços e sem vazios', async () => {
+  const { parseAllowedOrigins } = await import('./config.js');
+  assert.deepEqual(parseAllowedOrigins(undefined), ['https://nossabiblia.party', 'https://www.nossabiblia.party', 'http://localhost:3000']);
+  assert.deepEqual(parseAllowedOrigins(' https://a.com , ,https://b.com '), ['https://a.com', 'https://b.com']);
+});

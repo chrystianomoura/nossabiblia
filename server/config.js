@@ -8,3 +8,9 @@ export function parseTrustProxy(value) {
   if (/^\d+$/.test(value)) return Number(value);
   return value;
 }
+
+// Origens que podem falar com a API (CORS e conferência de Origin contra CSRF): o domínio oficial e o desenvolvimento local.
+export function parseAllowedOrigins(value) {
+  return (value || 'https://nossabiblia.party,https://www.nossabiblia.party,http://localhost:3000')
+    .split(',').map((o) => o.trim()).filter(Boolean);
+}
