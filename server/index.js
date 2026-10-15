@@ -4,6 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import pool from './db.js';
 import bibleRoutes from './routes/bible.js';
+import authRoutes from './routes/auth.js';
 import { startKeepAlive } from './keepalive.js';
 import { parseTrustProxy, parseAllowedOrigins } from './config.js';
 import { createOriginGuard } from './http/origin-guard.js';
@@ -67,6 +68,7 @@ fastify.get('/health', async (request) => {
 
 // Registra rotas da Bíblia
 await fastify.register(bibleRoutes, { prefix: '/api' });
+await fastify.register(authRoutes, { prefix: '/api' });
 
 // Inicia o servidor
 const PORT = process.env.PORT || 3001;
