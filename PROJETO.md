@@ -280,14 +280,17 @@ cron.schedule('*/4 6-23 * * *', async () => {
 });
 ```
 
-#### Stack de produção (planejada)
+#### Stack de produção (em uso desde 14/10/2026, tudo gratuito)
 
-| Camada | Serviço | Custo |
+| Camada | Serviço | Custo e limites |
 |---|---|---|
-| Frontend | Cloudflare Pages | Gratuito, sem limite de banda |
-| Backend | Railway | US$ 5 crédito/mês grátis |
-| Banco de dados | Neon | Gratuito (0,5 GB) |
-| E-mails | Resend | 3.000 e-mails/mês grátis |
+| Frontend | Cloudflare (Worker com arquivos estáticos, `client/wrangler.jsonc`) | Gratuito; deploy a cada push no `main` |
+| Backend | Render, plano gratuito (`nossabiblia-api`, Ohio) | Gratuito; dorme após 15 minutos sem uso (a primeira requisição leva ~50 s) |
+| Banco de dados | Neon | Gratuito: 0,5 GB e 100 CU-horas por mês (por isso o keep-alive vem desligado e a API guarda a leitura em memória) |
+| Backup | GitHub Actions + Cloudflare R2 | Gratuito; retenção de 90 dias |
+| E-mails | Resend | 3.000 por mês e 100 por dia, grátis |
+
+A decisão original previa a Railway para a API; o plano dela deixou de ser gratuito, então a escolha foi a Render (ver as alternativas estudadas no item 21 do "Estado atual").
 
 ### Limite diário do versículo por tema (item 19–20)
 
@@ -298,7 +301,7 @@ cron.schedule('*/4 6-23 * * *', async () => {
 
 ## Estado atual
 
-1. ✅ Decisões técnicas e arquiteturais alinhadas (PostgreSQL, Neon, Cloudflare Pages, keep-alive inteligente para evitar suspensão, autenticação própria).
+1. ✅ Decisões técnicas e arquiteturais alinhadas (PostgreSQL, Neon, Cloudflare, Render, autenticação própria; o keep-alive inteligente foi desligado por gastar a cota gratuita da Neon).
 2. ✅ Arquivos de dados bíblicos (`NAA.json` e `NVT.json`) inspecionados e validados: dados 100% limpos e coerentes.
 3. ✅ Esquema SQL DDL completo (`schema.sql`) projetado com todas as tabelas, índice GIN de texto (dicionário `simple`, sem acento) e regras de negócio.
 4. ✅ Scripts de carga e seed criados: `seed.sql` (arquivo SQL puro de 9,1 MB pronto para execução via psql em transação atômica) e `seed.py` (script automatizado para rodar local ou apontando para o Neon).
@@ -325,8 +328,8 @@ cron.schedule('*/4 6-23 * * *', async () => {
 17. ✅ **Leitor redesenhado** (ver "Interface do leitor"): cartão vertical para todos os aparelhos, sem piscar entre capítulos, posição lembrada e verificações da tela próprias (`leitor-livro.js`).
 18. ✅ **Decisões fechadas da busca:** a dica "Encontrado na NVT" (quando a busca dá zero na tradução escolhida) **não será feita**; as mensagens de falha ("Não foi possível buscar agora. Verifique a conexão e tente de novo.", "Não foi possível carregar mais.", "Não foi possível carregar essa referência.") **mantêm o ponto final**; os botões de 30 a 38 px de altura (seletor NAA/NVT, botões redondos de 36 px) **ficam como estão**, e o usuário conferiu no aparelho.
 19. ✅ **Celular e telas pequenas:** ponto de quebra único em 1070 px, letras padronizadas a partir do subtítulo, livro de uma página, cartões enxutos e centralizados, cabeçalho em linha única até 320 px, página que não rola (o `#root` rola, para as barras do navegador ficarem à mostra), `svh`/`dvh`, margem simétrica no entalhe, celular deitado, toque sem `:hover` preso, busca com fundo sólido, sem barras de rolagem à vista abaixo do desktop e o leitor que mantém o lugar ao trocar de tradução ou de largura (ver "Navegadores de celular"). Os oito `ui-checks` e os 63 testes passam; o usuário conferiu no aparelho.
-20. ✅ **Preparação da Fase 4 (14/10/2026):** domínio `nossabiblia.party` com DNS, TLS estrito, DNSSEC e e-mail de entrada (`contato@`); Resend verificado (envio testado e entregue na caixa de entrada); migrações `001` e `002` ensaiadas em branch separada da Neon (20 testes de regra e 12 como `nb_app`) e **aplicadas na produção em 14/10/2026** (modo teste antes); servidor com CORS de lista fixa, certificado do banco verificado, cabeçalhos de segurança e limite de requisições; `backup.mjs` com envio ao R2 testado (bucket privado, retenção de 90 dias, token restrito); servidor conectando como o papel de banco limitado `nb_app` (menor privilégio, migração 002); contrato da API em `API.md`. A branch de produção da Neon não pôde ser protegida (limite do plano), e a janela de recuperação da Neon é de 6 horas.
+20. ✅ **Preparação da Fase 4 (14/10/2026):** domínio `nossabiblia.party` com DNS, TLS estrito, e-mail de entrada (`contato@`) e DNSSEC (**ainda pendente**: a Cloudflare gerou a chave, mas o registro DS não foi publicado no domínio); Resend verificado (envio testado e entregue na caixa de entrada); migrações `001` e `002` ensaiadas em branch separada da Neon (20 testes de regra e 12 como `nb_app`) e **aplicadas na produção em 14/10/2026** (modo teste antes); servidor com CORS de lista fixa, certificado do banco verificado, cabeçalhos de segurança e limite de requisições; `backup.mjs` com envio ao R2 testado (bucket privado, retenção de 90 dias, token restrito); servidor conectando como o papel de banco limitado `nb_app` (menor privilégio, migração 002); contrato da API em `API.md`. A branch de produção da Neon não pôde ser protegida (limite do plano), e a janela de recuperação da Neon é de 6 horas.
 21. ✅ **Publicado (14/10/2026), tudo gratuito:** o **site** em https://nossabiblia.party (e `www`), como Worker com arquivos estáticos no Cloudflare (raiz `client`, `npm ci && npm run build` + `npx wrangler deploy`, `client/wrangler.jsonc`, token de build próprio `nossabiblia-build`, deploy a cada push no `main`), HTTPS, http redireciona para https, cabeçalhos de segurança de `dist/_headers` (CSP com hash do script do tema; testada com 0 violações e provada contra script injetado); e a **API** em https://api.nossabiblia.party (Render grátis, serviço `nossabiblia-api`, Ohio, Node 24, `/healthz` sem banco, papel de banco limitado `nb_app`, CORS só para `nossabiblia.party`, Auto-Deploy desligado). Verificado de ponta a ponta no navegador: home, leitor (Gênesis 1 com 31 versículos), busca ("Deus" = 4.664 ocorrências em 4.085 versículos) e Salmos 23 NVT com destaque. **Limites do plano grátis:** a API dorme após 15 minutos sem uso e a primeira requisição leva ~50 s (falta a mensagem "acordando o servidor" na tela). Um incidente do Render (status.render.com) pausou os deploys gratuitos por horas no mesmo dia; alternativas estudadas: Koyeb e Vercel Hobby.
 22. ✅ **Experiência e automação (14/10/2026):** aviso "Acordando o servidor" na tela quando a API gratuita demora mais de 4 s; contrato das rotinas diárias no GitHub Actions (backup para o R2 e faxina das contas não verificadas, cada uma com o seu papel de banco de menor privilégio, migração 003) e integração contínua (lint, testes sem banco e build); README de portfólio com diagrama da arquitetura, decisões e trade-offs. Os papéis `nb_backup` e `nb_maint` foram criados e a migração 003 aplicada na produção, os segredos estão no GitHub e as rotinas passam a rodar depois do primeiro push dos workflows.
-23. ✅ **Revisão e correções (14/10/2026):** cache em memória e `Cache-Control` na leitura (poupa a cota gratuita da Neon); limite de requisições deixa de ser burlável por `X-Forwarded-For` falso (`TRUST_PROXY` numérico, com rota de diagnóstico temporária); cabeçalhos de cache do site sem contradição; faxina só depois do backup; e **restauração do backup ensaiada de ponta a ponta** (`restore.mjs`), com hash por tabela idêntico, que corrigiu três defeitos do backup.
+23. ✅ **Revisão e correções (14/10/2026):** cache em memória e `Cache-Control` na leitura (poupa a cota gratuita da Neon); limite de requisições deixa de ser burlável por `X-Forwarded-For` falso (`TRUST_PROXY=3`, medido com uma rota de diagnóstico temporária e provado em produção: IPs inventados passam a dividir o mesmo contador); cabeçalhos de cache do site sem contradição; faxina só depois do backup; e **restauração do backup ensaiada de ponta a ponta** (`restore.mjs`), com hash por tabela idêntico, que corrigiu três defeitos do backup.
 24. ⏳ **Próximo passo:** Fase 4 (Sistema de Autenticação, Cadastro de Usuários, Envio de E-mails com Resend e Marcações Pessoais).
