@@ -102,7 +102,8 @@ responde `429` (ou `503` no teto diário) no formato da API: `{ "error": "<texto
 | Teto diário de cadastros | 80 por 24 h (`EMAIL_DAILY_CAP`), `503 limite_diario` | Cada cadastro gasta 1 e-mail e o plano grátis do Resend dá 100 por dia; a folga é para os reenvios. Conta no banco: sobrevive a reinício |
 | Tamanho do corpo | 16 KB nas rotas da conta | O padrão do Fastify seria 1 MB |
 | Senha | 8 a 128 caracteres, não só espaços; recusada se estiver em vazamentos (Pwned Passwords, só os 5 primeiros caracteres do SHA-1 saem do servidor) | A checagem liga em produção (`PWNED_CHECK=on\|off`); se o serviço cair ou passar de 2 s, a senha passa (falha aberta) |
-| Nome | sem caracteres de controle, quebra de linha nem inversão de texto | O NUL derrubava o INSERT |
+| Nome e sobrenome | 1 a 100 caracteres; sem caracteres de controle, quebra de linha nem inversão de texto; não só números | O NUL derrubava o INSERT. A tela limita a digitação (`maxlength`) nos mesmos números |
+| E-mail | até 254 no total e 64 antes do `@` (RFC 5321); em minúsculas, sem espaços nas pontas | Acima disso o provedor de e-mail recusa o endereço |
 
 **Limitação conhecida:** os contadores de tentativa ficam na memória do processo. Zeram quando a API reinicia ou dorme (Render grátis,
 15 min parada) e não são compartilhados se houver mais de uma instância. É proteção básica, não garantia; se a conta crescer, mover para

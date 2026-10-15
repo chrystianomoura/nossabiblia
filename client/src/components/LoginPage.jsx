@@ -38,9 +38,9 @@ export default function LoginPage({ route, ...props }) {
   return (
     <AuthLayout {...props} title="Entrar">
       <form onSubmit={onSubmit} noValidate>
-        <Field label="E-mail" type="email" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false}
+        <Field label="E-mail" type="email" inputMode="email" autoComplete="username" maxLength={254} autoCapitalize="none" spellCheck={false}
           value={email} onChange={(e) => setEmail(e.target.value)} />
-        <PasswordField label="Senha" autoComplete="current-password" inputRef={passwordRef}
+        <PasswordField label="Senha" autoComplete="current-password" maxLength={128} inputRef={passwordRef}
           value={password} onChange={(e) => setPassword(e.target.value)} />
         {alert && <p className="auth-alert" role="alert">{alert}</p>}
         <button type="submit" className="btn-primary auth-submit" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>

@@ -207,3 +207,19 @@ test('cadastro: o botão só libera quando o desafio entrega o token; se o scrip
   await expect(page.getByRole('alert')).toContainText('verificação de segurança');
   await expect(page.getByRole('button', { name: 'Criar conta' })).toBeDisabled();
 });
+
+test('os campos da conta param de aceitar digitação nos mesmos limites do servidor (100, 254 e 128)', async ({ page }) => {
+  await simularTurnstile(page);
+  await page.goto('/cadastrar');
+  const maximo = (rotulo, exato = false) => page.getByLabel(rotulo, { exact: exato }).getAttribute('maxlength');
+  expect(await maximo('Nome', true)).toBe('100');
+  expect(await maximo('Sobrenome')).toBe('100');
+  expect(await maximo('E-mail', true)).toBe('254');
+  expect(await maximo('Confirme o e-mail')).toBe('254');
+  expect(await maximo('Senha', true)).toBe('128');
+  expect(await maximo('Confirme a senha')).toBe('128');
+  await page.getByLabel('Nome', { exact: true }).fill('a'.repeat(150));
+  expect((await page.getByLabel('Nome', { exact: true }).inputValue()).length).toBe(100);
+  await page.goto('/entrar');
+  expect(await page.getByLabel('Senha', { exact: true }).getAttribute('maxlength')).toBe('128');
+});

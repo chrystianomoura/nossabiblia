@@ -58,6 +58,7 @@ describe('cadastro: entradas hostis', opts, () => {
     'nome como lista': (e) => validUser(e, { first_name: ['a', 'b'] }),
     'e-mail com quebra de linha (injeção de cabeçalho)': (e) => { const m = `${e}@${EMAIL_DOMAIN}\r\nBcc: v@x.y`; return { ...validUser(e), email: m, email_confirm: m }; },
     'e-mail sem arroba': (e) => ({ ...validUser(e), email: e, email_confirm: e }),
+    'e-mail com 65 caracteres antes do @': (e) => { const m = `${'a'.repeat(65)}@${EMAIL_DOMAIN}`; return { ...validUser(e), email: m, email_confirm: m }; },
     'e-mail com 300 caracteres': (e) => { const m = `${'a'.repeat(290)}@${EMAIL_DOMAIN}`; return { ...validUser(e), email: m, email_confirm: m }; },
     'e-mail como número': (e) => ({ ...validUser(e), email: 12345, email_confirm: 12345 }),
     'senha com 129 caracteres': (e) => validUser(e, { password: 'a'.repeat(129), password_confirm: 'a'.repeat(129) }),

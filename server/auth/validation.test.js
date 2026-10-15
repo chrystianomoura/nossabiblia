@@ -29,3 +29,20 @@ test('corpo ausente ou com tipos errados não lança', () => {
     assert.ok(validateRegister(body).fields);
   }
 });
+
+test('e-mail: até 64 caracteres antes do @ e 254 no total (RFC 5321); acima disso é recusado', () => {
+  const com = (local, dominio = 'exemplo.com') => ({ ...ok, email: `${local}@${dominio}`, email_confirm: `${local}@${dominio}` });
+  assert.ok(validateRegister(com('a'.repeat(64))).value, '64 antes do @ vale');
+  assert.ok(validateRegister(com('a'.repeat(65))).fields.email, '65 antes do @ não vale');
+  const dominioLongo = `${'d'.repeat(60)}.${'e'.repeat(60)}.${'f'.repeat(60)}.${'g'.repeat(60)}.com`; // 247 + 30 + 1 = 278
+  assert.ok(validateRegister(com('a'.repeat(30), dominioLongo)).fields.email, 'passa de 254 no total');
+  assert.ok(validateRegister(com('a', 'b.cc')).value, 'o menor e-mail válido (a@b.cc)');
+});
+
+test('nome de exatamente 100 caracteres vale; 101 não; a senha vale de 8 a 128', () => {
+  assert.ok(validateRegister({ ...ok, first_name: 'a'.repeat(100) }).value);
+  assert.ok(validateRegister({ ...ok, first_name: 'a'.repeat(101) }).fields.first_name);
+  const senha = (n) => ({ ...ok, password: 'x'.repeat(n), password_confirm: 'x'.repeat(n) });
+  assert.ok(validateRegister(senha(8)).value && validateRegister(senha(128)).value);
+  assert.ok(validateRegister(senha(7)).fields.password && validateRegister(senha(129)).fields.password);
+});

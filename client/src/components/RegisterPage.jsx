@@ -74,16 +74,16 @@ export default function RegisterPage(props) {
     <AuthLayout {...props} wide title="Criar conta" lead="Enviaremos um link para confirmar seu e-mail.">
       <form onSubmit={onSubmit} noValidate>
         <div className="auth-two">
-          <Field label="Nome" autoComplete="given-name" {...inputProps('first_name')} />
-          <Field label="Sobrenome" autoComplete="family-name" {...inputProps('last_name')} />
+          <Field label="Nome" autoComplete="given-name" maxLength={100} {...inputProps('first_name')} />
+          <Field label="Sobrenome" autoComplete="family-name" maxLength={100} {...inputProps('last_name')} />
         </div>
         <div className="auth-two">
-          <Field label="E-mail" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} {...inputProps('email')} />
-          <Field label="Confirme o e-mail" type="email" inputMode="email" autoComplete="off" autoCapitalize="none" spellCheck={false} {...inputProps('email_confirm')} />
+          <Field label="E-mail" type="email" inputMode="email" maxLength={254} autoComplete="email" autoCapitalize="none" spellCheck={false} {...inputProps('email')} />
+          <Field label="Confirme o e-mail" type="email" inputMode="email" maxLength={254} autoComplete="off" autoCapitalize="none" spellCheck={false} {...inputProps('email_confirm')} />
         </div>
         <div className="auth-two">
-          <PasswordField label="Senha" autoComplete="new-password" {...inputProps('password')} />
-          <PasswordField label="Confirme a senha" autoComplete="new-password" {...inputProps('password_confirm')} />
+          <PasswordField label="Senha" autoComplete="new-password" maxLength={128} {...inputProps('password')} />
+          <PasswordField label="Confirme a senha" autoComplete="new-password" maxLength={128} {...inputProps('password_confirm')} />
         </div>
         <TurnstileWidget ref={challenge} theme={theme} onToken={setToken} onProblem={() => setChallengeProblem(true)} />
         {challengeProblem && !token && (
