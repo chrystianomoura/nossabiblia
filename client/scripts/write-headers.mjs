@@ -17,10 +17,10 @@ const api = (process.env.VITE_API_URL ?? '').replace(/\/+$/, '');
 const csp = [
   "default-src 'self'",
   `script-src 'self' ${hashes.join(' ')}`.trim(),
-  // style-src-attr: o React escreve `style="--reading-size: …"`; as folhas de estilo continuam só do próprio site e das Fontes do Google
-  "style-src 'self' https://fonts.googleapis.com",
+  // style-src-attr: o React escreve `style="--reading-size: …"`; as folhas de estilo e as fontes são só do próprio site
+  "style-src 'self'",
   "style-src-attr 'unsafe-inline'",
-  "font-src 'self' https://fonts.gstatic.com",
+  "font-src 'self'",
   "img-src 'self' data:",
   `connect-src 'self'${api ? ` ${api}` : ''}`,
   "base-uri 'self'",
@@ -30,6 +30,8 @@ const csp = [
   'upgrade-insecure-requests',
 ].join('; ');
 
+// HSTS gradual: começa em 1 dia (sem includeSubDomains nem preload) para um erro de configuração se desfazer logo. Depois de uma semana sem
+// problema, subir para 6 meses (15552000) e então avaliar includeSubDomains. A API já manda o dela.
 // Cache: o HTML tem que ser sempre conferido (ele aponta para os arquivos com hash no nome, que mudam a cada versão); os arquivos de
 // /assets têm o hash no nome e nunca mudam, então ficam um ano. `no-transform` impede a Cloudflare de reescrever o HTML (ela
 // injetaria o script do Web Analytics, que a CSP bloqueia). Os cabeçalhos das regras se somam, por isso /assets/* remove o de /*
@@ -41,11 +43,16 @@ const headers = `/*
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
+  Strict-Transport-Security: max-age=86400
   Cache-Control: no-transform, public, max-age=0, must-revalidate
 
 /assets/*
   ! Cache-Control
   Cache-Control: no-transform, public, max-age=31536000, immutable
+
+/fonts/*
+  ! Cache-Control
+  Cache-Control: no-transform, public, max-age=2592000
 `;
 fs.writeFileSync(path.join(dist, '_headers'), headers);
 console.log(`dist/_headers gerado (${inline.length} script(s) embutido(s) com hash; API permitida: ${api || 'só a própria origem'})`);
