@@ -110,10 +110,23 @@ test('a política está valendo de verdade: um script injetado é bloqueado e um
 
 // ---- Conta: cadastro, confirmação e entrada (API simulada; a política de conteúdo do build vale como em produção) ----
 
+// Turnstile falso: a Cloudflare não é chamada nos testes. O script é pedido ao endereço real (a política de conteúdo precisa deixar), mas a
+// resposta é este. `falha: true` simula o bloqueio do script (extensão, rede).
+const simularTurnstile = (page, { falha = false } = {}) => page.route('https://challenges.cloudflare.com/**', (route) => {
+  if (falha) return route.abort('blockedbyclient');
+  return route.fulfill({
+    status: 200,
+    contentType: 'application/javascript',
+    // reset() pede um token novo, como o de verdade (o token vale uma vez só)
+    body: "let n = 0, cb; window.turnstile = { render(el, o) { cb = o.callback; el.dataset.renderizado = '1'; setTimeout(() => cb('token-de-teste-' + (++n)), 30); return 'w1'; }, reset() { setTimeout(() => cb('token-de-teste-' + (++n)), 30); }, remove() {} };",
+  });
+});
+
 const respondeJson = (route, status, body) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
-test('as telas da conta carregam sem violar a política de conteúdo e sem rolagem lateral', async ({ page }) => {
+test('as telas da conta carregam sem violar a política de conteúdo (inclusive o script do Turnstile) e sem rolagem lateral', async ({ page }) => {
   await registrarViolacoes(page);
+  await simularTurnstile(page);
   for (const caminho of ['/cadastrar', '/entrar', '/confirmar']) {
     await page.goto(caminho);
     await page.waitForSelector('.auth-card');
@@ -123,6 +136,7 @@ test('as telas da conta carregam sem violar a política de conteúdo e sem rolag
 });
 
 test('cadastro: erros do servidor aparecem no campo certo e o sucesso leva a "Verifique seu e-mail"', async ({ page }) => {
+  await simularTurnstile(page);
   let corpo;
   await page.route('**/api/auth/register', (route) => {
     corpo = route.request().postDataJSON();
@@ -142,6 +156,8 @@ test('cadastro: erros do servidor aparecem no campo certo e o sucesso leva a "Ve
   await page.getByLabel('Confirme o e-mail').fill('maria@exemplo.com');
   await page.getByRole('button', { name: 'Criar conta' }).click();
   await expect(page.getByRole('heading', { name: 'Verifique seu e-mail' })).toBeVisible();
+  expect(corpo.turnstile).toMatch(/^token-de-teste-\d+$/); // o token do desafio vai junto com o cadastro
+  expect(corpo.turnstile).not.toBe('token-de-teste-1'); // e é um token novo: o primeiro foi gasto no envio que deu erro
   await expect(page.getByText('maria@exemplo.com')).toBeVisible();
 });
 
@@ -183,4 +199,11 @@ test('"?next=" de fora do site é ignorado depois do login (sem redirecionamento
   await page.getByLabel('Senha', { exact: true }).fill('senha-segura-1');
   await page.getByRole('button', { name: 'Entrar', exact: true }).last().click();
   await expect(page).toHaveURL(/localhost:\d+\/$/);
+});
+
+test('cadastro: o botão só libera quando o desafio entrega o token; se o script for bloqueado, a tela explica', async ({ page }) => {
+  await simularTurnstile(page, { falha: true });
+  await page.goto('/cadastrar');
+  await expect(page.getByRole('alert')).toContainText('verificação de segurança');
+  await expect(page.getByRole('button', { name: 'Criar conta' })).toBeDisabled();
 });

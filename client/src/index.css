@@ -2423,3 +2423,14 @@ body:has(.read) {
     right: 8px;
   }
 }
+
+/* Desafio do Turnstile: some quando a Cloudflare não precisa de interação; se aparecer, fica centralizado acima do botão */
+.auth-turnstile {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.auth-turnstile:empty {
+  margin-top: 0;
+}

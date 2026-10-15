@@ -16,13 +16,15 @@ const hashes = inline.map((code) => `'sha256-${crypto.createHash('sha256').updat
 const api = (process.env.VITE_API_URL ?? '').replace(/\/+$/, '');
 const csp = [
   "default-src 'self'",
-  `script-src 'self' ${hashes.join(' ')}`.trim(),
+  // challenges.cloudflare.com: o Turnstile (desafio do cadastro) carrega um script e abre um quadro (iframe) desse endereço
+  `script-src 'self' ${hashes.join(' ')} https://challenges.cloudflare.com`.trim(),
+  "frame-src https://challenges.cloudflare.com",
   // style-src-attr: o React escreve `style="--reading-size: …"`; as folhas de estilo e as fontes são só do próprio site
   "style-src 'self'",
   "style-src-attr 'unsafe-inline'",
   "font-src 'self'",
   "img-src 'self' data:",
-  `connect-src 'self'${api ? ` ${api}` : ''}`,
+  `connect-src 'self'${api ? ` ${api}` : ''} https://challenges.cloudflare.com`,
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",

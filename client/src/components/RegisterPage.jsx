@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import AuthLayout from './AuthLayout';
 import { Field, PasswordField } from './AuthFields';
+import TurnstileWidget from './TurnstileWidget';
 import Link from './Link';
 import { navigate } from '../lib/router';
 import { register, useSession } from '../lib/auth';
@@ -8,13 +9,17 @@ import { register, useSession } from '../lib/auth';
 const ORDER = ['first_name', 'last_name', 'email', 'email_confirm', 'password', 'password_confirm'];
 
 export default function RegisterPage(props) {
+  const { theme } = props;
   const { status } = useSession();
   const [values, setValues] = useState({ first_name: '', last_name: '', email: '', email_confirm: '', password: '', password_confirm: '' });
   const [fields, setFields] = useState({});
   const [alert, setAlert] = useState('');
   const [busy, setBusy] = useState(false);
   const [sentTo, setSentTo] = useState('');
+  const [token, setToken] = useState('');
+  const [challengeProblem, setChallengeProblem] = useState(false);
   const refs = useRef({});
+  const challenge = useRef(null);
 
   // Quem já está conectado não tem o que fazer aqui.
   useEffect(() => {
@@ -30,8 +35,9 @@ export default function RegisterPage(props) {
     setBusy(true);
     setAlert('');
     setFields({});
-    const r = await register(values);
+    const r = await register({ ...values, turnstile: token });
     setBusy(false);
+    challenge.current?.reset(); // o token vale uma vez só
     if (r.ok) {
       setSentTo(values.email.trim());
       return;
@@ -79,8 +85,12 @@ export default function RegisterPage(props) {
           <PasswordField label="Senha" autoComplete="new-password" {...inputProps('password')} />
           <PasswordField label="Confirme a senha" autoComplete="new-password" {...inputProps('password_confirm')} />
         </div>
+        <TurnstileWidget ref={challenge} theme={theme} onToken={setToken} onProblem={() => setChallengeProblem(true)} />
+        {challengeProblem && !token && (
+          <p className="auth-alert" role="alert">Não foi possível carregar a verificação de segurança. Desative bloqueadores de conteúdo para este site e recarregue a página.</p>
+        )}
         {alert && <p className="auth-alert" role="alert">{alert}</p>}
-        <button type="submit" className="btn-primary auth-submit" disabled={busy}>{busy ? 'Criando…' : 'Criar conta'}</button>
+        <button type="submit" className="btn-primary auth-submit" disabled={busy || !token}>{busy ? 'Criando…' : 'Criar conta'}</button>
       </form>
       <p className="auth-alt">Já tem conta? <Link to="/entrar" className="auth-link">Entrar</Link></p>
     </AuthLayout>

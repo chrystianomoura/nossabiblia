@@ -113,4 +113,7 @@ falso; só roda com `DATABASE_URL_TEST` e recusa a URL de produção.
 
 ## Ainda em aberto
 
-Nada no contrato. Falta configurar o Turnstile da Cloudflare (cadastro e recuperação) e testar a entrega em Outlook e iCloud.
+Nada no contrato. O Turnstile está configurado: widget "Nossa Bíblia - cadastro" na Cloudflare (conta Nagatosolutions, modo gerenciado, só
+`nossabiblia.party`); a chave pública vai no site (`client/src/lib/turnstile.js`; em desenvolvimento, a chave de teste da Cloudflare, que
+sempre passa) e o segredo fica só na Render (`TURNSTILE_SECRET`). O token vale uma vez e a tela pede outro a cada envio. Falta testar a
+entrega em Outlook e Gmail.
