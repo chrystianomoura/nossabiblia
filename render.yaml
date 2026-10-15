@@ -25,3 +25,11 @@ services:
         value: https://nossabiblia.party,https://www.nossabiblia.party
       - key: DATABASE_URL_APP # papel nb_app (menor privilégio); o valor é segredo e se coloca no painel
         sync: false
+      - key: APP_URL # endereço do site, usado nos links dos e-mails de confirmação
+        value: https://nossabiblia.party
+      - key: EMAIL_BLOCK_KEY # chave (32+ caracteres) do HMAC do bloqueio de e-mail apagado; segredo, no painel
+        sync: false
+      - key: RESEND_API_KEY # chave só de envio do Resend; segredo, no painel
+        sync: false
+      - key: TURNSTILE_SECRET # segredo do Turnstile (cadastro); sem ele o cadastro é recusado em produção, de propósito
+        sync: false

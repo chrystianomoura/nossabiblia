@@ -30,7 +30,7 @@ como estão. Regras de negócio: `PROJETO.md` (números entre parênteses).
 |---|---|---|
 | `POST /api/auth/register` | `first_name, last_name, email, email_confirm, password, password_confirm, turnstile` → `201` | Valida no servidor (nomes não vazios nem só números; e-mails e senhas iguais). `409 email_em_uso`; `403 email_bloqueado` se estiver no bloqueio de 30 dias (47). Envia o e-mail de confirmação. |
 | `POST /api/auth/verify` | `token` → `200`, abre a sessão | Grava `verified_at` (data de abertura, 42). Token de uso único. |
-| `POST /api/auth/resend-verification` | → `204` | Exige sessão. Uma vez; depois bloqueado por 12 h desde o último envio (39): `429 reenvio_bloqueado` com `retry_after`. |
+| `POST /api/auth/resend-verification` | → `204` | Exige sessão (o destinatário é sempre o e-mail da conta). O 1º reenvio é imediato; depois só 12 h depois do último envio (39): `429 reenvio_bloqueado` com `retry_after` e cabeçalho `Retry-After`. O link anterior deixa de valer. `409 conta_ja_verificada`. Estado em `users.verification_resends` (migração 004). Se o envio falhar (`502 email_nao_enviado`), o estado anterior é restaurado: o reenvio não é gasto e o link antigo continua valendo. **Implementada.** |
 | `POST /api/auth/change-email` | `email, email_confirm` → `204` | Só conta não verificada, mesma regra de reenvio (40). |
 | `POST /api/auth/login` | `email, password` → `200`, cookie | `401` genérico. Conta não verificada entra, com recursos bloqueados (38). |
 | `POST /api/auth/logout` | → `204` | Encerra esta sessão. |
@@ -86,6 +86,30 @@ onde foi criada. Cores: `amarelo`, `verde`, `azul`, `rosa`. Comentário até 2.0
    - Recuperação de senha (1 h): assunto "Redefinir sua senha – Nossa Bíblia"; "Recebemos um pedido para redefinir a senha da sua
      conta" + botão "Escolher nova senha"; "Se não foi você, ignore este e-mail: sua senha continua a mesma. Depois de redefinir, as
      outras sessões abertas são encerradas."
+
+## Proteções e limites da conta (valores em vigor)
+
+Valem para as rotas `/api/auth/*`; os números são ajustáveis por variável de ambiente (entre parênteses). O estouro de qualquer limite
+responde `429` (ou `503` no teto diário) no formato da API: `{ "error": "<texto em português>", "code": "muitas_tentativas", "retry_after": <segundos> }`.
+
+| Proteção | Valor | Observações |
+|---|---|---|
+| Cadastro por IP | 10 por hora (`REGISTER_RATE_MAX`) | Cabe uma igreja, escola ou família no mesmo Wi-Fi; contra robô quem trabalha é o Turnstile |
+| Login por IP | 10 por 15 min (`LOGIN_RATE_MAX`) | |
+| Login por e-mail | 10 por 15 min | **Decisão:** depois de 10 erros, nem a senha certa entra até a janela passar. Protege contra força bruta, ao custo de quem não é o dono da conta poder travar a vítima por 15 min. Revisitar se virar problema |
+| Reenvio por IP | 10 por hora (`RESEND_RATE_MAX`) | Além da regra por conta (1º imediato, depois 12 h) |
+| Confirmação por IP | 20 por hora (`VERIFY_RATE_MAX`) | O token tem 256 bits, então chutar não funciona; o limite só poupa o servidor |
+| Teto diário de cadastros | 80 por 24 h (`EMAIL_DAILY_CAP`), `503 limite_diario` | Cada cadastro gasta 1 e-mail e o plano grátis do Resend dá 100 por dia; a folga é para os reenvios. Conta no banco: sobrevive a reinício |
+| Tamanho do corpo | 16 KB nas rotas da conta | O padrão do Fastify seria 1 MB |
+| Senha | 8 a 128 caracteres, não só espaços; recusada se estiver em vazamentos (Pwned Passwords, só os 5 primeiros caracteres do SHA-1 saem do servidor) | A checagem liga em produção (`PWNED_CHECK=on\|off`); se o serviço cair ou passar de 2 s, a senha passa (falha aberta) |
+| Nome | sem caracteres de controle, quebra de linha nem inversão de texto | O NUL derrubava o INSERT |
+
+**Limitação conhecida:** os contadores de tentativa ficam na memória do processo. Zeram quando a API reinicia ou dorme (Render grátis,
+15 min parada) e não são compartilhados se houver mais de uma instância. É proteção básica, não garantia; se a conta crescer, mover para
+o banco ou um Redis. A `TRUST_PROXY` precisa continuar medida (ver AGENTS/README): com número errado todos compartilham um contador.
+
+Testes: `server/auth/abuse.http.test.js` (70 testes, ~3 min) sobe o servidor de verdade contra a branch de teste da Neon e um Resend
+falso; só roda com `DATABASE_URL_TEST` e recusa a URL de produção.
 
 ## Ainda em aberto
 
