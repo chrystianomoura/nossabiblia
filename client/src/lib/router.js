@@ -29,6 +29,12 @@ export function readPath(slug, chapter, translation = 'NAA', verse = null, verse
 }
 
 export function parseRoute({ pathname, search }) {
+  const account = pathname.match(/^\/(cadastrar|entrar|confirmar)\/?$/);
+  if (account) {
+    const view = { cadastrar: 'register', entrar: 'login', confirmar: 'confirm' }[account[1]];
+    return { view, next: search.get('next'), token: search.get('token') };
+  }
+
   const match = pathname.match(/^\/ler\/([^/]+)(?:\/(\d+))?\/?$/);
   if (!match) return { view: 'home' };
 

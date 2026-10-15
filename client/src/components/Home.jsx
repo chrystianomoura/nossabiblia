@@ -9,7 +9,6 @@ export default function Home({
   theme,
   onToggleTheme,
   onOpenSearch,
-  onNotice,
   previewTranslation,
   onPreviewTranslationChange,
 }) {
@@ -19,7 +18,6 @@ export default function Home({
         onOpenSearch={onOpenSearch}
         theme={theme}
         onToggleTheme={onToggleTheme}
-        onLogin={() => onNotice('O login será ativado em breve.')}
       />
 
       <main id="main" className="home-main">
@@ -40,16 +38,12 @@ export default function Home({
             </div>
 
             <div className="home-cta">
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => onNotice('O cadastro será ativado em breve.')}
-              >
+              <Link to="/cadastrar" className="btn-primary">
                 <span>Criar Conta Gratuita</span>
                 <span className="btn-arrow" aria-hidden="true">
                   <ArrowRight size={16} />
                 </span>
-              </button>
+              </Link>
             </div>
           </section>
 

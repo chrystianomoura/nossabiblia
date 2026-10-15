@@ -1,8 +1,11 @@
 import { Search, Sun, Moon } from 'lucide-react';
 import BrandMark from './BrandMark';
 import Link from './Link';
+import AccountMenu from './AccountMenu';
+import { useSession } from '../lib/auth';
 
-export default function Navbar({ onOpenSearch, theme, onToggleTheme, onLogin }) {
+export default function Navbar({ onOpenSearch, theme, onToggleTheme }) {
+  const { status } = useSession();
   return (
     <header className="navbar">
       <Link to="/" className="brand" aria-label="Nossa Bíblia, início">
@@ -32,9 +35,7 @@ export default function Navbar({ onOpenSearch, theme, onToggleTheme, onLogin }) 
             : <Moon size={17} strokeWidth={2} aria-hidden="true" />}
         </button>
 
-        <button type="button" className="pill-btn" onClick={onLogin}>
-          Entrar
-        </button>
+        {status === 'in' ? <AccountMenu /> : <Link to="/entrar" className="pill-btn">Entrar</Link>}
       </div>
     </header>
   );

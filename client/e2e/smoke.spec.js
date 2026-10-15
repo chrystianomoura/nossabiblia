@@ -107,3 +107,80 @@ test('a política está valendo de verdade: um script injetado é bloqueado e um
   expect(resultado.estranho).toBe('bloqueada');
   expect(resultado.violacoes).toEqual(expect.arrayContaining(['script-src-elem', 'connect-src']));
 });
+
+// ---- Conta: cadastro, confirmação e entrada (API simulada; a política de conteúdo do build vale como em produção) ----
+
+const respondeJson = (route, status, body) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+
+test('as telas da conta carregam sem violar a política de conteúdo e sem rolagem lateral', async ({ page }) => {
+  await registrarViolacoes(page);
+  for (const caminho of ['/cadastrar', '/entrar', '/confirmar']) {
+    await page.goto(caminho);
+    await page.waitForSelector('.auth-card');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), caminho).toBe(true);
+  }
+  expect(await page.evaluate(() => window.__v || [])).toEqual([]);
+});
+
+test('cadastro: erros do servidor aparecem no campo certo e o sucesso leva a "Verifique seu e-mail"', async ({ page }) => {
+  let corpo;
+  await page.route('**/api/auth/register', (route) => {
+    corpo = route.request().postDataJSON();
+    if (corpo.email !== corpo.email_confirm) return respondeJson(route, 400, { error: 'Confira os campos do cadastro.', code: 'dados_invalidos', fields: { email_confirm: 'Os e-mails não são iguais' } });
+    return respondeJson(route, 201, { ok: true });
+  });
+  await page.goto('/cadastrar');
+  await page.getByLabel('Nome', { exact: true }).fill('Maria');
+  await page.getByLabel('Sobrenome').fill('Santos');
+  await page.getByLabel('E-mail', { exact: true }).fill('maria@exemplo.com');
+  await page.getByLabel('Confirme o e-mail').fill('maria@exemplo.co');
+  await page.getByLabel('Senha', { exact: true }).fill('senha-segura-1');
+  await page.getByLabel('Confirme a senha').fill('senha-segura-1');
+  await page.getByRole('button', { name: 'Criar conta' }).click();
+  await expect(page.getByText('Os e-mails não são iguais')).toBeVisible();
+  await expect(page.getByLabel('Confirme o e-mail')).toBeFocused();
+  await page.getByLabel('Confirme o e-mail').fill('maria@exemplo.com');
+  await page.getByRole('button', { name: 'Criar conta' }).click();
+  await expect(page.getByRole('heading', { name: 'Verifique seu e-mail' })).toBeVisible();
+  await expect(page.getByText('maria@exemplo.com')).toBeVisible();
+});
+
+test('"Mostrar" revela a senha e "Ocultar" volta a esconder; o campo nunca vira texto sem o clique', async ({ page }) => {
+  await page.goto('/entrar');
+  const senha = page.getByLabel('Senha', { exact: true });
+  await expect(senha).toHaveAttribute('type', 'password');
+  await page.getByRole('button', { name: 'Mostrar' }).click();
+  await expect(senha).toHaveAttribute('type', 'text');
+  await page.getByRole('button', { name: 'Ocultar' }).click();
+  await expect(senha).toHaveAttribute('type', 'password');
+});
+
+test('confirmação: o token sai do endereço, a conta fica conectada ("Conta" na barra) e "Sair" desconecta', async ({ page }) => {
+  await page.route('**/api/auth/verify', (route) => respondeJson(route, 200, { first_name: 'Maria', last_name: 'Santos', email: 'maria@exemplo.com', is_verified: true, verified_at: '2026-10-15T00:00:00Z' }));
+  await page.route('**/api/auth/logout', (route) => route.fulfill({ status: 204 }));
+  await page.goto('/confirmar?token=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG');
+  await expect(page.getByRole('heading', { name: 'E-mail confirmado' })).toBeVisible();
+  await expect(page).toHaveURL(/\/confirmar$/); // sem ?token=
+  await page.getByRole('button', { name: 'Conta' }).click();
+  await page.getByRole('menuitem', { name: 'Sair' }).click();
+  await expect(page.getByRole('link', { name: 'Entrar' })).toBeVisible();
+});
+
+test('login com senha errada mostra a mensagem genérica e mantém a pessoa na tela', async ({ page }) => {
+  await page.route('**/api/auth/login', (route) => respondeJson(route, 401, { error: 'E-mail ou senha incorretos', code: 'credenciais_invalidas' }));
+  await page.goto('/entrar');
+  await page.getByLabel('E-mail').fill('maria@exemplo.com');
+  await page.getByLabel('Senha', { exact: true }).fill('errada-errada');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).last().click();
+  await expect(page.getByRole('alert')).toContainText('E-mail ou senha incorretos');
+  await expect(page).toHaveURL(/\/entrar$/);
+});
+
+test('"?next=" de fora do site é ignorado depois do login (sem redirecionamento aberto)', async ({ page }) => {
+  await page.route('**/api/auth/login', (route) => respondeJson(route, 200, { first_name: 'Maria', last_name: 'S', email: 'maria@exemplo.com', is_verified: true, verified_at: null }));
+  await page.goto('/entrar?next=//exemplo-malicioso.invalid');
+  await page.getByLabel('E-mail').fill('maria@exemplo.com');
+  await page.getByLabel('Senha', { exact: true }).fill('senha-segura-1');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).last().click();
+  await expect(page).toHaveURL(/localhost:\d+\/$/);
+});

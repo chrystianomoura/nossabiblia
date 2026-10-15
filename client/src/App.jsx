@@ -3,9 +3,20 @@ import Home from './components/Home';
 import ReadingView from './components/ReadingView';
 import SearchModal from './components/SearchModal';
 import WakeNotice from './components/WakeNotice';
+import VerifyNotice from './components/VerifyNotice';
+import RegisterPage from './components/RegisterPage';
+import LoginPage from './components/LoginPage';
+import ConfirmPage from './components/ConfirmPage';
+import { loadSession } from './lib/auth';
 import { useBooks } from './lib/books';
 import { parseRoute, useLocation } from './lib/router';
 import { useTheme } from './lib/theme';
+
+const AUTH_PAGES = { register: RegisterPage, login: LoginPage, confirm: ConfirmPage };
+
+function AuthView({ Page, ...props }) {
+  return <Page {...props} />;
+}
 
 export default function App() {
   const route = parseRoute(useLocation());
@@ -13,7 +24,6 @@ export default function App() {
   const { books, error: booksError } = useBooks();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [previewTranslation, setPreviewTranslation] = useState('NAA');
-  const [notice, setNotice] = useState('');
 
   // ⌘K / Ctrl+K abre e fecha a busca em qualquer tela.
   // Trocou de tela (início, leitor): quem rola é o #root, que não volta ao topo sozinho como a página volta
@@ -33,10 +43,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!notice) return undefined;
-    const timer = setTimeout(() => setNotice(''), 4000);
-    return () => clearTimeout(timer);
-  }, [notice]);
+    loadSession();
+  }, []);
 
   return (
     <>
@@ -51,12 +59,19 @@ export default function App() {
           onToggleTheme={toggleTheme}
           onOpenSearch={() => setIsSearchOpen(true)}
         />
+      ) : AUTH_PAGES[route.view] ? (
+        <AuthView
+          Page={AUTH_PAGES[route.view]}
+          route={route}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenSearch={() => setIsSearchOpen(true)}
+        />
       ) : (
         <Home
           theme={theme}
           onToggleTheme={toggleTheme}
           onOpenSearch={() => setIsSearchOpen(true)}
-          onNotice={setNotice}
           previewTranslation={previewTranslation}
           onPreviewTranslationChange={setPreviewTranslation}
         />
@@ -65,10 +80,8 @@ export default function App() {
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
 
       <WakeNotice />
+      <VerifyNotice />
 
-      <div className={`toast${notice ? ' is-visible' : ''}`} role="status" aria-live="polite">
-        {notice}
-      </div>
     </>
   );
 }
