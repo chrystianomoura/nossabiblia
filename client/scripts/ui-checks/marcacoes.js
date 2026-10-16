@@ -86,7 +86,7 @@ async page => {
     await sleep(1200);
     p = await paint();
     log(verses.filter((v) => p[v.verse]).length >= verses.length - 2 && Object.values(p).filter(Boolean).length >= verses.length - 2, 'trocar para a NVT mantém as cores (marcação vale nas duas traduções)');
-    await page.getByRole('button', { name: 'A+' }).click();
+    await page.getByRole('button', { name: 'Aumentar tamanho da letra' }).click();
     await sleep(600);
     p = await paint();
     log(verses.every((v) => p[v.verse] === COLORS[v.verse % 4]), 'aumentar a letra mantém todas as cores');
@@ -155,7 +155,7 @@ async page => {
     rows = await allRows();
     const canon = rows.map((r) => r.ref);
     const titles = await page.$$eval('.mk-group', (n) => n.map((x) => x.textContent));
-    log(titles.length >= 2 && ['ester', 'salmos'].includes(titles[0].toLowerCase()), 'lista canônica: um título por livro');
+    log(titles.length >= 2 && new Set(titles).size === titles.length, 'lista canônica: um título por livro (sem título repetido)');
     log(canon.indexOf('Ester 8:9') < canon.indexOf('Salmos 23:4') || canon.indexOf('Ester 8:9') === -1, 'lista canônica: Ester vem antes de Salmos (ordem dos livros)');
     for (const color of COLORS) {
       await page.getByLabel('Filtrar por cor').selectOption(color); await sleep(1500);
