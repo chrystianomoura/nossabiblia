@@ -45,6 +45,16 @@ Este documento descreve a especificação funcional e as decisões técnicas da 
 9. **Pastas:** o usuário cria pastas e organiza as marcações nelas.
 10. **Ordem:** as marcações aparecem com a mais recente primeiro.
 
+Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **implementada e aprovada**):
+
+- **Como chegar:** ícone de marcador na barra do leitor (ao lado da lupa) e entrada **"Marcações"** no menu "Conta". Na própria tela o ícone fica preenchido (ativo): com a página rolada ele sobe suavemente (sem animação para quem pede menos movimento); já no topo, busca a lista de novo (sem recarregar a página). Sem número em lugar nenhum (nem contador no ícone, nem total na tela). Visitante vai ao login e volta; conta não verificada vê "Confirme seu e-mail para ver suas marcações.".
+- **Lista:** cartões com o versículo **completo**, pintado como no leitor, com referência, tradução e data relativa ("há 3 horas", "ontem"). Tocar abre o leitor no versículo. 20 por vez, com "Mostrar mais".
+- **Ordem:** "Mais recentes" (padrão) ou "Ordem canônica", esta com um título por livro (15 px, cor principal do texto).
+- **Filtro de cor:** menu **nativo** ("Todas as cores, Amarelo, Azul, Rosa, Verde"), sem seta; com uma cor escolhida a pílula fica pintada com ela. Combina com a ordem. Sem resultado: "Nenhuma marcação na cor rosa." (com ponto final, decisão do usuário).
+- **Tradução:** seletor NAA | NVT ao lado do filtro, igual ao da busca. Vale para a lista inteira e fica no endereço (`?t=`). Ao chegar, vale a tradução do leitor naquele momento (ícone do leitor) ou, pelo menu "Conta", a última lida (`nb-last-read`), ou a NAA.
+- **Busca:** versículo já marcado mostra uma **bolinha cheia da cor** depois da referência, tanto no resultado de palavra quanto no cartão de referência de versículo (um intervalo mostra uma bolinha por versículo marcado). Cartões de capítulo e de livro não mostram. Só mostra: tocar abre o leitor. O índice das marcações é pedido uma vez ao abrir a busca (`GET /api/bookmarks/index`), só para conta verificada.
+- **Leitor:** a paleta mostra as cores em ordem alfabética, sem botão "Remover" (tocar na cor com o certo remove). O fundo da marcação tem 2 px de respiro em cima e embaixo. As marcações chegam **junto** com o texto (o capítulo só entra quando os dois chegaram; as dos capítulos vizinhos são buscadas de antemão; uma nova tentativa silenciosa se falhar, sem aviso).
+
 ## Favoritos (exige conta verificada)
 
 11. **Favoritar versículo:** favorito e marcação são independentes. O mesmo versículo pode ter as duas coisas. Um favorito por versículo, valendo nas duas traduções.
