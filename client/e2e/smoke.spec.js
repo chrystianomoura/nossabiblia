@@ -326,18 +326,18 @@ test('marcar: tocar no versículo abre as 4 cores; escolher pinta o texto e salv
   expect(pedidos[0].corpo).toEqual({ color: 'azul', translation: 'NVT' });
 });
 
-test('marcar: a cor atual aparece marcada, "Remover" apaga (DELETE) e a paleta fecha com Esc', async ({ page }) => {
+test('marcar: a cor atual aparece marcada, tocar nela apaga (DELETE) e a paleta fecha com Esc', async ({ page }) => {
   await entrarComo(page);
   const metodos = [];
   await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [{ verse: 2, color: 'verde' }], favorites: [] }));
   await page.route('**/api/bookmarks/**', (route) => { metodos.push(route.request().method()); return route.fulfill({ status: 204 }); });
   await page.goto('/ler/salmos/23?t=NAA');
   await page.locator('#v2 .vt').click();
-  await expect(page.getByRole('button', { name: 'Marcar de verde' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Remover a marcação verde' })).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.press('Escape');
   await expect(page.locator('.mark-palette')).toHaveCount(0);
   await page.locator('#v2 .vt').click();
-  await page.getByRole('button', { name: 'Remover' }).click();
+  await page.getByRole('button', { name: 'Remover a marcação verde' }).click();
   await expect(page.locator('#v2 .vt')).not.toHaveAttribute('data-mark', /.+/);
   await expect.poll(() => metodos).toEqual(['DELETE']);
 });
