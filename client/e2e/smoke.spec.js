@@ -298,3 +298,95 @@ test('redefinir senha: link vencido ou sem token mostra "Link inválido" e leva 
   await page.getByRole('link', { name: 'Pedir novo link' }).click();
   await expect(page).toHaveURL(/\/esqueci-senha$/);
 });
+
+// ---- Marcações de versículos (API simulada) ----
+
+// Conta conectada: o site só pergunta à API se já entrou neste navegador, então o "já entrei" é gravado antes de a página abrir.
+async function entrarComo(page, { verificada = true } = {}) {
+  await page.addInitScript(() => localStorage.setItem('nb-session', '1'));
+  await page.route('**/api/me', (route) => respondeJson(route, 200, { first_name: 'Maria', last_name: 'Santos', email: 'maria@exemplo.com', is_verified: verificada, verified_at: verificada ? '2026-10-15T00:00:00Z' : null }));
+}
+
+test('marcar: tocar no versículo abre as 4 cores; escolher pinta o texto e salva (PUT com cor e tradução); as marcas do servidor já vêm pintadas', async ({ page }) => {
+  await entrarComo(page);
+  const pedidos = [];
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [{ verse: 2, color: 'verde', comment: null, created_in_translation: 'NAA', updated_at: '2026-10-15T00:00:00Z' }], favorites: [] }));
+  await page.route('**/api/bookmarks/**', (route) => { pedidos.push({ metodo: route.request().method(), url: route.request().url(), corpo: route.request().postDataJSON() }); return respondeJson(route, 200, {}); });
+  await page.goto('/ler/salmos/23?t=NVT');
+  await expect(page.locator('#v2 .vt')).toHaveAttribute('data-mark', 'verde');
+  await page.locator('#v1 .vt').click();
+  await expect(page.getByRole('group', { name: 'Marcar o versículo 1' })).toBeVisible();
+  await expect(page.locator('.mark-dot')).toHaveCount(4);
+  await page.getByRole('button', { name: 'Marcar de azul' }).click();
+  await expect(page.locator('#v1 .vt')).toHaveAttribute('data-mark', 'azul');
+  await expect(page.locator('.mark-palette')).toHaveCount(0);
+  expect(pedidos).toHaveLength(1);
+  expect(pedidos[0].metodo).toBe('PUT');
+  expect(pedidos[0].url).toMatch(/\/api\/bookmarks\/19\/23\/1$/);
+  expect(pedidos[0].corpo).toEqual({ color: 'azul', translation: 'NVT' });
+});
+
+test('marcar: a cor atual aparece marcada, "Remover" apaga (DELETE) e a paleta fecha com Esc', async ({ page }) => {
+  await entrarComo(page);
+  const metodos = [];
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [{ verse: 2, color: 'verde' }], favorites: [] }));
+  await page.route('**/api/bookmarks/**', (route) => { metodos.push(route.request().method()); return route.fulfill({ status: 204 }); });
+  await page.goto('/ler/salmos/23?t=NAA');
+  await page.locator('#v2 .vt').click();
+  await expect(page.getByRole('button', { name: 'Marcar de verde' })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.mark-palette')).toHaveCount(0);
+  await page.locator('#v2 .vt').click();
+  await page.getByRole('button', { name: 'Remover' }).click();
+  await expect(page.locator('#v2 .vt')).not.toHaveAttribute('data-mark', /.+/);
+  await expect.poll(() => metodos).toEqual(['DELETE']);
+});
+
+test('marcar: se o servidor recusar, a cor volta ao que era e a paleta mostra o erro', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [], favorites: [] }));
+  await page.route('**/api/bookmarks/**', (route) => respondeJson(route, 409, { error: 'Você chegou ao limite de 1.000 marcações. Remova alguma para marcar outra.', code: 'limite_atingido' }));
+  await page.goto('/ler/salmos/23?t=NAA');
+  await page.locator('#v1 .vt').click();
+  await page.getByRole('button', { name: 'Marcar de rosa' }).click();
+  await expect(page.getByRole('alert')).toContainText('limite de 1.000 marcações');
+  await expect(page.locator('#v1 .vt')).not.toHaveAttribute('data-mark', /.+/);
+});
+
+test('marcar: conta não verificada vê o aviso discreto e nada é salvo; visitante vai ao login e volta ao mesmo capítulo', async ({ page, context }) => {
+  let salvou = false;
+  await page.route('**/api/bookmarks/**', (route) => { salvou = true; return respondeJson(route, 200, {}); });
+  // visitante
+  await page.goto('/ler/salmos/23?t=NAA');
+  await page.locator('#v1 .vt').click();
+  await page.getByRole('button', { name: 'Marcar de amarelo' }).click();
+  await expect(page).toHaveURL(/\/entrar\?next=%2Fler%2Fsalmos%2F23%3Ft%3DNAA/);
+  // conta não verificada
+  const outra = await context.newPage();
+  await mockApi(outra);
+  await entrarComo(outra, { verificada: false });
+  await outra.route('**/api/bookmarks/**', (route) => { salvou = true; return respondeJson(route, 200, {}); });
+  await outra.goto('/ler/salmos/23?t=NAA');
+  await expect(outra.locator('.verify-notice')).toHaveCount(0); // discreto: só aparece quando a pessoa tenta marcar
+  await outra.locator('#v1 .vt').click();
+  await outra.getByRole('button', { name: 'Marcar de amarelo' }).click();
+  await expect(outra.locator('.verify-notice')).toContainText('Confirme seu e-mail');
+  expect(salvou).toBe(false);
+});
+
+test('marcar: selecionar texto para copiar não abre a paleta, e marcar não muda a quebra de linha do texto', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [], favorites: [] }));
+  await page.route('**/api/bookmarks/**', (route) => respondeJson(route, 200, {}));
+  await page.goto('/ler/salmos/23?t=NAA');
+  const altura = () => page.locator('#v4').evaluate((el) => el.getBoundingClientRect().height);
+  const antes = await altura();
+  // seleciona o texto do versículo e dispara o clique que o fim de uma seleção gera (o versículo ocupa várias linhas no celular)
+  await page.locator('#v2 .vt').evaluate((el) => { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); el.click(); });
+  await expect(page.locator('.mark-palette')).toHaveCount(0);
+  await page.evaluate(() => getSelection().removeAllRanges());
+  await page.locator('#v4 .vt').click();
+  await page.getByRole('button', { name: 'Marcar de rosa' }).click();
+  await expect(page.locator('#v4 .vt')).toHaveAttribute('data-mark', 'rosa');
+  expect(await altura()).toBe(antes); // o respiro de 2 px é cancelado pela margem negativa
+});

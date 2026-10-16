@@ -1,7 +1,10 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { displayBookName } from '../lib/books';
 import { writeStorage } from '../lib/storage';
+import MarkPalette from './MarkPalette';
+import { useMarks } from '../lib/marks';
+import { requireVerified } from '../lib/verify-gate';
 
 // Guarda onde o leitor está, sem mexer na URL: o versículo que está no topo fica no estado desta entrada do histórico,
 // e F5, Voltar e Avançar voltam ao mesmo ponto. Também fica no navegador como "última leitura" (ainda sem uso na tela).
@@ -42,6 +45,45 @@ export default function ReaderCard({
   // fica na tela (`stale`) sem ser recriado nem voltar ao topo, e a troca acontece uma vez só, de uma vez.
   const place = useRef(null); // último ponto lido { chapter, id, fraction }: sobrevive à troca de tradução, que recria a área de rolagem
   const contentKey = data ? `${data.book.id}/${data.chapter}/${data.translation}` : '';
+
+  // Marcações: tocar num versículo abre a paleta de cores (a menos que a pessoa esteja selecionando texto).
+  const { marks, change } = useMarks(data?.book.id, data?.chapter);
+  const [open, setOpen] = useState(null); // { verse, error? } do versículo com a paleta aberta
+  const openVerse = open && data && open.chapterKey === `${data.book.id}/${data.chapter}` ? open : null;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (event) => { if (event.key === 'Escape') setOpen(null); };
+    const onPointerDown = (event) => { if (!event.target.closest?.('.mark-palette, .rb-verse')) setOpen(null); };
+    window.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [open]);
+
+  // Depois de abrir, garante que a paleta apareça inteira (o último versículo fica rente ao fim da área de leitura).
+  useEffect(() => {
+    if (openVerse) scrollRef.current?.querySelector('.mark-palette')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [openVerse?.verse]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function onVerseClick(event) {
+    const node = event.target.closest('.rb-verse');
+    if (!node || event.target.closest('.mark-palette')) return;
+    if (window.getSelection()?.toString()) return; // arrastou para copiar um trecho: não é um toque para marcar
+    const verseNumber = Number(node.dataset.verse);
+    const chapterKey = `${data.book.id}/${data.chapter}`;
+    setOpen((o) => (o && o.verse === verseNumber && o.chapterKey === chapterKey ? null : { verse: verseNumber, chapterKey }));
+  }
+
+  async function applyMark(verseNumber, color) {
+    if (!requireVerified()) { setOpen(null); return; } // visitante vai ao login; conta não verificada vê o aviso
+    const chapterKey = `${data.book.id}/${data.chapter}`;
+    setOpen(null);
+    const r = await change(verseNumber, color, data.translation);
+    if (!r.ok) setOpen({ verse: verseNumber, chapterKey, error: r.data?.error || 'Não foi possível salvar. Tente de novo.' });
+  }
 
   // Capítulo novo (ou versículo novo no endereço): volta ao topo, ou vai ao versículo pedido. Se o navegador guardou onde
   // você estava (F5, Voltar, Avançar), continua dali.
@@ -138,7 +180,7 @@ export default function ReaderCard({
             role="region"
             aria-label={`${displayBookName(data.book.name)} ${data.chapter}`}
           >
-            <div className="rb-col">
+            <div className="rb-col" onClick={onVerseClick}>
               <header className="rb-title">
                 <h1 className="read-title">{displayBookName(data.book.name)} {data.chapter}</h1>
               </header>
@@ -146,10 +188,20 @@ export default function ReaderCard({
                 <p
                   key={v.verse}
                   id={`v${v.verse}`}
+                  data-verse={v.verse}
                   className={`rb-verse verse${verse && v.verse >= verse && v.verse <= (verseEnd ?? verse) ? ' is-target' : ''}`}
                 >
                   <sup className="verse-num">{v.verse}</sup>
-                  {v.text}
+                  <span className="vt" data-mark={marks[v.verse]}>{v.text}</span>
+                  {openVerse?.verse === v.verse && (
+                    <MarkPalette
+                      verse={v.verse}
+                      current={marks[v.verse]}
+                      error={openVerse.error}
+                      onPick={(color) => applyMark(v.verse, color)}
+                      onClear={() => applyMark(v.verse, null)}
+                    />
+                  )}
                 </p>
               ))}
             </div>

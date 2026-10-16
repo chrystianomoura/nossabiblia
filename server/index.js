@@ -6,6 +6,7 @@ import rateLimit from '@fastify/rate-limit';
 import pool from './db.js';
 import bibleRoutes from './routes/bible.js';
 import authRoutes from './routes/auth.js';
+import marksRoutes from './routes/marks.js';
 import { startKeepAlive } from './keepalive.js';
 import { parseTrustProxy, parseAllowedOrigins } from './config.js';
 import { createOriginGuard } from './http/origin-guard.js';
@@ -28,6 +29,8 @@ const allowedOrigins = parseAllowedOrigins(process.env.ALLOWED_ORIGINS);
 await fastify.register(cors, {
   origin: allowedOrigins,
   credentials: true,
+  // O padrão do plugin é só GET, HEAD e POST: sem PUT e DELETE o navegador barra a marcação do site (outro domínio) antes de enviar.
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
 });
 
 fastify.removeContentTypeParser('application/json');
@@ -85,6 +88,7 @@ fastify.get('/health', async (request) => {
 // Registra rotas da Bíblia
 await fastify.register(bibleRoutes, { prefix: '/api' });
 await fastify.register(authRoutes, { prefix: '/api' });
+await fastify.register(marksRoutes, { prefix: '/api' });
 
 // Inicia o servidor
 const PORT = process.env.PORT || 3001;

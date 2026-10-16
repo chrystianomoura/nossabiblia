@@ -58,6 +58,15 @@
   --overlay: rgba(0, 0, 0, 0.45);
 
   /* Acentos devocionais */
+  /* Cores de marcação (estilo D: fundo vivo + sublinhado fino); no escuro o fundo é translúcido sobre o cartão */
+  --mark-amarelo: #FFE66D;
+  --mark-verde: #B8F0B0;
+  --mark-azul: #A9D8FF;
+  --mark-rosa: #FFB8D6;
+  --mark-line-amarelo: #A67C00;
+  --mark-line-verde: #2F9E44;
+  --mark-line-azul: #2B7CC9;
+  --mark-line-rosa: #D6336C;
   --gold-text: #8A6A24;
   --num-soft: #9A7B3A; /* número do versículo no leitor: discreto, sem negrito */
   /* Selo "2×": no claro precisa de mais presença sobre o cartão bege (fundo mais dourado, texto mais escuro) */
@@ -91,6 +100,14 @@
   --border-light: rgba(234, 231, 225, 0.12);
   --border-strong: rgba(234, 231, 225, 0.16);
 
+  --mark-amarelo: rgba(255, 214, 10, 0.30);
+  --mark-verde: rgba(74, 222, 128, 0.26);
+  --mark-azul: rgba(96, 165, 250, 0.32);
+  --mark-rosa: rgba(244, 114, 182, 0.30);
+  --mark-line-amarelo: #FFD60A;
+  --mark-line-verde: #4ADE80;
+  --mark-line-azul: #60A5FA;
+  --mark-line-rosa: #F472B6;
   --gold-text: #D4AF37;
   --num-soft: #A8914A;
   --badge-bg: rgba(212, 175, 55, 0.15);
@@ -2433,4 +2450,97 @@ body:has(.read) {
 
 .auth-turnstile:empty {
   margin-top: 0;
+}
+
+/* ==========================================================================
+   Marcações de versículos
+   ========================================================================== */
+/* O recuo negativo cancela o respiro de 2 px: marcar ou desmarcar não muda a quebra de linha do texto */
+.vt[data-mark] {
+  padding: 0 2px;
+  margin: 0 -2px;
+  background: var(--mark-bg);
+  border-bottom: 2px solid var(--mark-ln);
+  border-radius: 3px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.vt[data-mark="amarelo"] { --mark-bg: var(--mark-amarelo); --mark-ln: var(--mark-line-amarelo); }
+.vt[data-mark="verde"] { --mark-bg: var(--mark-verde); --mark-ln: var(--mark-line-verde); }
+.vt[data-mark="azul"] { --mark-bg: var(--mark-azul); --mark-ln: var(--mark-line-azul); }
+.vt[data-mark="rosa"] { --mark-bg: var(--mark-rosa); --mark-ln: var(--mark-line-rosa); }
+
+.rb-verse {
+  cursor: pointer;
+}
+
+/* Paleta aberta embaixo do versículo tocado */
+.mark-palette {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 6;
+  max-width: 100%;
+  margin-top: -2px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.3;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  box-shadow: var(--shadow-modal);
+  cursor: default;
+}
+
+.mark-dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.mark-dot {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--text-main);
+  background: var(--mark-bg);
+  border: 2px solid var(--mark-ln);
+}
+
+.mark-dot[data-mark="amarelo"] { --mark-bg: var(--mark-amarelo); --mark-ln: var(--mark-line-amarelo); }
+.mark-dot[data-mark="verde"] { --mark-bg: var(--mark-verde); --mark-ln: var(--mark-line-verde); }
+.mark-dot[data-mark="azul"] { --mark-bg: var(--mark-azul); --mark-ln: var(--mark-line-azul); }
+.mark-dot[data-mark="rosa"] { --mark-bg: var(--mark-rosa); --mark-ln: var(--mark-line-rosa); }
+
+.mark-clear {
+  margin-left: 2px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: 14px;
+}
+
+.mark-error {
+  color: var(--auth-error);
+}
+
+@media (hover: hover) {
+  .mark-dot:hover {
+    transform: scale(1.08);
+  }
+
+  .mark-clear:hover {
+    color: var(--text-main);
+    background: var(--bg-card-subtle);
+  }
 }

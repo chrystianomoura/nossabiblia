@@ -157,6 +157,7 @@ export function client(base, { origin = ORIGIN } = {}) {
     return { status: res.status, json, text, headers: res.headers, setCookie, cookie: setCookie[0]?.split(';')[0] };
   }
   return {
+    request,
     get: (p, o) => request('GET', p, o),
     post: (p, body, o) => request('POST', p, { body, ...o }),
     postRaw: (p, raw, o) => request('POST', p, { raw, ...o }),

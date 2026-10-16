@@ -960,3 +960,183 @@ describe('recuperação de senha (esqueci / redefinir)', opts, () => {
     } finally { await lim.stop(); }
   });
 });
+
+// ------------------------------------------------------------------------------------------------------------------------------
+describe('marcações de versículos', opts, () => {
+  let srv; let http;
+  before(async () => { srv = await startServer(fake, { LOGIN_RATE_MAX: '100000', MARKS_RATE_MAX: '100000' }); http = client(srv.base); });
+  after(async () => { await srv.stop(); });
+
+  const SALMOS = 19; // Salmos tem 150 capítulos; o 23 tem 6 versículos
+  const url = (v = 1, c = 23, b = SALMOS) => `/api/bookmarks/${b}/${c}/${v}`;
+  const put = (cookie, body = { color: 'amarelo', translation: 'NAA' }, u = url(), extra = {}) => http.request('PUT', u, { body, cookie, ...extra });
+  const entrar = async ({ verified = true } = {}) => {
+    const email = `${uniq('mk')}@${EMAIL_DOMAIN}`;
+    const id = await seedUser(email, { verified });
+    const cookie = (await http.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie;
+    return { email, id, cookie };
+  };
+  const linhas = async (id) => (await db.query('SELECT chapter, verse, color, comment FROM bookmarks WHERE user_id = $1 ORDER BY chapter, verse', [id])).rows;
+
+  test('sem sessão 401; conta não verificada 403 (conta_nao_verificada); Origin de fora 403 — e nada é gravado', async () => {
+    const naoVerificada = await entrar({ verified: false });
+    for (const [metodo, u] of [['PUT', url()], ['DELETE', url()], ['GET', `/api/books/${SALMOS}/chapters/23/marks`]]) {
+      assert.equal((await http.request(metodo, u, { body: metodo === 'PUT' ? { color: 'amarelo' } : undefined })).status, 401, `${metodo} sem sessão`);
+      const r = await http.request(metodo, u, { cookie: naoVerificada.cookie, body: metodo === 'PUT' ? { color: 'amarelo' } : undefined });
+      assert.equal(r.status, 403, `${metodo} não verificada`);
+      assert.equal(r.json.code, 'conta_nao_verificada');
+    }
+    const ok = await entrar();
+    assert.equal((await put(ok.cookie, undefined, url(), { origin: 'http://evil.test' })).status, 403);
+    assert.equal((await http.request('DELETE', url(), { cookie: ok.cookie, origin: null })).status, 403);
+    assert.deepEqual(await linhas(naoVerificada.id), []);
+    assert.deepEqual(await linhas(ok.id), []);
+  });
+
+  test('criar, trocar a cor (continua uma só por versículo), listar o capítulo, remover e remover de novo (idempotente)', async () => {
+    const { cookie, id } = await entrar();
+    const a = await put(cookie, { color: 'amarelo', translation: 'NAA' });
+    assert.equal(a.status, 200);
+    assert.equal(a.json.color, 'amarelo');
+    assert.equal(a.json.created_in_translation, 'NAA');
+    assert.match(a.headers.get('cache-control') || '', /no-store/);
+    const b = await put(cookie, { color: 'rosa', translation: 'NVT' });
+    assert.equal(b.status, 200);
+    assert.equal(b.json.color, 'rosa');
+    assert.equal((await linhas(id)).length, 1, 'trocar a cor não cria outra marcação');
+    await put(cookie, { color: 'verde', translation: 'NAA' }, url(3));
+    const lista = await http.get(`/api/books/${SALMOS}/chapters/23/marks`, { cookie });
+    assert.equal(lista.status, 200);
+    assert.match(lista.headers.get('cache-control') || '', /no-store/);
+    assert.deepEqual(lista.json.bookmarks.map((m) => [m.verse, m.color]), [[1, 'rosa'], [3, 'verde']]);
+    assert.deepEqual(lista.json.favorites, []);
+    assert.ok(!/user_id|"id"/.test(lista.text), 'a resposta não vaza ids internos');
+    assert.equal((await http.request('DELETE', url(), { cookie })).status, 204);
+    assert.equal((await http.request('DELETE', url(), { cookie })).status, 204, 'remover o que não existe também é 204');
+    assert.deepEqual((await http.get(`/api/books/${SALMOS}/chapters/23/marks`, { cookie })).json.bookmarks.map((m) => m.verse), [3]);
+    // o livro também pode ser dado pelo nome
+    assert.equal((await put(cookie, { color: 'azul' }, url(2, 23, 'salmos'))).status, 200);
+  });
+
+  test('uma pessoa nunca vê, troca nem apaga a marcação de outra', async () => {
+    const A = await entrar(); const B = await entrar();
+    await put(A.cookie, { color: 'amarelo' });
+    assert.deepEqual((await http.get(`/api/books/${SALMOS}/chapters/23/marks`, { cookie: B.cookie })).json.bookmarks, []);
+    assert.equal((await http.request('DELETE', url(), { cookie: B.cookie })).status, 204);
+    assert.equal((await linhas(A.id)).length, 1, 'o DELETE do B não afeta a marcação do A');
+    await put(B.cookie, { color: 'azul' });
+    assert.equal((await linhas(A.id))[0].color, 'amarelo', 'o PUT do B não troca a cor do A');
+    assert.equal((await linhas(B.id))[0].color, 'azul');
+  });
+
+  test('o comentário é mantido quando só a cor muda (comment ausente), e é apagado com null', async () => {
+    const { cookie, id } = await entrar();
+    await put(cookie, { color: 'amarelo', comment: 'minha nota' });
+    assert.equal((await linhas(id))[0].comment, 'minha nota');
+    await put(cookie, { color: 'verde' });
+    assert.deepEqual([(await linhas(id))[0].color, (await linhas(id))[0].comment], ['verde', 'minha nota']);
+    await put(cookie, { color: 'verde', comment: null });
+    assert.equal((await linhas(id))[0].comment, null);
+  });
+
+  test('entradas hostis (cor, tradução, comentário, pasta, corpo): sempre 400, nunca 500, nada gravado', async () => {
+    const { cookie, id } = await entrar();
+    const ruins = [
+      {}, { color: 'vermelho' }, { color: { $ne: '' } }, { color: ['amarelo'] }, { color: 'AMARELO' }, { color: 'amarelo', translation: 'ARA' },
+      { color: 'amarelo', comment: 'x'.repeat(2001) }, { color: 'amarelo', comment: 5 }, { color: 'amarelo', comment: 'a\u0000b' },
+      { color: 'amarelo', folder_id: '00000000-0000-0000-0000-000000000000' }, { color: 'amarelo', folder_id: 1 },
+    ];
+    for (const body of ruins) {
+      const r = await put(cookie, body);
+      assert.equal(r.status, 400, JSON.stringify(body).slice(0, 60));
+      assert.equal(r.json.code, 'dados_invalidos');
+    }
+    for (const raw of ['', '[]', 'null', '"x"', '{ruim']) {
+      const r = await http.postRaw ? await http.request('PUT', url(), { raw, cookie, headers: { 'Content-Type': 'application/json' } }) : null;
+      assert.ok(r.status === 400, `corpo ${JSON.stringify(raw)} → ${r.status}`);
+    }
+    assert.deepEqual(await linhas(id), []);
+    assert.deepEqual(srv.errorLines().filter((l) => !l.includes('Resend')), []);
+  });
+
+  test('parâmetros hostis (livro, capítulo, versículo): 400/404 sem 500; versículo que não existe no capítulo dá 404', async () => {
+    const { cookie, id } = await entrar();
+    const casos = [
+      [url(0), 400], [url(-1), 400], [url(177), 400], [url('1e1'), 400], [url('abc'), 400], [url('1.5'), 400], [url('99999999999'), 400],
+      [url("1';DROP TABLE users;--"), 400], [url('%00'), 400], [url(1, 0), 400], [url(1, 151), 400], [url(1, '1e1'), 400],
+      [url(1, 23, 0), 404], [url(1, 23, 67), 404], [url(1, 23, 'livro-que-nao-existe'), 404], [url(1, 23, "x'; DROP TABLE books;--"), 404],
+      [url(7, 23), 404], // Salmos 23 só tem 6 versículos
+    ];
+    for (const [u, esperado] of casos) {
+      const r = await put(cookie, { color: 'amarelo' }, u);
+      assert.equal(r.status, esperado, `${u} → ${r.status} ${r.text.slice(0, 80)}`);
+      assert.equal((await http.request('DELETE', u, { cookie })).status === 204 || esperado !== 204, true);
+    }
+    assert.equal((await http.get(`/api/books/${SALMOS}/chapters/0/marks`, { cookie })).status, 400);
+    assert.equal((await http.get('/api/books/0/chapters/1/marks', { cookie })).status, 404);
+    assert.deepEqual(await linhas(id), []);
+    assert.deepEqual(srv.errorLines().filter((l) => !l.includes('Resend')), []);
+  });
+
+  test('limite de 1.000 marcações: a 1.001ª é recusada (409 limite_atingido), mas trocar a cor de uma existente continua valendo', async () => {
+    const { cookie, id } = await entrar();
+    // as 1.000 primeiras combinações (capítulo, versículo) de Salmos 1 a 143: sobram de fora Salmos 143:7 e os capítulos 144 a 150
+    await db.query(
+      `INSERT INTO bookmarks (user_id, book_id, chapter, verse, color, created_in_translation)
+       SELECT $1, 19, c, v, 'amarelo', 'NAA' FROM generate_series(1, 150) c, generate_series(1, 7) v ORDER BY c, v LIMIT 1000`,
+      [id],
+    );
+    const total = async () => Number((await db.query('SELECT count(*) AS n FROM bookmarks WHERE user_id = $1', [id])).rows[0].n);
+    assert.equal(await total(), 1000);
+    const existente = await put(cookie, { color: 'verde' }, url(1, 119));
+    assert.equal(existente.status, 200, 'trocar a cor de uma marcação existente passa do limite');
+    const nova = await put(cookie, { color: 'rosa' }, url(1, 150));
+    assert.equal(nova.status, 409);
+    assert.equal(nova.json.code, 'limite_atingido');
+    assert.match(nova.json.error, /1\.000/);
+    assert.equal(await total(), 1000);
+    await http.request('DELETE', url(1, 119), { cookie });
+    assert.equal((await put(cookie, { color: 'rosa' }, url(1, 150))).status, 200, 'depois de remover uma, cabe outra');
+    assert.equal(await total(), 1000);
+  });
+
+  test('20 pedidos simultâneos no MESMO versículo com cores diferentes: todos 200, uma única linha, nenhum 500', async () => {
+    const { cookie, id } = await entrar();
+    const cores = ['amarelo', 'verde', 'azul', 'rosa'];
+    const rs = await Promise.all(Array.from({ length: 20 }, (_, i) => put(cookie, { color: cores[i % 4] }, url(2))));
+    assert.deepEqual([...new Set(rs.map((r) => r.status))], [200]);
+    const rows = await linhas(id);
+    assert.equal(rows.length, 1);
+    assert.ok(cores.includes(rows[0].color));
+  });
+
+  test('CORS: PUT e DELETE são permitidos para o site (sem isso o navegador barra a marcação entre domínios) e negados para outro site', async () => {
+    const ok = await http.request('OPTIONS', url(), { headers: { 'Access-Control-Request-Method': 'PUT' } });
+    assert.ok(ok.status === 204 || ok.status === 200);
+    assert.match(ok.headers.get('access-control-allow-methods') || '', /PUT/);
+    assert.match(ok.headers.get('access-control-allow-methods') || '', /DELETE/);
+    assert.equal(ok.headers.get('access-control-allow-origin'), ORIGIN);
+    const fora = await http.request('OPTIONS', url(), { origin: 'http://evil.test', headers: { 'Access-Control-Request-Method': 'PUT' } });
+    assert.notEqual(fora.headers.get('access-control-allow-origin'), 'http://evil.test');
+  });
+
+  test('o limite por IP das marcações barra o excesso (429)', async () => {
+    const lim = await startServer(fake, { LOGIN_RATE_MAX: '100000', MARKS_RATE_MAX: '3' });
+    try {
+      const h = client(lim.base);
+      const email = `${uniq('mkl')}@${EMAIL_DOMAIN}`; await seedUser(email);
+      const cookie = (await h.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie;
+      const codes = [];
+      for (let i = 0; i < 5; i++) codes.push((await h.request('PUT', url(1), { cookie, body: { color: 'amarelo' } })).status);
+      assert.deepEqual(codes, [200, 200, 200, 429, 429]);
+    } finally { await lim.stop(); }
+  });
+
+  test('apagar a conta apaga as marcações (cascata) e sessão de conta apagada deixa de valer', async () => {
+    const { cookie, id } = await entrar();
+    await put(cookie, { color: 'amarelo' });
+    await db.query('DELETE FROM users WHERE id = $1', [id]);
+    assert.equal(Number((await db.query('SELECT count(*) AS n FROM bookmarks WHERE user_id = $1', [id])).rows[0].n), 0);
+    assert.equal((await http.get(`/api/books/${SALMOS}/chapters/23/marks`, { cookie })).status, 401);
+  });
+});

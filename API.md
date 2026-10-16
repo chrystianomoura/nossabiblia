@@ -51,14 +51,14 @@ onde foi criada. Cores: `amarelo`, `verde`, `azul`, `rosa`. Comentário até 2.0
 
 | Rota | Corpo / resposta | Observações |
 |---|---|---|
-| `PUT /api/bookmarks/:book/:chapter/:verse` | `color, comment?, folder_id?, translation` → `200` | Cria ou troca (uma por versículo). |
-| `DELETE /api/bookmarks/:book/:chapter/:verse` | → `204` | |
+| `PUT /api/bookmarks/:book/:chapter/:verse` | `color, comment?, folder_id?, translation` → `200` | Cria ou troca (uma por versículo). `comment` ausente mantém o comentário; `null` apaga. `folder_id` diferente de `null` é recusado até as pastas existirem. `404 versiculo_inexistente`, `409 limite_atingido` (1.000), `403 conta_nao_verificada`. **Implementada** (só a cor é usada pela tela por enquanto). |
+| `DELETE /api/bookmarks/:book/:chapter/:verse` | → `204` | Idempotente (remover o que não existe também é 204). **Implementada.** |
 | `GET /api/bookmarks?folder=<id\|none>&offset&limit` | → lista, **mais recente primeiro** (10) | Cada item traz o texto na tradução escolhida; se o versículo não existe nela (23 posições de 31.106), traz o da outra com o aviso. |
 | `GET /api/folders` · `POST /api/folders` | `name` | Nome único por usuário, sem diferenciar maiúsculas. |
 | `PATCH /api/folders/:id` · `DELETE /api/folders/:id` | `name` | Ao apagar a pasta, as marcações ficam sem pasta (decisão pendente, ver abaixo). |
 | `PUT` / `DELETE /api/favorites/:book/:chapter/:verse` | → `200` / `204` | Lista única, sem pastas (12). |
 | `GET /api/favorites?offset&limit` | → lista, mais recente primeiro (13) | |
-| `GET /api/books/:book/chapters/:chapter/marks` | → `{ bookmarks: [...], favorites: [...] }` | O que a tela do leitor precisa para pintar o capítulo; uma chamada só. |
+| `GET /api/books/:book/chapters/:chapter/marks` | → `{ bookmarks: [...], favorites: [...] }` | O que a tela do leitor precisa para pintar o capítulo; uma chamada só. `Cache-Control: private, no-store`. `favorites` vem vazio até os favoritos existirem. **Implementada.** |
 
 ## Progresso e versículo do dia (itens 19, 20, 32 a 36) — só conta verificada
 
@@ -99,6 +99,7 @@ responde `429` (ou `503` no teto diário) no formato da API: `{ "error": "<texto
 | Login por e-mail | 10 por 15 min | **Decisão:** depois de 10 erros, nem a senha certa entra até a janela passar. Protege contra força bruta, ao custo de quem não é o dono da conta poder travar a vítima por 15 min. Revisitar se virar problema |
 | "Esqueci minha senha" por IP | 5 por hora (`FORGOT_RATE_MAX`) | Mais Turnstile e 1 e-mail por conta a cada 15 min |
 | Redefinir senha por IP | 10 por hora (`RESET_RATE_MAX`) | |
+| Marcações por IP | 120 por minuto (`MARKS_RATE_MAX`) | PUT e DELETE; o limite de 1.000 por usuário vem do banco |
 | Reenvio por IP | 10 por hora (`RESEND_RATE_MAX`) | Além da regra por conta (1º imediato, depois 12 h) |
 | Confirmação por IP | 20 por hora (`VERIFY_RATE_MAX`) | O token tem 256 bits, então chutar não funciona; o limite só poupa o servidor |
 | Teto diário de cadastros | 80 por 24 h (`EMAIL_DAILY_CAP`), `503 limite_diario` | Cada cadastro gasta 1 e-mail e o plano grátis do Resend dá 100 por dia; a folga é para os reenvios. Conta no banco: sobrevive a reinício |
@@ -111,7 +112,7 @@ responde `429` (ou `503` no teto diário) no formato da API: `{ "error": "<texto
 15 min parada) e não são compartilhados se houver mais de uma instância. É proteção básica, não garantia; se a conta crescer, mover para
 o banco ou um Redis. A `TRUST_PROXY` precisa continuar medida (ver AGENTS/README): com número errado todos compartilham um contador.
 
-Testes: `server/auth/abuse.http.test.js` (91 testes, ~4 min) sobe o servidor de verdade contra a branch de teste da Neon e um Resend
+Testes: `server/auth/abuse.http.test.js` (102 testes, ~5 min) sobe o servidor de verdade contra a branch de teste da Neon e um Resend
 falso; só roda com `DATABASE_URL_TEST` e recusa a URL de produção.
 
 ## Ainda em aberto
