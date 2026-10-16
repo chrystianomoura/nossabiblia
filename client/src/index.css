@@ -1369,6 +1369,10 @@ body:has(.read) {
 /* A área de leitura: altura fixa e rolagem vertical própria (a página em volta não rola) */
 .rb-scroll {
   position: relative; /* os versículos medem a posição a partir dela */
+  /* 2 px a mais para cada lado, devolvidos por dentro: o texto fica onde estava, mas a cor das marcações (que sai 2 px para fora do texto) não é cortada
+     pela borda da área de rolagem nas linhas de continuação */
+  margin-inline: -2px;
+  padding-inline: 2px;
   height: var(--rb-h);
   overflow-y: auto;
   overscroll-behavior: contain;
