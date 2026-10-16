@@ -33,6 +33,18 @@ export function parsePaging(query) {
 export const MARK_COLORS = ['amarelo', 'verde', 'azul', 'rosa'];
 export const COMMENT_MAX = 2000;
 
+// Lista das marcações: `color` vazio = todas as cores; `order` é recent (padrão) ou canon (ordem dos livros da Bíblia).
+export function parseMarkListQuery(query) {
+  const color = query.color === undefined || query.color === '' ? null : String(query.color);
+  if (color !== null && !MARK_COLORS.includes(color)) return { error: `Cor inválida. Use ${MARK_COLORS.join(', ')}.` };
+  const order = query.order === undefined || query.order === '' ? 'recent' : String(query.order);
+  if (!['recent', 'canon'].includes(order)) return { error: "Ordem inválida. Use 'recent' ou 'canon'." };
+  const translation = parseTranslation(query.translation);
+  if (translation.error) return { error: translation.error };
+  const paging = parsePaging({ limit: query.limit ?? 20, offset: query.offset });
+  return { value: { color, order, translation: translation.value, ...paging } };
+}
+
 // Inteiro positivo só com dígitos ("1e1", "0x10", " 5" e "5.0" não valem), de 1 até `max`.
 export function parsePositiveInt(raw, max, label) {
   const value = /^\d{1,6}$/.test(String(raw)) ? Number(raw) : NaN;

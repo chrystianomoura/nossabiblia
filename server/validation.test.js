@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseBookId, parsePaging, parseTestament, parseTranslation } from './http/validation.js';
+import { parseBookId, parseMarkListQuery, parsePaging, parseTestament, parseTranslation } from './http/validation.js';
 
 test('tradução: padrão NAA, minúscula vale, outra recusada com a mensagem de sempre', () => {
   assert.deepEqual(parseTranslation(undefined), { value: 'NAA' });
@@ -35,4 +35,14 @@ test('paginação: padrões 50 e 0, e os tetos em vez de erro', () => {
   assert.equal(parsePaging({ offset: '999999999999' }).offset, 100000);
   assert.equal(parsePaging({ offset: '-3' }).offset, 0);
   assert.deepEqual(parsePaging({ limit: 'lixo', offset: 'lixo' }), { limit: 50, offset: 0 });
+});
+
+test('lista de marcações: padrões (recentes, todas as cores, NAA, 20 por página) e entradas inválidas recusadas', () => {
+  assert.deepEqual(parseMarkListQuery({}), { value: { color: null, order: 'recent', translation: 'NAA', limit: 20, offset: 0 } });
+  assert.deepEqual(parseMarkListQuery({ order: 'canon', color: 'azul', translation: 'nvt', limit: '5', offset: '10' }), { value: { color: 'azul', order: 'canon', translation: 'NVT', limit: 5, offset: 10 } });
+  assert.deepEqual(parseMarkListQuery({ color: '', order: '' }).value, { color: null, order: 'recent', translation: 'NAA', limit: 20, offset: 0 });
+  for (const q of [{ color: 'roxo' }, { color: ['rosa', 'azul'] }, { color: 'ROSA' }, { order: 'alfabetica' }, { order: ['recent', 'canon'] }, { translation: 'XYZ' }]) {
+    assert.ok(parseMarkListQuery(q).error, JSON.stringify(q));
+  }
+  assert.equal(parseMarkListQuery({ limit: '9999' }).value.limit, 200, 'limit alto vira o teto, não erro');
 });

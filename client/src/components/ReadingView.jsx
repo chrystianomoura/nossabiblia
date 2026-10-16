@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMarks } from '../lib/marks';
-import { ArrowLeft, Search, Sun, Moon } from 'lucide-react';
+import { ArrowLeft, Bookmark, Search, Sun, Moon } from 'lucide-react';
 import ReaderCard from './ReaderCard';
 import { displayBookName } from '../lib/books';
 import ReaderBar from './ReaderBar';
@@ -196,6 +196,9 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
         </Link>
 
         <div className="read-tools">
+          <Link to={`/marcacoes?t=${translation}`} className="icon-btn" aria-label="Minhas marcações">
+            <Bookmark size={17} aria-hidden="true" />
+          </Link>
           <button
             type="button"
             className="icon-btn"

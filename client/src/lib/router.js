@@ -35,6 +35,11 @@ export function parseRoute({ pathname, search }) {
     return { view, next: search.get('next'), token: search.get('token') };
   }
 
+  if (/^\/marcacoes\/?$/.test(pathname)) {
+    const t = (search.get('t') || '').toUpperCase();
+    return { view: 'marks', translation: TRANSLATIONS.includes(t) ? t : null };
+  }
+
   const match = pathname.match(/^\/ler\/([^/]+)(?:\/(\d+))?\/?$/);
   if (!match) return { view: 'home' };
 

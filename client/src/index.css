@@ -2319,11 +2319,13 @@ body:has(.read) {
 .account-popover {
   position: absolute;
   top: calc(100% + 6px);
-  left: 0;
   right: 0;
+  min-width: 100%;
+  width: max-content;
   z-index: 50;
   background: var(--bg-card);
   border: 1px solid var(--border-strong);
+  padding: 6px; /* o destaque de cada item fica dentro do menu, com folga até a borda */
   border-radius: 20px;
   box-shadow: var(--shadow-modal);
 }
@@ -2332,12 +2334,17 @@ body:has(.read) {
 .account-item {
   display: block;
   width: 100%;
-  padding: 7px 18px;
+  padding: 9px 22px;
   text-align: center;
   font-size: 13.5px;
   font-weight: 500;
   color: var(--text-main);
-  border-radius: 20px;
+  text-decoration: none;
+  border-radius: 14px;
+}
+
+.account-item + .account-item {
+  margin-top: 4px;
 }
 
 @media (hover: hover) {
@@ -2380,35 +2387,35 @@ body:has(.read) {
 /* Aviso discreto de conta não verificada (só aparece quando a pessoa tenta algo que exige conta verificada) */
 .verify-notice {
   position: fixed;
+  top: 50%;
   left: 50%;
-  bottom: calc(24px + env(safe-area-inset-bottom));
   z-index: 10001;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   width: max-content;
-  max-width: calc(100vw - 32px);
-  padding: 10px 10px 10px 18px;
-  border-radius: 18px;
+  max-width: min(720px, calc(100vw - 32px));
+  padding: 16px 16px 16px 26px;
+  border-radius: 22px;
   background: var(--bg-card);
   color: var(--text-main);
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-modal);
-  font-size: 14px;
-  transform: translateX(-50%);
+  font-size: 17px;
+  transform: translate(-50%, -50%); /* no centro da tela, em qualquer aparelho */
 }
 
 .verify-notice-text {
   min-width: 0;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .verify-notice-action {
   flex-shrink: 0;
-  padding: 7px 14px;
-  font-size: 13px;
+  padding: 10px 18px;
+  font-size: 15px;
   font-weight: 600;
-  border-radius: 20px;
+  border-radius: 22px;
   background: var(--btn-dark);
   color: var(--btn-dark-text);
 }
@@ -2418,8 +2425,8 @@ body:has(.read) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   color: var(--text-secondary);
 }
@@ -2430,14 +2437,13 @@ body:has(.read) {
     justify-content: center;
     text-align: center;
     width: calc(100vw - 32px);
-    padding: 14px 40px 14px 16px;
-    position: fixed;
+    padding: 22px 48px 20px 22px;
   }
 
   .verify-notice-close {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 10px;
+    right: 10px;
   }
 }
 
@@ -2530,3 +2536,179 @@ body:has(.read) {
     transform: scale(1.08);
   }
 }
+
+/* ==========================================================================
+   Minhas marcações (/marcacoes)
+   ========================================================================== */
+.mk-main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 28px calc(16px + var(--safe-x)) 48px;
+}
+
+.mk-title {
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.mk-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+/* Seletor de duas opções de larguras diferentes: colunas iguais, para a pílula que desliza (50%) caber sempre */
+.seg--two {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.seg--two .seg-btn {
+  min-width: 0;
+  padding: 5px 16px;
+  white-space: nowrap;
+}
+
+.seg--two[data-active="canon"] .seg-pill {
+  transform: translateX(100%);
+}
+
+.mk-select {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  /* Sem a seta nativa (em nenhum aparelho) e sem o anel de foco amarelo, que o Chrome mostra no seletor depois de escolher */
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: center;
+  text-align-last: center;
+  padding: 0 20px;
+}
+
+.mk-select:focus-visible {
+  outline: none;
+}
+
+/* Com uma cor escolhida, a pílula fica pintada com ela (a mesma cor e linha das marcações do leitor) */
+.mk-select[data-color="amarelo"] { background-color: var(--mark-amarelo); border-color: var(--mark-line-amarelo); }
+.mk-select[data-color="azul"] { background-color: var(--mark-azul); border-color: var(--mark-line-azul); }
+.mk-select[data-color="rosa"] { background-color: var(--mark-rosa); border-color: var(--mark-line-rosa); }
+.mk-select[data-color="verde"] { background-color: var(--mark-verde); border-color: var(--mark-line-verde); }
+
+.icon-btn.icon-btn--active {
+  background: var(--btn-dark);
+  border-color: var(--btn-dark);
+  color: var(--btn-dark-text);
+}
+
+.mk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mk-group {
+  margin: 18px 2px 8px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-main);
+}
+
+.mk-group:first-child {
+  margin-top: 0;
+}
+
+.mk-item {
+  display: block;
+  margin-bottom: 10px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+@media (hover: hover) {
+  .mk-item:hover {
+    border-color: var(--border-strong);
+  }
+}
+
+.mk-ref {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mk-ref svg {
+  color: var(--gold-text);
+}
+
+.mk-tr {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--gold-text) 85%, var(--text-main));
+}
+
+.mk-when {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.mk-text {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--text-main);
+}
+
+.mk-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 8px;
+  text-align: center;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+/* Bolinha da marcação nos resultados da busca (só mostra; a cor e a linha são as mesmas das marcações do leitor) */
+.mark-badge {
+  flex: none;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  /* Cheia da cor da linha: a cor de fundo das marcações é translúcida no tema escuro e deixava o miolo escuro */
+  background: var(--mark-ln);
+  border: 2px solid var(--mark-ln);
+}
+
+.mark-badge[data-mark="amarelo"] { --mark-bg: var(--mark-amarelo); --mark-ln: var(--mark-line-amarelo); }
+.mark-badge[data-mark="azul"] { --mark-bg: var(--mark-azul); --mark-ln: var(--mark-line-azul); }
+.mark-badge[data-mark="rosa"] { --mark-bg: var(--mark-rosa); --mark-ln: var(--mark-line-rosa); }
+.mark-badge[data-mark="verde"] { --mark-bg: var(--mark-verde); --mark-ln: var(--mark-line-verde); }

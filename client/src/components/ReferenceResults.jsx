@@ -1,5 +1,6 @@
 import { BookOpen, ChevronRight } from 'lucide-react';
 import Spinner from './Spinner';
+import MarkDot from './MarkDot';
 import { displayBookName } from '../lib/books';
 import { useJsonList } from '../lib/useJson';
 import { apiUrl } from '../lib/api';
@@ -28,12 +29,14 @@ function BookCard({ book, onOpen }) {
 }
 
 // Cartão de uma referência válida: capítulo inteiro (só o total de versículos) ou o texto dos versículos.
-function ReferenceCard({ item, translation, onOpen }) {
+function ReferenceCard({ item, translation, markIndex, onOpen }) {
   const { candidate, shown, total } = item;
   const { book, chapter, verse } = candidate;
   const isChapter = !verse;
   const first = shown[0]?.verse ?? null;
   const last = shown.length > 1 ? shown.at(-1).verse : null;
+  // Uma bolinha por versículo já marcado entre os mostrados (um intervalo pode ter vários).
+  const marked = isChapter ? [] : shown.map((v) => [v.verse, markIndex.get(`${book.id}:${chapter}:${v.verse}`)]).filter(([, color]) => color);
 
   return (
     <button
@@ -45,6 +48,7 @@ function ReferenceCard({ item, translation, onOpen }) {
         <BookOpen size={14} aria-hidden="true" />
         <span>{isChapter ? refLabel(candidate) : refLabel({ book, chapter, verse: first, verseEnd: last })}</span>
         <span className="search-result-tr" translate="no">({translation})</span>
+        {marked.map(([v, color]) => <MarkDot key={v} color={color} />)}
         <ChevronRight size={16} className="search-result-go" aria-hidden="true" />
       </span>
       {isChapter ? (
@@ -92,7 +96,7 @@ function resolve(candidate, state, translation) {
   return { type: 'card', candidate, shown, total };
 }
 
-export default function ReferenceResults({ parsed, translation, onOpen }) {
+export default function ReferenceResults({ parsed, translation, markIndex, onOpen }) {
   const candidates = parsed.kind === 'reference' ? parsed.candidates : [];
   const urls = candidates.map((c) => (c.error ? null : apiUrl(`/api/books/${c.book.id}/chapters/${c.chapter}?translation=${translation}`)));
   const { states, loading, slow, retry } = useJsonList(urls);
@@ -119,7 +123,7 @@ export default function ReferenceResults({ parsed, translation, onOpen }) {
       <ul className="search-results">
         {cards.map((item) => (
           <li key={`${item.candidate.book.id}-${item.candidate.chapter}-${item.candidate.verse}`}>
-            <ReferenceCard item={item} translation={translation} onOpen={onOpen} />
+            <ReferenceCard item={item} translation={translation} markIndex={markIndex} onOpen={onOpen} />
           </li>
         ))}
       </ul>

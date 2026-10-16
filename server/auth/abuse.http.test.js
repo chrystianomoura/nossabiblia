@@ -1132,6 +1132,74 @@ describe('marcações de versículos', opts, () => {
     } finally { await lim.stop(); }
   });
 
+  test('lista "Minhas marcações": ordem recente e canônica, filtro por cor, paginação e tradução; entradas hostis dão 400', async () => {
+    const { cookie } = await entrar();
+    const marcar = (livro, cap, v, color) => put(cookie, { color, translation: 'NAA' }, url(v, cap, livro));
+    await marcar(43, 3, 16, 'rosa'); // João 3:16
+    await marcar(1, 1, 1, 'amarelo'); // Gênesis 1:1
+    await marcar(SALMOS, 23, 1, 'verde');
+    await marcar(SALMOS, 1, 2, 'rosa');
+    const ref = (m) => `${m.book_id}:${m.chapter}:${m.verse}`;
+    const lista = (q = '') => http.get(`/api/bookmarks${q}`, { cookie });
+
+    const recentes = await lista();
+    assert.equal(recentes.status, 200);
+    assert.match(recentes.headers.get('cache-control') || '', /no-store/);
+    assert.deepEqual(recentes.json.bookmarks.map(ref), [`${SALMOS}:1:2`, `${SALMOS}:23:1`, '1:1:1', '43:3:16'], 'mais recente primeiro');
+    assert.equal(recentes.json.hasMore, false);
+    const item = recentes.json.bookmarks[0];
+    assert.equal(item.book_name, 'Salmos');
+    assert.equal(item.translation, 'NAA');
+    assert.equal(item.fallback, false);
+    assert.ok(item.text.length > 10, 'traz o texto completo do versículo');
+    assert.ok(!/user_id|"id"/.test(recentes.text), 'não vaza ids internos');
+
+    assert.deepEqual((await lista('?order=canon')).json.bookmarks.map(ref), ['1:1:1', `${SALMOS}:1:2`, `${SALMOS}:23:1`, '43:3:16'], 'ordem dos livros da Bíblia');
+    assert.deepEqual((await lista('?color=rosa')).json.bookmarks.map(ref), [`${SALMOS}:1:2`, '43:3:16'], 'filtro por cor (recentes)');
+    assert.deepEqual((await lista('?color=rosa&order=canon')).json.bookmarks.map(ref), [`${SALMOS}:1:2`, '43:3:16'], 'filtro e ordem juntos');
+    assert.deepEqual((await lista('?color=azul')).json.bookmarks, [], 'cor sem nenhuma marcação');
+
+    const p1 = (await lista('?order=canon&limit=3')).json;
+    assert.equal(p1.bookmarks.length, 3);
+    assert.equal(p1.hasMore, true);
+    const p2 = (await lista('?order=canon&limit=3&offset=3')).json;
+    assert.deepEqual(p2.bookmarks.map(ref), ['43:3:16']);
+    assert.equal(p2.hasMore, false);
+
+    const joao = async (t) => (await lista(`?translation=${t}&order=canon`)).json.bookmarks.find((m) => m.book_id === 43); // João 3:16 difere nas duas
+    assert.equal((await joao('NVT')).translation, 'NVT');
+    assert.notEqual((await joao('NVT')).text, (await joao('NAA')).text, 'o texto vem da tradução pedida');
+
+    for (const q of ['?color=roxo', '?color=rosa&color=azul', '?order=alfabetica', '?order=recent;DROP', '?translation=XYZ']) {
+      assert.equal((await lista(q)).status, 400, q);
+    }
+    assert.equal((await lista('?limit=999999&offset=-5')).status, 200, 'limit e offset fora da faixa viram o teto, não erro');
+  });
+
+  test('lista "Minhas marcações": outra pessoa não vê as suas; sem sessão 401; não verificada 403', async () => {
+    const A = await entrar(); const B = await entrar(); const NV = await entrar({ verified: false });
+    await put(A.cookie, { color: 'amarelo' });
+    assert.equal((await http.get('/api/bookmarks', { cookie: A.cookie })).json.bookmarks.length, 1);
+    assert.deepEqual((await http.get('/api/bookmarks', { cookie: B.cookie })).json.bookmarks, []);
+    assert.equal((await http.get('/api/bookmarks')).status, 401);
+    assert.equal((await http.get('/api/bookmarks', { cookie: NV.cookie })).status, 403);
+  });
+
+  test('índice das marcações (bolinha na busca): só as da própria conta, compacto, sem ids; sem sessão 401; não verificada 403', async () => {
+    const A = await entrar(); const B = await entrar(); const NV = await entrar({ verified: false });
+    await put(A.cookie, { color: 'verde' }, url(5, 23));
+    await put(A.cookie, { color: 'rosa' }, url(1, 1, 1));
+    await put(B.cookie, { color: 'azul' }, url(9, 23));
+    const a = await http.get('/api/bookmarks/index', { cookie: A.cookie });
+    assert.equal(a.status, 200);
+    assert.match(a.headers.get('cache-control') || '', /no-store/);
+    assert.deepEqual(a.json, { marks: [[1, 1, 1, 'rosa'], [SALMOS, 23, 5, 'verde']] }, 'ordem canônica e só as dela');
+    assert.deepEqual((await http.get('/api/bookmarks/index', { cookie: B.cookie })).json, { marks: [[SALMOS, 23, 9, 'azul']] });
+    assert.deepEqual((await http.get('/api/bookmarks/index', { cookie: (await entrar()).cookie })).json, { marks: [] });
+    assert.equal((await http.get('/api/bookmarks/index')).status, 401);
+    assert.equal((await http.get('/api/bookmarks/index', { cookie: NV.cookie })).status, 403);
+  });
+
   test('apagar a conta apaga as marcações (cascata) e sessão de conta apagada deixa de valer', async () => {
     const { cookie, id } = await entrar();
     await put(cookie, { color: 'amarelo' });

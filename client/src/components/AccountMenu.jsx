@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { logout } from '../lib/auth';
+import Link from './Link';
 
-// Pílula "Conta" da barra, com um menu pequeno (por ora só "Sair"). Fecha com Esc, clicando fora ou ao escolher; o foco volta
+// Pílula "Conta" da barra, com um menu pequeno ("Marcações" e "Sair"). Fecha com Esc, clicando fora ou ao escolher; o foco volta
 // para a pílula quando o menu fecha pelo teclado.
 export default function AccountMenu() {
   const [open, setOpen] = useState(false);
@@ -41,11 +42,13 @@ export default function AccountMenu() {
       </button>
       {open && (
         <div className="account-popover" role="menu" aria-label="Conta">
+          <Link to="/marcacoes" role="menuitem" className="account-item" autoFocus onClick={() => setOpen(false)}>
+            Marcações
+          </Link>
           <button
             type="button"
             role="menuitem"
             className="account-item"
-            autoFocus
             onClick={() => { setOpen(false); logout(); }}
           >
             Sair

@@ -390,3 +390,125 @@ test('marcar: selecionar texto para copiar não abre a paleta, e marcar não mud
   await expect(page.locator('#v4 .vt')).toHaveAttribute('data-mark', 'rosa');
   expect(await altura()).toBe(antes); // o respiro de 2 px é cancelado pela margem negativa
 });
+
+// ---- Minhas marcações (/marcacoes) ----
+const marcas = (...itens) => ({
+  bookmarks: itens.map(([book_id, book_name, chapter, verse, color, text, translation = 'NAA']) => ({ book_id, book_name, chapter, verse, color, comment: null, updated_at: new Date(Date.now() - 3 * 3600 * 1000).toISOString(), translation, text, fallback: false })),
+  hasMore: false,
+});
+
+test('marcações: o ícone do leitor abre a lista (com a tradução do leitor), ordem e cor vão para o servidor e tocar leva ao versículo', async ({ page }) => {
+  await entrarComo(page);
+  const pedidos = [];
+  await page.route('**/api/bookmarks?*', (route) => {
+    const q = new URL(route.request().url()).searchParams;
+    pedidos.push(Object.fromEntries(q));
+    return respondeJson(route, 200, marcas([19, 'Salmos', 23, 1, 'amarelo', 'O SENHOR é meu pastor.', 'NVT'], [43, 'João', 3, 16, 'rosa', 'Porque Deus amou o mundo.', 'NVT']));
+  });
+  await page.goto('/ler/salmos/23?t=NVT');
+  await page.getByRole('link', { name: 'Minhas marcações' }).click();
+  await expect(page).toHaveURL(/\/marcacoes\?t=NVT$/);
+  await expect(page.locator('.mk-item')).toHaveCount(2);
+  expect(pedidos[0]).toMatchObject({ order: 'recent', translation: 'NVT' });
+  expect(pedidos[0].color).toBeUndefined();
+  await expect(page.locator('.mk-item .vt').first()).toHaveAttribute('data-mark', 'amarelo');
+  await expect(page.locator('.mk-when').first()).toHaveText('há 3 horas');
+
+  await page.getByRole('button', { name: 'Ordem canônica' }).click();
+  await expect.poll(() => pedidos.at(-1)).toMatchObject({ order: 'canon' });
+  await expect(page.locator('.mk-group').first()).toHaveText('Salmos'); // na ordem canônica há um título por livro
+  await page.getByLabel('Filtrar por cor').selectOption('azul');
+  await expect.poll(() => pedidos.at(-1)).toMatchObject({ order: 'canon', color: 'azul' });
+
+  await page.getByRole('group', { name: 'Tradução dos versículos' }).getByRole('button', { name: 'NAA' }).click(); // vale para a lista toda e fica no endereço
+  await expect(page).toHaveURL(/\/marcacoes\?t=NAA$/);
+  await expect.poll(() => pedidos.at(-1)).toMatchObject({ translation: 'NAA', order: 'canon', color: 'azul' });
+  await page.getByRole('group', { name: 'Tradução dos versículos' }).getByRole('button', { name: 'NVT' }).click();
+
+  await page.locator('.mk-item').first().click();
+  await expect(page).toHaveURL(/\/ler\/salmos\/23\?t=NVT&v=1$/);
+});
+
+test('marcações: sem nenhuma marcação a tela explica; com filtro vazio diz a cor; falha mostra "Tentar de novo"', async ({ page }) => {
+  await entrarComo(page);
+  let modo = 'vazio';
+  await page.route('**/api/bookmarks?*', (route) => {
+    if (modo === 'falha') return respondeJson(route, 500, { error: 'x' });
+    return respondeJson(route, 200, { bookmarks: [], hasMore: false });
+  });
+  await page.goto('/marcacoes');
+  await expect(page.locator('.mk-empty')).toContainText('Você ainda não marcou nenhum versículo');
+  await page.getByLabel('Filtrar por cor').selectOption('rosa');
+  await expect(page.locator('.mk-empty')).toHaveText('Nenhuma marcação na cor rosa.');
+  modo = 'falha';
+  await page.getByLabel('Filtrar por cor').selectOption('verde');
+  await expect(page.locator('.mk-empty')).toContainText('Não foi possível carregar suas marcações.');
+  modo = 'vazio';
+  await page.getByRole('button', { name: 'Tentar de novo' }).click();
+  await expect(page.locator('.mk-empty')).toHaveText('Nenhuma marcação na cor verde.');
+});
+
+test('marcações: visitante vai ao login e volta; conta não verificada vê o aviso e nenhuma lista é pedida', async ({ page, context }) => {
+  let pediu = false;
+  await page.route('**/api/bookmarks?*', (route) => { pediu = true; return respondeJson(route, 200, { bookmarks: [], hasMore: false }); });
+  await page.goto('/marcacoes');
+  await expect(page).toHaveURL(/\/entrar\?next=%2Fmarcacoes/);
+
+  const outra = await context.newPage();
+  await mockApi(outra);
+  await entrarComo(outra, { verificada: false });
+  await outra.route('**/api/bookmarks?*', (route) => { pediu = true; return respondeJson(route, 200, { bookmarks: [], hasMore: false }); });
+  await outra.goto('/marcacoes');
+  await expect(outra.locator('.mk-empty')).toHaveText('Confirme seu e-mail para ver suas marcações.');
+  expect(pediu).toBe(false);
+});
+
+test('marcações: o ícone da própria tela fica marcado; no topo busca a lista de novo (sem recarregar a página), rolada sobe', async ({ page }) => {
+  await entrarComo(page);
+  let pedidos = 0;
+  await page.route('**/api/bookmarks?*', (route) => {
+    pedidos += 1;
+    return respondeJson(route, 200, marcas(...Array.from({ length: 30 }, (_, i) => [19, 'Salmos', 23, i + 1, 'amarelo', `Versículo ${i + 1} do capítulo, com texto para ocupar espaço.`])));
+  });
+  await page.goto('/marcacoes');
+  const icone = page.getByRole('button', { name: 'Minhas marcações' });
+  await expect(icone).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.mk-item')).toHaveCount(30);
+  await page.evaluate(() => { window.__marca = 'mesma-pagina'; });
+  await icone.click(); // no topo: busca de novo
+  await expect.poll(() => pedidos).toBe(2);
+  expect(await page.evaluate(() => window.__marca)).toBe('mesma-pagina'); // não recarregou
+  await page.evaluate(() => { document.getElementById('root').scrollTop = 800; });
+  await icone.dispatchEvent('click'); // rolada: sobe e não busca (sem o clique do Playwright, que rolaria até o botão antes)
+  await expect.poll(() => page.evaluate(() => document.getElementById('root').scrollTop)).toBe(0);
+  expect(pedidos).toBe(2);
+});
+
+test('busca: versículo já marcado mostra a bolinha da cor (resultado de palavra e cartão de referência); visitante não pede o índice', async ({ page, context }) => {
+  await entrarComo(page);
+  let pedidos = 0;
+  await page.route('**/api/bookmarks/index', (route) => { pedidos += 1; return respondeJson(route, 200, { marks: [[43, 3, 16, 'rosa']] }); });
+  await page.goto('/');
+  await abrirBusca(page);
+  await page.getByRole('searchbox').fill('Deus');
+  await expect(page.locator('.search-result')).toHaveCount(2);
+  await expect(page.locator('.search-result .mark-badge')).toHaveCount(1);
+  await expect(page.locator('.search-result', { hasText: 'João 3:16' }).locator('.mark-badge')).toHaveAttribute('data-mark', 'rosa');
+  await expect(page.getByRole('img', { name: 'Marcado de rosa' })).toBeVisible();
+  await page.getByRole('searchbox').fill('joão 3:16');
+  await expect(page.locator('.search-result--go .mark-badge')).toHaveAttribute('data-mark', 'rosa');
+  await page.getByRole('searchbox').fill('joão 3:17'); // outro versículo do mesmo capítulo: sem bolinha
+  await expect(page.locator('.search-result--go')).toHaveCount(1);
+  await expect(page.locator('.search-result--go .mark-badge')).toHaveCount(0);
+  expect(pedidos).toBe(1); // o índice é pedido uma vez ao abrir, não a cada busca
+
+  const visitante = await context.newPage();
+  await mockApi(visitante);
+  let pediuVisitante = false;
+  await visitante.route('**/api/bookmarks/index', (route) => { pediuVisitante = true; return respondeJson(route, 200, { marks: [] }); });
+  await visitante.goto('/');
+  await abrirBusca(visitante);
+  await visitante.getByRole('searchbox').fill('Deus');
+  await expect(visitante.locator('.search-result')).toHaveCount(2);
+  expect(pediuVisitante).toBe(false);
+});

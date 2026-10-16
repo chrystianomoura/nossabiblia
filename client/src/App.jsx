@@ -9,6 +9,7 @@ import LoginPage from './components/LoginPage';
 import ConfirmPage from './components/ConfirmPage';
 import ForgotPage from './components/ForgotPage';
 import ResetPage from './components/ResetPage';
+import MarksPage from './components/MarksPage';
 import { loadSession } from './lib/auth';
 import { useBooks } from './lib/books';
 import { parseRoute, useLocation } from './lib/router';
@@ -57,6 +58,14 @@ export default function App() {
           route={route}
           books={books}
           booksError={booksError}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenSearch={() => setIsSearchOpen(true)}
+        />
+      ) : route.view === 'marks' ? (
+        <MarksPage
+          route={route}
+          books={books}
           theme={theme}
           onToggleTheme={toggleTheme}
           onOpenSearch={() => setIsSearchOpen(true)}

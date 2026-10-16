@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, BookOpen, ArrowLeftRight, ChevronDown, ListFilter } from 'lucide-react';
 import Spinner from './Spinner';
 import ReferenceResults from './ReferenceResults';
+import MarkDot from './MarkDot';
+import { useMarkIndex } from '../lib/mark-index';
 import { navigate, readPath } from '../lib/router';
 import { displayBookName, slugify, useBooks } from '../lib/books';
 import { parseReference } from '../lib/reference';
@@ -35,6 +37,7 @@ const searchUrl = (term, translation, offset = 0, { testament, bookId } = NO_FIL
 const FOCUSABLE = 'button:not(:disabled), [href], input, select, [tabindex]:not([tabindex="-1"])';
 
 export default function SearchModal({ isOpen, onClose }) {
+  const markIndex = useMarkIndex(isOpen); // versículos já marcados pela conta (bolinha nos resultados)
   const [query, setQuery] = useState('');
   const [translation, setTranslation] = useState('NAA');
   // Recorte da busca de palavra: um testamento OU um livro (escolher um zera o outro). Zera ao fechar o modal.
@@ -464,7 +467,7 @@ export default function SearchModal({ isOpen, onClose }) {
             {parsed.kind !== 'none' && (
               <>
                 {parsed.kind === 'book' && <h3 className="search-group-label">Livro</h3>}
-                <ReferenceResults parsed={parsed} translation={translation} onOpen={openReference} />
+                <ReferenceResults parsed={parsed} translation={translation} markIndex={markIndex} onOpen={openReference} />
               </>
             )}
 
@@ -514,6 +517,7 @@ export default function SearchModal({ isOpen, onClose }) {
                         <BookOpen size={14} aria-hidden="true" />
                         <span>{displayBookName(r.book_name)} {r.chapter}:{r.verse}</span>
                         <span className="search-result-tr" translate="no">({r.translation})</span>
+                        {markIndex.get(`${r.book_id}:${r.chapter}:${r.verse}`) && <MarkDot color={markIndex.get(`${r.book_id}:${r.chapter}:${r.verse}`)} />}
                         {r.occurrences > 1 && (
                           <span
                             className="search-result-badge"

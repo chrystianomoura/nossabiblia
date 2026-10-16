@@ -3,8 +3,8 @@
 import { sessionCookieName } from '../auth/session.js';
 import { authenticate } from '../services/accounts.js';
 import { findBook } from '../services/books.js';
-import { upsertBookmark, deleteBookmark, chapterMarks, BookmarkError } from '../services/bookmarks.js';
-import { parseBookmarkBody, parsePositiveInt } from '../http/validation.js';
+import { upsertBookmark, deleteBookmark, chapterMarks, listBookmarks, markIndex, BookmarkError } from '../services/bookmarks.js';
+import { parseBookmarkBody, parseMarkListQuery, parsePositiveInt } from '../http/validation.js';
 
 const MAX_VERSE = 176; // o maior capítulo (Salmos 119)
 
@@ -60,6 +60,34 @@ export default async function marksRoutes(fastify) {
     } catch (err) {
       request.log.error(err);
       return reply.code(500).send({ error: 'Erro ao remover a marcação.', code: 'erro_interno' });
+    }
+  });
+
+  // Índice de todas as marcações da conta (a busca usa para pôr a bolinha nos versículos já marcados).
+  fastify.get('/bookmarks/index', async (request, reply) => {
+    try {
+      const user = await verifiedUser(request, reply);
+      if (!user) return reply;
+      reply.header('Cache-Control', 'private, no-store');
+      return await markIndex(user.id);
+    } catch (err) {
+      request.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao carregar as marcações.', code: 'erro_interno' });
+    }
+  });
+
+  // Tela "Minhas marcações": ?order=recent|canon &color= &translation= &limit= &offset=
+  fastify.get('/bookmarks', async (request, reply) => {
+    try {
+      const user = await verifiedUser(request, reply);
+      if (!user) return reply;
+      const query = parseMarkListQuery(request.query);
+      if (query.error) return reply.code(400).send({ error: query.error, code: 'dados_invalidos' });
+      reply.header('Cache-Control', 'private, no-store');
+      return await listBookmarks(user.id, query.value);
+    } catch (err) {
+      request.log.error(err);
+      return reply.code(500).send({ error: 'Erro ao carregar as marcações.', code: 'erro_interno' });
     }
   });
 
