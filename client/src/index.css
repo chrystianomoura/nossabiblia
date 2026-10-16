@@ -2457,7 +2457,7 @@ body:has(.read) {
    ========================================================================== */
 /* O recuo negativo cancela o respiro de 2 px: marcar ou desmarcar não muda a quebra de linha do texto */
 .vt[data-mark] {
-  padding: 0 2px;
+  padding: 2px;
   margin: 0 -2px;
   background: var(--mark-bg);
   border-bottom: 2px solid var(--mark-ln);
@@ -2521,15 +2521,6 @@ body:has(.read) {
 .mark-dot[data-mark="azul"] { --mark-bg: var(--mark-azul); --mark-ln: var(--mark-line-azul); }
 .mark-dot[data-mark="rosa"] { --mark-bg: var(--mark-rosa); --mark-ln: var(--mark-line-rosa); }
 
-.mark-clear {
-  margin-left: 2px;
-  padding: 6px 10px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  border-radius: 14px;
-}
-
 .mark-error {
   color: var(--auth-error);
 }
@@ -2537,10 +2528,5 @@ body:has(.read) {
 @media (hover: hover) {
   .mark-dot:hover {
     transform: scale(1.08);
-  }
-
-  .mark-clear:hover {
-    color: var(--text-main);
-    background: var(--bg-card-subtle);
   }
 }

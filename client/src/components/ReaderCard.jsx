@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { displayBookName } from '../lib/books';
 import { writeStorage } from '../lib/storage';
 import MarkPalette from './MarkPalette';
-import { useMarks } from '../lib/marks';
 import { requireVerified } from '../lib/verify-gate';
 
 // Guarda onde o leitor está, sem mexer na URL: o versículo que está no topo fica no estado desta entrada do histórico,
@@ -36,18 +35,18 @@ function topAnchor(el) {
 // Leitor em cartão (todos os aparelhos): o texto é uma coluna que rola DENTRO do cartão, e a página não rola.
 // As setas dos lados (e as do teclado, tratadas pelo ReadingView) trocam de capítulo.
 export default function ReaderCard({
-  bar, data, stale, status, chapterKey, fontSize, verse, verseEnd,
+  bar, data, stale, status, chapterKey, fontSize, verse, verseEnd, marks, onMark,
   hasPrev, hasNext, onPrevChapter, onNextChapter,
 }) {
   const scrollRef = useRef(null);
   const anchor = useRef(null); // onde o texto estava no topo, para a troca do tamanho da letra não fazer você perder o lugar
   // Quem identifica o texto mostrado é o próprio capítulo (e não o endereço): enquanto o novo carrega, o texto anterior
   // fica na tela (`stale`) sem ser recriado nem voltar ao topo, e a troca acontece uma vez só, de uma vez.
+  const lastVerse = useRef(verse); // o versículo do endereço na última vez que a rolagem foi posicionada
   const place = useRef(null); // último ponto lido { chapter, id, fraction }: sobrevive à troca de tradução, que recria a área de rolagem
   const contentKey = data ? `${data.book.id}/${data.chapter}/${data.translation}` : '';
 
   // Marcações: tocar num versículo abre a paleta de cores (a menos que a pessoa esteja selecionando texto).
-  const { marks, change } = useMarks(data?.book.id, data?.chapter);
   const [open, setOpen] = useState(null); // { verse, error? } do versículo com a paleta aberta
   const openVerse = open && data && open.chapterKey === `${data.book.id}/${data.chapter}` ? open : null;
 
@@ -70,7 +69,7 @@ export default function ReaderCard({
 
   function onVerseClick(event) {
     const node = event.target.closest('.rb-verse');
-    if (!node || event.target.closest('.mark-palette')) return;
+    if (stale || !node || event.target.closest('.mark-palette')) return;
     if (window.getSelection()?.toString()) return; // arrastou para copiar um trecho: não é um toque para marcar
     const verseNumber = Number(node.dataset.verse);
     const chapterKey = `${data.book.id}/${data.chapter}`;
@@ -81,7 +80,7 @@ export default function ReaderCard({
     if (!requireVerified()) { setOpen(null); return; } // visitante vai ao login; conta não verificada vê o aviso
     const chapterKey = `${data.book.id}/${data.chapter}`;
     setOpen(null);
-    const r = await change(verseNumber, color, data.translation);
+    const r = await onMark(verseNumber, color, data.translation);
     if (!r.ok) setOpen({ verse: verseNumber, chapterKey, error: r.data?.error || 'Não foi possível salvar. Tente de novo.' });
   }
 
@@ -94,8 +93,11 @@ export default function ReaderCard({
     const target = saved ?? verse;
     el.scrollTop = 0;
     // Troca de NAA/NVT no mesmo capítulo: continua no versículo em que você estava, quantas vezes trocar.
+    // Mas pedir OUTRO versículo (pela busca) no mesmo capítulo não é troca de tradução: aí vale o versículo pedido.
+    const verseChanged = lastVerse.current !== verse;
+    lastVerse.current = verse;
     const sameChapter = place.current?.chapter === `${data.book.id}/${data.chapter}`;
-    const kept = !saved && sameChapter ? el.querySelector(`#${place.current.id}`) : null;
+    const kept = !saved && sameChapter && !verseChanged ? el.querySelector(`#${place.current.id}`) : null;
     if (kept) {
       el.scrollTop = kept.offsetTop + place.current.fraction * kept.offsetHeight;
       return;

@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react';
 import { MARK_COLORS } from '../lib/marks';
 
-// Paleta que abre embaixo do versículo tocado: as quatro cores e, se já houver marcação, "Remover". Fica dentro do próprio versículo
+// Paleta que abre embaixo do versículo tocado: as quatro cores; tocar na cor já marcada (com o certo) remove a marcação. Fica dentro do próprio versículo
 // (que é `position: relative`), então rola junto com o texto e não precisa de conta de posição.
 export default function MarkPalette({ verse, current, error, onPick, onClear }) {
   return (
@@ -13,16 +13,13 @@ export default function MarkPalette({ verse, current, error, onPick, onClear }) 
             type="button"
             className={`mark-dot${current === color ? ' is-current' : ''}`}
             data-mark={color}
-            aria-label={`Marcar de ${color}`}
+            aria-label={current === color ? `Remover a marcação ${color}` : `Marcar de ${color}`}
             aria-pressed={current === color}
-            onClick={() => onPick(color)}
+            onClick={() => (current === color ? onClear() : onPick(color))}
           >
             {current === color && <Check size={14} strokeWidth={3} aria-hidden="true" />}
           </button>
         ))}
-        {current && (
-          <button type="button" className="mark-clear" onClick={onClear}>Remover</button>
-        )}
       </span>
       {error && <span className="mark-error" role="alert">{error}</span>}
     </span>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useMarks } from '../lib/marks';
 import { ArrowLeft, Search, Sun, Moon } from 'lucide-react';
 import ReaderCard from './ReaderCard';
 import { displayBookName } from '../lib/books';
@@ -32,9 +33,6 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
   const [fontSize, setFontSize] = useState(loadFontSize);
   const chapterUrl = bookId ? apiUrl(`/api/books/${bookId}/chapters/${chapter}?translation=${translation}`) : null;
   const { data, error, slow, retry, stale } = useJson(chapterUrl);
-  // Enquanto o capítulo novo carrega, o anterior continua na tela (nada de piscar em branco).
-  const shown = data ?? (error ? undefined : stale);
-  const isStale = data === undefined && shown !== undefined;
   const touchStart = useRef(null);
 
   useEffect(() => {
@@ -57,6 +55,19 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
     if (chapter < book.chapters_count) next = { slug, chapter: chapter + 1 };
     else if (bookIndex < books.length - 1) next = { slug: books[bookIndex + 1].slug, chapter: 1 };
   }
+
+  // As marcações saem junto com o texto e o capítulo só entra na tela quando os dois chegaram (cores e versículos aparecem juntos).
+  const neighbours = [prev, next].flatMap((n) => {
+    const target = n && books?.find((b) => b.slug === n.slug);
+    return target ? [`${target.id}/${n.chapter}`] : [];
+  });
+  const { marks, change: changeMark, ready: marksReady } = useMarks(bookId, chapter, neighbours);
+  const arrived = data !== undefined && marksReady;
+  const [lastShown, setLastShown] = useState(undefined);
+  if (arrived && data !== lastShown) setLastShown(data);
+  // Enquanto o capítulo novo carrega, o anterior continua na tela (nada de piscar em branco).
+  const shown = arrived ? data : (error ? undefined : (lastShown ?? stale));
+  const isStale = !arrived && shown !== undefined;
 
   // Carrega de antemão o capítulo anterior, o seguinte e a outra tradução deste: a troca fica instantânea.
   const prevKey = prev ? `${prev.slug}/${prev.chapter}` : '';
@@ -221,6 +232,8 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
           fontSize={fontSize}
           verse={verse}
           verseEnd={verseEnd}
+          marks={marks}
+          onMark={changeMark}
           hasPrev={Boolean(prev)}
           hasNext={Boolean(next)}
           onPrevChapter={() => go(prev)}
