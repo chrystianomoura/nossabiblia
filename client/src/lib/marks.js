@@ -11,6 +11,7 @@ const cache = new Map();
 const inflight = new Map();
 const CACHE_LIMIT = 40;
 const RETRY_DELAY_MS = 400;
+const REFRESH_AFTER_MS = 45_000; // longe da aba por mais que isso: ao voltar, as marcações são lidas de novo (podem ter mudado em outro aparelho)
 
 function remember(cacheKey, marks) {
   cache.delete(cacheKey);
@@ -20,9 +21,9 @@ function remember(cacheKey, marks) {
 
 // Busca as marcações de um capítulo. Falha de rede ou do servidor (5xx) é tentada de novo uma vez, sem ninguém perceber; se continuar,
 // devolve null (o capítulo abre sem cores e nada é guardado no cache, para a próxima tentativa começar do zero).
-function fetchMarks(cacheKey, key) {
-  if (cache.has(cacheKey)) return Promise.resolve(cache.get(cacheKey));
-  if (!inflight.has(cacheKey)) {
+function fetchMarks(cacheKey, key, force = false) {
+  if (!force && cache.has(cacheKey)) return Promise.resolve(cache.get(cacheKey));
+  if (force || !inflight.has(cacheKey)) {
     const path = `/api/books/${key.replace('/', '/chapters/')}/marks`;
     const attempt = async () => {
       let r = await authRequest('GET', path);
@@ -73,6 +74,38 @@ export function useMarks(bookId, chapter, nearby = []) {
     return () => clearTimeout(timer);
   }, [key, scope, nearbyKey]);
 
+  // Ao voltar para a aba (ou para a janela) depois de mais de 45 s fora, relê as marcações do capítulo aberto e dos vizinhos: quem marcou em outro
+  // aparelho vê a mudança sem recarregar a página. Só para conta verificada (sem `key` não há nada a ler), uma leitura pequena por volta, e nada
+  // é feito enquanto uma marcação sua ainda está sendo salva (a resposta antiga atropelaria a cor que você acabou de escolher).
+  const pending = useRef(0);
+  useEffect(() => {
+    if (!key) return undefined;
+    let alive = true;
+    let away = document.hidden ? Date.now() : null;
+    const leave = () => { away ??= Date.now(); };
+    const back = () => {
+      const was = away;
+      away = null;
+      if (was === null || Date.now() - was < REFRESH_AFTER_MS || pending.current > 0) return;
+      for (const k of [...cache.keys()]) if (k.startsWith(`${scope}|`)) cache.delete(k); // o que estava guardado deixou de ser confiável
+      fetchMarks(cacheKey, key, true).then((fresh) => {
+        if (!alive || !fresh || pending.current > 0) return;
+        setState((s) => (s.key === key && JSON.stringify(s.marks) === JSON.stringify(fresh) ? s : { key, marks: fresh })); // só repinta se mudou
+        for (const other of nearbyKey.split(',').filter(Boolean)) fetchMarks(`${scope}|${other}`, other).catch(() => {});
+      });
+    };
+    const onVisibility = () => (document.hidden ? leave() : back());
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('blur', leave);
+    window.addEventListener('focus', back);
+    return () => {
+      alive = false;
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('blur', leave);
+      window.removeEventListener('focus', back);
+    };
+  }, [key, cacheKey, scope, nearbyKey]);
+
   // Pronto: sessão conhecida e, se há marcas a buscar, as deste capítulo já chegaram (ou já estavam no cache). Até lá `marks` continua
   // sendo as do capítulo anterior, que é justamente o texto que o leitor mantém na tela enquanto o novo carrega.
   const cached = cacheKey ? cache.get(cacheKey) : undefined;
@@ -100,11 +133,12 @@ export function useMarks(bookId, chapter, nearby = []) {
     };
     setVerse(color); // aparece na hora
     const path = `/api/bookmarks/${key}/${verse}`;
+    pending.current += 1;
     const run = (queue.current.get(verse) ?? Promise.resolve()).then(async () => {
       const r = color ? await authRequest('PUT', path, { color, translation }) : await authRequest('DELETE', path);
       if (!r.ok) setVerse(prev, color); // o servidor recusou: volta ao que era
       return r;
-    });
+    }).finally(() => { pending.current -= 1; });
     queue.current.set(verse, run.catch(() => {}));
     return run;
   }, [key, cacheKey]);

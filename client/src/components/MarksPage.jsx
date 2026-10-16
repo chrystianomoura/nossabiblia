@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Bookmark, BookOpen, Moon, Search, Sun } from 'lucide-react';
 import Link from './Link';
 import TranslationToggle from './TranslationToggle';
@@ -7,6 +7,7 @@ import { displayBookName } from '../lib/books';
 import { MARK_COLORS } from '../lib/marks';
 import { navigate, readPath } from '../lib/router';
 import { relativeTime } from '../lib/relative-time';
+import { useOnReturnToTab } from '../lib/return-to-tab';
 import { readStorage } from '../lib/storage';
 import { TRANSLATIONS } from '../lib/translations';
 import { requireVerified } from '../lib/verify-gate';
@@ -32,8 +33,11 @@ function useMarkList({ enabled, order, color, translation }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState(false);
 
-  const url = useCallback((offset) => {
-    const params = new URLSearchParams({ order, translation, limit: String(PAGE_SIZE), offset: String(offset) });
+  // Releitura ao voltar para a aba: pede de novo tudo o que já estava carregado (até 200), sem a lista encolher e sem erro à vista se falhar.
+  const quiet = useRef(0); // quantos itens a releitura silenciosa deve repor (0 = não é releitura silenciosa)
+
+  const url = useCallback((offset, limit = PAGE_SIZE) => {
+    const params = new URLSearchParams({ order, translation, limit: String(limit), offset: String(offset) });
     if (color) params.set('color', color);
     return `/api/bookmarks?${params}`;
   }, [order, color, translation]);
@@ -41,8 +45,11 @@ function useMarkList({ enabled, order, color, translation }) {
   useEffect(() => {
     if (!key) return undefined;
     let alive = true;
-    authRequest('GET', url(0)).then((r) => {
+    const keep = quiet.current;
+    quiet.current = 0;
+    authRequest('GET', url(0, keep ? Math.min(200, Math.max(PAGE_SIZE, keep)) : PAGE_SIZE)).then((r) => {
       if (!alive) return;
+      if (!r.ok && keep) return; // releitura silenciosa que falhou: continua com o que já está na tela
       setState(r.ok ? { key, order, items: r.data.bookmarks, hasMore: r.data.hasMore, error: false } : { key, order, items: [], hasMore: false, error: true });
     });
     return () => { alive = false; };
@@ -67,6 +74,7 @@ function useMarkList({ enabled, order, color, translation }) {
     moreError,
     loadMore,
     retry: () => setAttempt((n) => n + 1),
+    refreshQuietly: () => { quiet.current = state.items.length; setAttempt((n) => n + 1); },
   };
 }
 
@@ -86,6 +94,7 @@ export default function MarksPage({ route, books, theme, onToggleTheme, onOpenSe
   }, [status]);
 
   const list = useMarkList({ enabled: verified && Boolean(books), order, color, translation });
+  useOnReturnToTab(list.refreshQuietly, { enabled: verified && Boolean(books) });
   // O ícone da própria tela: rolada, sobe suavemente (sem animação para quem pediu menos movimento); já no topo, busca a lista de novo
   // (a mesma ordem, cor e tradução, de volta à primeira página), sem recarregar a página inteira.
   function onBookmarkClick() {

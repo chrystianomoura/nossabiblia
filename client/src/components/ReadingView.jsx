@@ -98,6 +98,7 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes(event.target.tagName)) return;
       if (document.querySelector('[role="dialog"]')) return;
+      if (event.target.closest?.('.mark-palette')) return; // ← → dentro da paleta andam entre as cores
       if (event.key === 'ArrowLeft') go(prev);
       if (event.key === 'ArrowRight') go(next);
     }

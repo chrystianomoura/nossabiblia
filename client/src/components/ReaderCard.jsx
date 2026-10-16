@@ -49,10 +49,20 @@ export default function ReaderCard({
   // Marcações: tocar num versículo abre a paleta de cores (a menos que a pessoa esteja selecionando texto).
   const [open, setOpen] = useState(null); // { verse, error? } do versículo com a paleta aberta
   const openVerse = open && data && open.chapterKey === `${data.book.id}/${data.chapter}` ? open : null;
+  // Teclado: só UM versículo entra na ordem do Tab (o último em que o foco esteve; no começo, o primeiro) e as setas ↑ ↓ andam entre eles;
+  // Enter ou espaço abre a paleta e leva o foco às cores (← → entre elas, Enter escolhe, Esc fecha e devolve o foco ao versículo).
+  const [roving, setRoving] = useState({ key: '', verse: null });
+  const rovingVerse = roving.key === contentKey && roving.verse ? roving.verse : (data?.verses[0]?.verse ?? null);
+  const openedByKeyboard = useRef(false);
 
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (event) => { if (event.key === 'Escape') setOpen(null); };
+    const onKey = (event) => {
+      if (event.key !== 'Escape') return;
+      const inPalette = document.activeElement?.closest?.('.mark-palette');
+      setOpen(null);
+      if (inPalette) document.getElementById(`v${open.verse}`)?.focus({ preventScroll: true }); // quem usava o teclado volta ao versículo
+    };
     const onPointerDown = (event) => { if (!event.target.closest?.('.mark-palette, .rb-verse')) setOpen(null); };
     window.addEventListener('keydown', onKey);
     document.addEventListener('pointerdown', onPointerDown);
@@ -64,22 +74,45 @@ export default function ReaderCard({
 
   // Depois de abrir, garante que a paleta apareça inteira (o último versículo fica rente ao fim da área de leitura).
   useEffect(() => {
-    if (openVerse) scrollRef.current?.querySelector('.mark-palette')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (!openVerse) return;
+    const palette = scrollRef.current?.querySelector('.mark-palette');
+    if (openedByKeyboard.current) { // aberta pelo teclado: o foco vai para a cor atual (ou a primeira)
+      openedByKeyboard.current = false;
+      (palette?.querySelector('.mark-dot.is-current') ?? palette?.querySelector('.mark-dot'))?.focus({ preventScroll: true });
+    }
+    palette?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [openVerse?.verse]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function togglePalette(verseNumber) {
+    const chapterKey = `${data.book.id}/${data.chapter}`;
+    setOpen((o) => (o && o.verse === verseNumber && o.chapterKey === chapterKey ? null : { verse: verseNumber, chapterKey }));
+  }
+
+  function onVerseKeyDown(event, verseNumber) {
+    if (stale || event.target !== event.currentTarget) return; // teclas dentro da paleta são da paleta
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      const sibling = event.key === 'ArrowDown' ? event.currentTarget.nextElementSibling : event.currentTarget.previousElementSibling;
+      if (sibling?.classList.contains('rb-verse')) { event.preventDefault(); sibling.focus(); }
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openedByKeyboard.current = true;
+      togglePalette(verseNumber);
+    }
+  }
 
   function onVerseClick(event) {
     const node = event.target.closest('.rb-verse');
     if (stale || !node || event.target.closest('.mark-palette')) return;
     if (window.getSelection()?.toString()) return; // arrastou para copiar um trecho: não é um toque para marcar
-    const verseNumber = Number(node.dataset.verse);
-    const chapterKey = `${data.book.id}/${data.chapter}`;
-    setOpen((o) => (o && o.verse === verseNumber && o.chapterKey === chapterKey ? null : { verse: verseNumber, chapterKey }));
+    togglePalette(Number(node.dataset.verse));
   }
 
   async function applyMark(verseNumber, color) {
     if (!requireVerified()) { setOpen(null); return; } // visitante vai ao login; conta não verificada vê o aviso
     const chapterKey = `${data.book.id}/${data.chapter}`;
+    const byKeyboard = Boolean(document.activeElement?.closest?.('.mark-palette'));
     setOpen(null);
+    if (byKeyboard) requestAnimationFrame(() => document.getElementById(`v${verseNumber}`)?.focus({ preventScroll: true }));
     const r = await onMark(verseNumber, color, data.translation);
     if (!r.ok) setOpen({ verse: verseNumber, chapterKey, error: r.data?.error || 'Não foi possível salvar. Tente de novo.' });
   }
@@ -191,6 +224,11 @@ export default function ReaderCard({
                   key={v.verse}
                   id={`v${v.verse}`}
                   data-verse={v.verse}
+                  tabIndex={v.verse === rovingVerse ? 0 : -1}
+                  role="group"
+                  aria-label={`Versículo ${v.verse}`}
+                  onFocus={(event) => { if (event.target === event.currentTarget) setRoving({ key: contentKey, verse: v.verse }); }}
+                  onKeyDown={(event) => onVerseKeyDown(event, v.verse)}
                   className={`rb-verse verse${verse && v.verse >= verse && v.verse <= (verseEnd ?? verse) ? ' is-target' : ''}`}
                 >
                   <sup className="verse-num">{v.verse}</sup>

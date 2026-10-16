@@ -2316,6 +2316,14 @@ body:has(.read) {
   position: relative;
 }
 
+/* Centro óptico do nome: "Conta" e "Entrar" têm quase só letras minúsculas, que ficam na metade de baixo da linha; o texto sobe 1 px (a pílula não muda de
+   altura: 1 px a menos em cima, 1 px a mais embaixo). Vale em todas as larguras: só o espaçamento vertical é definido aqui. */
+.account-menu > .pill-btn,
+.navbar-actions > a.pill-btn { /* "Entrar" (quem não está logado) ocupa o mesmo lugar e fica igual */
+  padding-top: 6px;
+  padding-bottom: 8px;
+}
+
 .account-popover {
   position: absolute;
   top: calc(100% + 6px);
@@ -2517,8 +2525,9 @@ body:has(.read) {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: var(--text-main);
-  background: var(--mark-bg);
+  /* Cheia da cor da linha (a cor de fundo das marcações é translúcida no tema escuro e deixava o miolo escuro); o certo contrasta com ela */
+  color: var(--btn-dark-text);
+  background: var(--mark-ln);
   border: 2px solid var(--mark-ln);
 }
 

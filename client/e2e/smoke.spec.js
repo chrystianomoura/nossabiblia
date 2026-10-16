@@ -512,3 +512,105 @@ test('busca: versículo já marcado mostra a bolinha da cor (resultado de palavr
   await expect(visitante.locator('.search-result')).toHaveCount(2);
   expect(pediuVisitante).toBe(false);
 });
+
+test('teclado: Enter abre a paleta no versículo, ← → andam entre as cores, Enter escolhe e o foco volta ao versículo; Esc fecha', async ({ page }) => {
+  await entrarComo(page);
+  const pedidos = [];
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [], favorites: [] }));
+  await page.route('**/api/bookmarks/**', (route) => { pedidos.push(route.request().postDataJSON()); return respondeJson(route, 200, {}); });
+  await page.goto('/ler/salmos/23?t=NAA');
+  await expect(page.locator('#v1')).toHaveAttribute('tabindex', '0'); // só um versículo entra na ordem do Tab
+  await expect(page.locator('#v2')).toHaveAttribute('tabindex', '-1');
+  await page.locator('#v1').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Marcar de amarelo' })).toBeFocused(); // o foco vai para a primeira cor
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('button', { name: 'Marcar de azul' })).toBeFocused();
+  await expect(page).toHaveURL(/\/ler\/salmos\/23/); // a seta não troca de capítulo dentro da paleta
+  await page.keyboard.press('End');
+  await expect(page.getByRole('button', { name: 'Marcar de verde' })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('button', { name: 'Marcar de amarelo' })).toBeFocused(); // dá a volta
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter'); // azul
+  await expect(page.locator('#v1 .vt')).toHaveAttribute('data-mark', 'azul');
+  expect(pedidos[0]).toMatchObject({ color: 'azul' });
+  await expect(page.locator('#v1')).toBeFocused(); // o foco volta ao versículo
+  await expect(page.locator('.mark-palette')).toHaveCount(0);
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#v2')).toBeFocused();
+  await expect(page.locator('#v2')).toHaveAttribute('tabindex', '0'); // o foco passa a ser o ponto de entrada do Tab
+  await page.keyboard.press(' ');
+  await expect(page.locator('.mark-dot').first()).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.mark-palette')).toHaveCount(0);
+  await expect(page.locator('#v2')).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('#v1')).toBeFocused();
+});
+
+test('marcações: ao voltar para a aba depois de mais de 45 s, relê o capítulo (e só repinta se mudou); uma ausência curta não pede nada', async ({ page }) => {
+  await page.clock.install();
+  await entrarComo(page);
+  let leituras = 0;
+  let servidor = [];
+  await page.route('**/api/books/*/chapters/*/marks', (route) => { leituras += 1; return respondeJson(route, 200, { bookmarks: servidor, favorites: [] }); });
+  await page.goto('/ler/salmos/23?t=NAA');
+  await expect(page.locator('#v1')).toBeVisible();
+  await expect(page.locator('#v2 .vt')).not.toHaveAttribute('data-mark', /.+/);
+  await page.clock.fastForward(1000); // deixa as leituras antecipadas dos capítulos vizinhos acontecerem antes de contar
+  await expect.poll(() => leituras).toBe(3); // o capítulo aberto e os dois vizinhos
+  const base = leituras;
+  const sair = () => page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  const voltar = () => page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  servidor = [{ verse: 2, color: 'verde' }]; // marcado em outro aparelho
+  await sair();
+  await page.clock.fastForward(10_000);
+  await voltar();
+  expect(leituras).toBe(base); // ausência curta: nada é pedido
+  await expect(page.locator('#v2 .vt')).not.toHaveAttribute('data-mark', /.+/);
+  await sair();
+  await page.clock.fastForward(60_000);
+  await voltar();
+  await expect(page.locator('#v2 .vt')).toHaveAttribute('data-mark', 'verde'); // ausência longa: relê e pinta
+  expect(leituras).toBeGreaterThan(base);
+});
+
+test('marcações (lista): ao voltar para a aba depois de mais de 45 s, relê tudo o que já estava carregado e atualiza; se falhar, a lista continua', async ({ page }) => {
+  await page.clock.install();
+  await entrarComo(page);
+  const pedidos = [];
+  let falhar = false;
+  let cor = 'amarelo';
+  const item = (i) => [19, 'Salmos', 23, i + 1, cor, `Versículo ${i + 1} do capítulo.`];
+  await page.route('**/api/bookmarks?*', (route) => {
+    const q = new URL(route.request().url()).searchParams;
+    pedidos.push(Object.fromEntries(q));
+    if (falhar) return respondeJson(route, 500, { error: 'x' });
+    const offset = Number(q.get('offset')); const limit = Number(q.get('limit'));
+    const todos = Array.from({ length: 45 }, (_, i) => item(i));
+    return respondeJson(route, 200, { ...marcas(...todos.slice(offset, offset + limit)), hasMore: offset + limit < todos.length });
+  });
+  await page.goto('/marcacoes');
+  await expect(page.locator('.mk-item')).toHaveCount(20);
+  await page.getByRole('button', { name: 'Mostrar mais' }).click();
+  await expect(page.locator('.mk-item')).toHaveCount(40);
+  const antes = pedidos.length;
+  const sair = () => page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  const voltar = () => page.evaluate(() => window.dispatchEvent(new Event('focus')));
+
+  cor = 'verde'; // mudou em outro aparelho
+  await sair(); await page.clock.fastForward(10_000); await voltar();
+  expect(pedidos.length).toBe(antes); // ausência curta: nada
+  await sair(); await page.clock.fastForward(60_000); await voltar();
+  await expect.poll(() => pedidos.length).toBe(antes + 1);
+  expect(pedidos.at(-1)).toMatchObject({ offset: '0', limit: '40' }); // repõe os 40 que já estavam na tela, não só a primeira página
+  await expect(page.locator('.mk-item .vt').first()).toHaveAttribute('data-mark', 'verde');
+  await expect(page.locator('.mk-item')).toHaveCount(40);
+
+  falhar = true;
+  await sair(); await page.clock.fastForward(60_000); await voltar();
+  await expect.poll(() => pedidos.length).toBe(antes + 2);
+  await expect(page.locator('.mk-item')).toHaveCount(40); // a releitura falhou em silêncio: a lista e o aviso de erro não mudam
+  await expect(page.locator('.mk-empty')).toHaveCount(0);
+});
