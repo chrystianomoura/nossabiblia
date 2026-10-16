@@ -732,7 +732,7 @@ select {
 }
 
 /* Celular e tablet estreito: o conteúdo dos cartões centralizado (ícone em cima, texto no meio). O ponto de quebra é onde a
-   descrição mais longa (Marcações & Notas) deixa de caber em uma linha (~615px de tela, com folga): ao lado do ícone, ela
+   descrição mais longa (Marcações) deixa de caber em uma linha (~615px de tela, com folga): ao lado do ícone, ela
    quebraria e deixaria a caixa com sobra vazia. */
 @media (max-width: 640px) {
   /* Largura medida pelo cartão de texto mais longo (a maior linha dele tem ~252px, em 17px) mais as laterais: os três cartões

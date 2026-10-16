@@ -16,21 +16,20 @@ async function verseExists(db, bookId, chapter, verse) {
   return r.rowCount > 0;
 }
 
-// Cria ou troca a marcação. `comment` undefined mantém o comentário que já existe; null apaga. No limite de 1.000, só deixa trocar uma
-// marcação que já existe (a conta é feita no mesmo comando, então pedidos simultâneos não passam muito do teto).
-export async function upsertBookmark(userId, { bookId, chapter, verse }, { color, translation, comment }, db = pool) {
+// Cria ou troca a marcação (uma cor por versículo). No limite de 1.000, só deixa trocar uma marcação que já existe (a conta é feita no mesmo
+// comando, então pedidos simultâneos não passam muito do teto).
+export async function upsertBookmark(userId, { bookId, chapter, verse }, { color, translation }, db = pool) {
   if (!(await verseExists(db, bookId, chapter, verse))) throw new BookmarkError(404, 'versiculo_inexistente', 'Esse versículo não existe.');
   const r = await db.query(
     `WITH existing AS (SELECT 1 FROM bookmarks WHERE user_id = $1 AND book_id = $2 AND chapter = $3 AND verse = $4),
           total AS (SELECT count(*)::int AS n FROM bookmarks WHERE user_id = $1)
-     INSERT INTO bookmarks (user_id, book_id, chapter, verse, color, created_in_translation, comment)
-     SELECT $1, $2, $3, $4, $5, $6, $7
-      WHERE EXISTS (SELECT 1 FROM existing) OR (SELECT n FROM total) < $9
+     INSERT INTO bookmarks (user_id, book_id, chapter, verse, color, created_in_translation)
+     SELECT $1, $2, $3, $4, $5, $6
+      WHERE EXISTS (SELECT 1 FROM existing) OR (SELECT n FROM total) < $7
      ON CONFLICT (user_id, book_id, chapter, verse)
-     DO UPDATE SET color = EXCLUDED.color, updated_at = NOW(),
-                   comment = CASE WHEN $8::boolean THEN EXCLUDED.comment ELSE bookmarks.comment END
-     RETURNING chapter, verse, color, comment, created_in_translation, created_at, updated_at`,
-    [userId, bookId, chapter, verse, color, translation, comment ?? null, comment !== undefined, MAX_BOOKMARKS],
+     DO UPDATE SET color = EXCLUDED.color, updated_at = NOW()
+     RETURNING chapter, verse, color, created_in_translation, created_at, updated_at`,
+    [userId, bookId, chapter, verse, color, translation, MAX_BOOKMARKS],
   );
   if (!r.rowCount) throw new BookmarkError(409, 'limite_atingido', `Você chegou ao limite de ${MAX_BOOKMARKS.toLocaleString('pt-BR')} marcações. Remova alguma para marcar outra.`);
   return r.rows[0];
@@ -44,11 +43,11 @@ export async function deleteBookmark(userId, { bookId, chapter, verse }, db = po
 // Tudo o que a tela do leitor precisa para pintar um capítulo, numa chamada só.
 export async function chapterMarks(userId, bookId, chapter, db = pool) {
   const r = await db.query(
-    `SELECT verse, color, comment, created_in_translation, updated_at FROM bookmarks
+    `SELECT verse, color, created_in_translation, updated_at FROM bookmarks
       WHERE user_id = $1 AND book_id = $2 AND chapter = $3 ORDER BY verse`,
     [userId, bookId, chapter],
   );
-  return { bookmarks: r.rows, favorites: [] };
+  return { bookmarks: r.rows };
 }
 
 // Lista das marcações do usuário para a tela "Minhas marcações". Cada item traz o texto na tradução pedida; se o versículo não existe nela
@@ -62,7 +61,7 @@ const ORDERS = {
 export async function listBookmarks(userId, { order, color, translation, limit, offset }, db = pool) {
   const other = translation === 'NAA' ? 'NVT' : 'NAA';
   const r = await db.query(
-    `SELECT b.book_id, bk.name AS book_name, b.chapter, b.verse, b.color, b.comment, b.updated_at,
+    `SELECT b.book_id, bk.name AS book_name, b.chapter, b.verse, b.color, b.updated_at,
             COALESCE(v1.translation, v2.translation) AS translation, COALESCE(v1.text, v2.text) AS text
        FROM bookmarks b
        JOIN books bk ON bk.id = b.book_id

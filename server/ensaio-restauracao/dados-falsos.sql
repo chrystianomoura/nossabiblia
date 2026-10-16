@@ -1,6 +1,6 @@
 -- Dados FALSOS de todos os tipos, para ensaiar o backup e a restauração (ver LEIA-ME.md). Rode só numa branch de teste da Neon, nunca na
 -- produção. Cobre o que já quebrou um backup: horários com microssegundos (created_at gerado pelo banco), datas (sp_date), acentos, aspas,
--- comentário longo, ids de sequência escolhidos à mão (temas) e as chaves estrangeiras entre as tabelas.
+-- ids de sequência escolhidos à mão (temas) e as chaves estrangeiras entre as tabelas.
 BEGIN;
 
 INSERT INTO users (id, first_name, last_name, email, password_hash, is_verified, verified_at, created_at) VALUES
@@ -13,16 +13,9 @@ UPDATE users SET verification_token_hash = repeat('a', 64), verification_sent_at
 INSERT INTO sessions (id, user_id, token_hash, device_label, expires_at, created_at) VALUES
   ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', repeat('b', 64), 'Safari no iPhone', '2026-11-10T00:00:00Z', '2026-10-10T00:00:00Z');
 
-INSERT INTO bookmark_folders (id, user_id, name) VALUES
-  ('f0f0f0f0-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Estudos de João');
-
-INSERT INTO bookmarks (id, user_id, book_id, chapter, verse, created_in_translation, color, comment, folder_id) VALUES
-  ('b0b0b0b0-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 43, 3, 16, 'NAA', 'amarelo',
-   'O versículo mais conhecido: “Porque Deus amou o mundo” — com acentuação e aspas.', 'f0f0f0f0-0000-0000-0000-000000000001'),
-  ('b0b0b0b0-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 19, 23, 1, 'NVT', 'verde', NULL, NULL);
-
-INSERT INTO favorites (id, user_id, book_id, chapter, verse, created_in_translation) VALUES
-  ('fafafafa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 19, 23, 1, 'NAA');
+INSERT INTO bookmarks (id, user_id, book_id, chapter, verse, created_in_translation, color) VALUES
+  ('b0b0b0b0-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 43, 3, 16, 'NAA', 'amarelo'),
+  ('b0b0b0b0-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 19, 23, 1, 'NVT', 'verde');
 
 -- ids escolhidos à mão: depois da restauração a sequência tem que continuar do maior (o próximo tema recebe 13)
 INSERT INTO themes (id, title) VALUES (7, 'Ansiedade'), (12, 'Esperança');

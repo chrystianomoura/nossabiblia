@@ -3,8 +3,8 @@ import { Bookmark, TrendingUp, ShieldCheck } from 'lucide-react';
 const BENEFITS = [
   {
     Icon: Bookmark,
-    title: 'Marcações & Notas',
-    description: 'Destaque versículos e guarde suas reflexões ao longo da leitura.',
+    title: 'Marcações',
+    description: 'Destaque versículos com cores e volte a eles quando quiser.',
   },
   {
     Icon: TrendingUp,

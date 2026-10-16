@@ -310,7 +310,7 @@ async function entrarComo(page, { verificada = true } = {}) {
 test('marcar: tocar no versículo abre as 4 cores; escolher pinta o texto e salva (PUT com cor e tradução); as marcas do servidor já vêm pintadas', async ({ page }) => {
   await entrarComo(page);
   const pedidos = [];
-  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [{ verse: 2, color: 'verde', comment: null, created_in_translation: 'NAA', updated_at: '2026-10-15T00:00:00Z' }], favorites: [] }));
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [{ verse: 2, color: 'verde', created_in_translation: 'NAA', updated_at: '2026-10-15T00:00:00Z' }] }));
   await page.route('**/api/bookmarks/**', (route) => { pedidos.push({ metodo: route.request().method(), url: route.request().url(), corpo: route.request().postDataJSON() }); return respondeJson(route, 200, {}); });
   await page.goto('/ler/salmos/23?t=NVT');
   await expect(page.locator('#v2 .vt')).toHaveAttribute('data-mark', 'verde');
@@ -329,7 +329,7 @@ test('marcar: tocar no versículo abre as 4 cores; escolher pinta o texto e salv
 test('marcar: a cor atual aparece marcada, tocar nela apaga (DELETE) e a paleta fecha com Esc', async ({ page }) => {
   await entrarComo(page);
   const metodos = [];
-  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [{ verse: 2, color: 'verde' }], favorites: [] }));
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [{ verse: 2, color: 'verde' }] }));
   await page.route('**/api/bookmarks/**', (route) => { metodos.push(route.request().method()); return route.fulfill({ status: 204 }); });
   await page.goto('/ler/salmos/23?t=NAA');
   await page.locator('#v2 .vt').click();
@@ -344,7 +344,7 @@ test('marcar: a cor atual aparece marcada, tocar nela apaga (DELETE) e a paleta 
 
 test('marcar: se o servidor recusar, a cor volta ao que era e a paleta mostra o erro', async ({ page }) => {
   await entrarComo(page);
-  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [], favorites: [] }));
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [] }));
   await page.route('**/api/bookmarks/**', (route) => respondeJson(route, 409, { error: 'Você chegou ao limite de 1.000 marcações. Remova alguma para marcar outra.', code: 'limite_atingido' }));
   await page.goto('/ler/salmos/23?t=NAA');
   await page.locator('#v1 .vt').click();
@@ -376,7 +376,7 @@ test('marcar: conta não verificada vê o aviso discreto e nada é salvo; visita
 
 test('marcar: selecionar texto para copiar não abre a paleta, e marcar não muda a quebra de linha do texto', async ({ page }) => {
   await entrarComo(page);
-  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [], favorites: [] }));
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [] }));
   await page.route('**/api/bookmarks/**', (route) => respondeJson(route, 200, {}));
   await page.goto('/ler/salmos/23?t=NAA');
   const altura = () => page.locator('#v4').evaluate((el) => el.getBoundingClientRect().height);
@@ -393,7 +393,7 @@ test('marcar: selecionar texto para copiar não abre a paleta, e marcar não mud
 
 // ---- Minhas marcações (/marcacoes) ----
 const marcas = (...itens) => ({
-  bookmarks: itens.map(([book_id, book_name, chapter, verse, color, text, translation = 'NAA']) => ({ book_id, book_name, chapter, verse, color, comment: null, updated_at: new Date(Date.now() - 3 * 3600 * 1000).toISOString(), translation, text, fallback: false })),
+  bookmarks: itens.map(([book_id, book_name, chapter, verse, color, text, translation = 'NAA']) => ({ book_id, book_name, chapter, verse, color, updated_at: new Date(Date.now() - 3 * 3600 * 1000).toISOString(), translation, text, fallback: false })),
   hasMore: false,
 });
 
@@ -516,7 +516,7 @@ test('busca: versículo já marcado mostra a bolinha da cor (resultado de palavr
 test('teclado: Enter abre a paleta no versículo, ← → andam entre as cores, Enter escolhe e o foco volta ao versículo; Esc fecha', async ({ page }) => {
   await entrarComo(page);
   const pedidos = [];
-  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [], favorites: [] }));
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [] }));
   await page.route('**/api/bookmarks/**', (route) => { pedidos.push(route.request().postDataJSON()); return respondeJson(route, 200, {}); });
   await page.goto('/ler/salmos/23?t=NAA');
   await expect(page.locator('#v1')).toHaveAttribute('tabindex', '0'); // só um versículo entra na ordem do Tab
@@ -554,7 +554,7 @@ test('marcações: ao voltar para a aba depois de mais de 45 s, relê o capítul
   await entrarComo(page);
   let leituras = 0;
   let servidor = [];
-  await page.route('**/api/books/*/chapters/*/marks', (route) => { leituras += 1; return respondeJson(route, 200, { bookmarks: servidor, favorites: [] }); });
+  await page.route('**/api/books/*/chapters/*/marks', (route) => { leituras += 1; return respondeJson(route, 200, { bookmarks: servidor }); });
   await page.goto('/ler/salmos/23?t=NAA');
   await expect(page.locator('#v1')).toBeVisible();
   await expect(page.locator('#v2 .vt')).not.toHaveAttribute('data-mark', /.+/);

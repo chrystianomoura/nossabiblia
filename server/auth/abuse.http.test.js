@@ -976,7 +976,7 @@ describe('marcações de versículos', opts, () => {
     const cookie = (await http.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie;
     return { email, id, cookie };
   };
-  const linhas = async (id) => (await db.query('SELECT chapter, verse, color, comment FROM bookmarks WHERE user_id = $1 ORDER BY chapter, verse', [id])).rows;
+  const linhas = async (id) => (await db.query('SELECT chapter, verse, color FROM bookmarks WHERE user_id = $1 ORDER BY chapter, verse', [id])).rows;
 
   test('sem sessão 401; conta não verificada 403 (conta_nao_verificada); Origin de fora 403 — e nada é gravado', async () => {
     const naoVerificada = await entrar({ verified: false });
@@ -1009,7 +1009,7 @@ describe('marcações de versículos', opts, () => {
     assert.equal(lista.status, 200);
     assert.match(lista.headers.get('cache-control') || '', /no-store/);
     assert.deepEqual(lista.json.bookmarks.map((m) => [m.verse, m.color]), [[1, 'rosa'], [3, 'verde']]);
-    assert.deepEqual(lista.json.favorites, []);
+    assert.equal('favorites' in lista.json, false, 'favoritos saíram do projeto');
     assert.ok(!/user_id|"id"/.test(lista.text), 'a resposta não vaza ids internos');
     assert.equal((await http.request('DELETE', url(), { cookie })).status, 204);
     assert.equal((await http.request('DELETE', url(), { cookie })).status, 204, 'remover o que não existe também é 204');
@@ -1029,22 +1029,22 @@ describe('marcações de versículos', opts, () => {
     assert.equal((await linhas(B.id))[0].color, 'azul');
   });
 
-  test('o comentário é mantido quando só a cor muda (comment ausente), e é apagado com null', async () => {
+  test('comentários, favoritos e pastas saíram do projeto: "comment" e "folder_id" no corpo são ignorados (não são gravados nem devolvidos) e o banco não tem mais essas colunas e tabelas', async () => {
     const { cookie, id } = await entrar();
-    await put(cookie, { color: 'amarelo', comment: 'minha nota' });
-    assert.equal((await linhas(id))[0].comment, 'minha nota');
-    await put(cookie, { color: 'verde' });
-    assert.deepEqual([(await linhas(id))[0].color, (await linhas(id))[0].comment], ['verde', 'minha nota']);
-    await put(cookie, { color: 'verde', comment: null });
-    assert.equal((await linhas(id))[0].comment, null);
+    const r = await put(cookie, { color: 'amarelo', comment: 'minha nota', folder_id: '00000000-0000-0000-0000-000000000000' });
+    assert.equal(r.status, 200);
+    assert.equal('comment' in r.json || 'folder_id' in r.json, false);
+    assert.deepEqual(await linhas(id), [{ chapter: 23, verse: 1, color: 'amarelo' }]);
+    assert.equal((await http.get(`/api/books/${SALMOS}/chapters/23/marks`, { cookie })).text.includes('comment'), false);
+    const col = await db.query(`SELECT count(*)::int AS n FROM information_schema.columns WHERE table_name = 'bookmarks' AND column_name IN ('comment', 'folder_id')`);
+    const tab = await db.query(`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_name IN ('favorites', 'bookmark_folders')`);
+    assert.deepEqual([col.rows[0].n, tab.rows[0].n], [0, 0], 'bookmarks.comment, bookmarks.folder_id e as tabelas favorites e bookmark_folders foram removidas (migrações 005 e 006)');
   });
 
-  test('entradas hostis (cor, tradução, comentário, pasta, corpo): sempre 400, nunca 500, nada gravado', async () => {
+  test('entradas hostis (cor, tradução, corpo): sempre 400, nunca 500, nada gravado', async () => {
     const { cookie, id } = await entrar();
     const ruins = [
       {}, { color: 'vermelho' }, { color: { $ne: '' } }, { color: ['amarelo'] }, { color: 'AMARELO' }, { color: 'amarelo', translation: 'ARA' },
-      { color: 'amarelo', comment: 'x'.repeat(2001) }, { color: 'amarelo', comment: 5 }, { color: 'amarelo', comment: 'a\u0000b' },
-      { color: 'amarelo', folder_id: '00000000-0000-0000-0000-000000000000' }, { color: 'amarelo', folder_id: 1 },
     ];
     for (const body of ruins) {
       const r = await put(cookie, body);

@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { getSession } from './auth';
 import { navigate } from './router';
 
-// Porta para tudo o que exige conta verificada (marcar, favoritar, progresso...). A tela chama `requireVerified()` no clique:
+// Porta para tudo o que exige conta verificada (marcar, progresso...). A tela chama `requireVerified()` no clique:
 //   - conta verificada: devolve true e a ação segue;
 //   - conta não verificada: devolve false e abre o aviso discreto (VerifyNotice), só agora, porque a pessoa tentou algo que precisa;
 //   - visitante: leva ao login e volta para a mesma página depois.

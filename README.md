@@ -14,7 +14,7 @@ Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, c
 - **Traduções:** Nova Almeida Atualizada (**NAA**) e Nova Versão Transformadora (**NVT**).
 - **Ordem dos Livros:** 100% canônica (Gênesis a Apocalipse).
 - **Leitura Pública & Acessível:** Livre de autenticação para leitura de capítulos, comparação e buscas textuais.
-- **Área Pessoal (Próxima Fase):** Recursos devocionais como marcações coloridas com comentários, favoritos, progresso de leitura em 7 dias/calendário anual mediante cadastro verificado por e-mail.
+- **Área Pessoal (Próxima Fase):** Recursos devocionais como marcações coloridas, progresso de leitura em 7 dias/calendário anual mediante cadastro verificado por e-mail.
 - **Privacidade & Foco:** Sem rede social, sem `@arrobas`, sem algoritmos de engajamento forçado ou notificações invasivas.
 - **Design Devocional:** Tipografia editorial (Newsreader na leitura e nos títulos, Plus Jakarta Sans na interface e Archivo na marca), fundo de iluminação natural acolhedor e tema claro e escuro, que respeita a preferência do sistema e fica salvo no navegador.
 - **Marca:** selo **NB** (letras N e B da Archivo expandida) com o nome "Nossa Bíblia" em Archivo; o favicon é o mesmo selo em SVG.
@@ -25,7 +25,7 @@ Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, c
 |---|---|
 | ✅ **Pronto e no ar** | Leitura (NAA e NVT), busca exata de palavra e por referência, filtros, layout para celular, tablet e desktop, tema claro e escuro |
 | ✅ **Infraestrutura** | Site, API, banco, backup e e-mail publicados em domínio próprio, com CI, rotinas diárias e custo zero |
-| 🔜 **Próxima fase** | Cadastro com confirmação por e-mail, marcações, favoritos, progresso diário (o esquema do banco e o contrato da API já existem: `API.md`, `server/migrations/`) |
+| 🔜 **Próxima fase** | Cadastro com confirmação por e-mail, marcações, progresso diário (o esquema do banco e o contrato da API já existem: `API.md`, `server/migrations/`) |
 
 ---
 
@@ -84,7 +84,7 @@ O único custo recorrente é a renovação do domínio.
 - **Cadeia de suprimentos e infraestrutura como código.** O CI barra vulnerabilidade alta ou crítica, o Dependabot atualiza toda semana (e as de segurança na hora), as ações do GitHub e as dependências sem uso saíram, e a API, o DNS e o mapa da infraestrutura estão no repositório (`render.yaml`, `infra/`), não só em painéis.
 - **Privacidade por padrão.** As fontes são servidas pelo próprio site (nenhuma visita entrega o IP ao Google) e a política de conteúdo só aceita o próprio site e a API.
 - **Servidor em camadas.** Rotas só lêem e respondem; a validação e o acesso ao banco têm lugar próprio; a conta da próxima fase entra nesse molde.
-- **Honestidade sobre o que não está feito.** A área pessoal (cadastro, marcações, favoritos, progresso) está **desenhada e com o banco pronto** (`API.md`, migrações 001 a 003), mas ainda sem código de aplicação.
+- **Honestidade sobre o que não está feito.** A área pessoal (cadastro, marcações, progresso) está **desenhada e com o banco pronto** (`API.md`, migrações 001 a 003), mas ainda sem código de aplicação.
 
 ## 🔁 Integração contínua e rotinas
 

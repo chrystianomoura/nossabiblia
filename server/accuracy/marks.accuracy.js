@@ -293,7 +293,7 @@ describe(`marcações: bateria de precisão (escala ${SCALE}; ${totalMarks.toLoc
     }
     const bodies = [
       ['cor inexistente', { color: 'roxo' }], ['cor vazia', { color: '' }], ['cor como lista', { color: ['amarelo'] }], ['cor como objeto', { color: { $ne: 1 } }], ['sem cor', {}],
-      ['tradução inválida', { color: 'rosa', translation: 'XYZ' }], ['comentário de 2001 caracteres', { color: 'rosa', comment: 'a'.repeat(2001) }], ['pasta preenchida', { color: 'rosa', folder_id: '00000000-0000-0000-0000-000000000000' }],
+      ['tradução inválida', { color: 'rosa', translation: 'XYZ' }],
     ];
     for (const [label, body] of bodies) {
       const r = await raw('/api/bookmarks/1/1/1', body);

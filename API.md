@@ -38,28 +38,26 @@ como estão. Regras de negócio: `PROJETO.md` (números entre parênteses).
 | `POST /api/auth/forgot-password` | `email, turnstile` → `202` genérico | Sempre 202 com a mesma mensagem, exista a conta ou não (43): um único UPDATE roda nos dois casos e o e-mail sai em segundo plano, então nem a resposta nem o tempo revelam o cadastro. Uma conta recebe no máximo 1 e-mail a cada 15 min; o link vale 1 h e substitui o anterior. Se o envio falhar, o link é descartado e a conta pode tentar de novo na hora. **Implementada.** |
 | `POST /api/auth/reset-password` | `token, password, password_confirm` → `204` | Uso único; a senha é conferida antes de gastar o link (erro de digitação não o queima), recusa senha vazada, **encerra todas as sessões** da conta e limpa o cookie. `400 token_invalido`. **Implementada.** |
 | `GET /api/me` | → `{ first_name, last_name, email, is_verified, verified_at }` | Para o aviso fixo de conta não verificada (38). |
-| `GET /api/me/export` | → arquivo JSON | Todos os dados, com a data de cada marcação e favorito (45). Só conta verificada. |
+| `GET /api/me/export` | → arquivo JSON | Todos os dados, com a data de cada marcação (45). Só conta verificada. |
 | `DELETE /api/me` | `password` → `204` | Apaga a conta e tudo (46); se verificada, grava o bloqueio de e-mail (HMAC) por 30 dias (47). |
 
 Faxina (rotina, não rota): contas não verificadas com mais de 7 dias são apagadas (41); bloqueios de e-mail e sessões vencidos
 são removidos.
 
-## Marcações e favoritos (itens 7 a 13) — só conta verificada, **por versículo**
+## Marcações (itens 7 a 10) — só conta verificada, **por versículo**
 
-Uma marcação e um favorito por versículo (livro, capítulo, número), valendo em NAA e NVT; `created_in_translation` só informa
-onde foi criada. Cores: `amarelo`, `verde`, `azul`, `rosa`. Comentário até 2.000 caracteres.
+Uma marcação por versículo (livro, capítulo, número), valendo em NAA e NVT; `created_in_translation` só informa
+onde foi criada. Cores: `amarelo`, `verde`, `azul`, `rosa`. **Comentários, favoritos e pastas saíram do projeto em 16/10/2026** (a marcação e a tela "Marcações" já cobrem):
+não há campo `comment` nem `folder_id`, rota de favoritos ou de pastas, nem as tabelas `favorites` e `bookmark_folders` (migrações 005 e 006).
+Um `comment` ou `folder_id` no corpo do `PUT` é ignorado.
 
 | Rota | Corpo / resposta | Observações |
 |---|---|---|
-| `PUT /api/bookmarks/:book/:chapter/:verse` | `color, comment?, folder_id?, translation` → `200` | Cria ou troca (uma por versículo). `comment` ausente mantém o comentário; `null` apaga. `folder_id` diferente de `null` é recusado até as pastas existirem. `404 versiculo_inexistente`, `409 limite_atingido` (1.000), `403 conta_nao_verificada`. **Implementada** (só a cor é usada pela tela por enquanto). |
+| `PUT /api/bookmarks/:book/:chapter/:verse` | `color, translation` → `200` | Cria ou troca (uma por versículo). `404 versiculo_inexistente`, `409 limite_atingido` (1.000), `403 conta_nao_verificada`. **Implementada** (só a cor é usada pela tela por enquanto). |
 | `DELETE /api/bookmarks/:book/:chapter/:verse` | → `204` | Idempotente (remover o que não existe também é 204). **Implementada.** |
-| `GET /api/bookmarks?order=recent\|canon&color=&translation=&limit=&offset=` | → `{ bookmarks: [...], hasMore }` | Tela "Marcações". `order`: `recent` (padrão, mais recente primeiro) ou `canon` (ordem dos livros da Bíblia). `color`: uma das 4 (omitido = todas). `translation`: NAA (padrão) ou NVT. `limit` 1 a 200 (padrão 20), `offset`. Cada item: `book_id, book_name, chapter, verse, color, comment, updated_at, translation, text, fallback`; se o versículo não existe na tradução pedida (23 posições de 31.106), vem o da outra e `fallback` é `true`. Valores inválidos: `400`. `Cache-Control: private, no-store`. **Implementada.** (`folder` ainda não existe.) |
+| `GET /api/bookmarks?order=recent\|canon&color=&translation=&limit=&offset=` | → `{ bookmarks: [...], hasMore }` | Tela "Marcações". `order`: `recent` (padrão, mais recente primeiro) ou `canon` (ordem dos livros da Bíblia). `color`: uma das 4 (omitido = todas). `translation`: NAA (padrão) ou NVT. `limit` 1 a 200 (padrão 20), `offset`. Cada item: `book_id, book_name, chapter, verse, color, updated_at, translation, text, fallback`; se o versículo não existe na tradução pedida (23 posições de 31.106), vem o da outra e `fallback` é `true`. Valores inválidos: `400`. `Cache-Control: private, no-store`. **Implementada.** |
 | `GET /api/bookmarks/index` | → `{ marks: [[livro, capítulo, versículo, cor], ...] }` | Todas as marcações da conta, em ordem canônica, no formato mais compacto possível (no máximo 1.000, uns 20 KB). A busca pede uma vez ao abrir para pôr a bolinha da cor nos versículos já marcados, sem uma ida ao servidor por resultado. `Cache-Control: private, no-store`. **Implementada.** |
-| `GET /api/folders` · `POST /api/folders` | `name` | Nome único por usuário, sem diferenciar maiúsculas. |
-| `PATCH /api/folders/:id` · `DELETE /api/folders/:id` | `name` | Ao apagar a pasta, as marcações ficam sem pasta (decisão pendente, ver abaixo). |
-| `PUT` / `DELETE /api/favorites/:book/:chapter/:verse` | → `200` / `204` | Lista única, sem pastas (12). |
-| `GET /api/favorites?offset&limit` | → lista, mais recente primeiro (13) | |
-| `GET /api/books/:book/chapters/:chapter/marks` | → `{ bookmarks: [...], favorites: [...] }` | O que a tela do leitor precisa para pintar o capítulo; uma chamada só. `Cache-Control: private, no-store`. `favorites` vem vazio até os favoritos existirem. **Implementada.** |
+| `GET /api/books/:book/chapters/:chapter/marks` | → `{ bookmarks: [...] }` | O que a tela do leitor precisa para pintar o capítulo; uma chamada só. `Cache-Control: private, no-store`. **Implementada.** |
 
 ## Progresso e versículo do dia (itens 19, 20, 32 a 36) — só conta verificada
 
@@ -72,10 +70,10 @@ onde foi criada. Cores: `amarelo`, `verde`, `azul`, `rosa`. Comentário até 2.0
 
 ## Decisões fechadas (15/10/2026)
 
-1. **Apagar uma pasta apaga as marcações dela.** A tela pede confirmação antes ("Apagar a pasta X e as N marcações dela?").
+1. ~~Apagar uma pasta apaga as marcações dela.~~ **Removida em 16/10/2026: as pastas saíram do projeto** (a tela "Marcações" já organiza por data, ordem canônica e cor). O número fica reservado.
 2. **Positivo do dia: o cliente avisa uma vez por dia** (guarda a data no `localStorage`); o servidor é idempotente e decide o dia
    pelo horário de São Paulo.
-3. **Limites por usuário** (constantes ajustáveis): 1.000 marcações, 1.000 favoritos, 30 pastas, 5 sessões (a mais antiga cai).
+3. **Limites por usuário** (constantes ajustáveis): 1.000 marcações, 5 sessões (a mais antiga cai).
    Ao atingir: `409 limite_atingido`.
 
 4. **Textos dos e-mails** (remetente `Nossa Bíblia <nao-responda@nossabiblia.party>`; HTML simples com botão e link por extenso,

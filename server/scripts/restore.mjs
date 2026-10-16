@@ -17,7 +17,7 @@ import { S3Client, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/clien
 import { createPool } from '../db-core.js';
 
 // Mesma ordem do backup: quem é referenciado vem antes (as chaves estrangeiras são conferidas a cada linha).
-const TABLES = ['users', 'sessions', 'bookmark_folders', 'bookmarks', 'favorites', 'themes', 'theme_verses', 'daily_verses', 'daily_progress', 'email_blocks'];
+const TABLES = ['users', 'sessions', 'bookmarks', 'themes', 'theme_verses', 'daily_verses', 'daily_progress', 'email_blocks'];
 
 const [source] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const apply = process.argv.includes('--apply');

@@ -1,4 +1,4 @@
-// Cópia de segurança dos dados dos usuários (contas, sessões, marcações, pastas, favoritos, progresso e bloqueios de e-mail).
+// Cópia de segurança dos dados dos usuários (contas, sessões, marcações, progresso e bloqueios de e-mail).
 // Os versículos e os livros ficam de fora: se perderem, recriam-se de NAA.json e NVT.json (seed).
 // A Neon só guarda 6 horas de histórico para recuperar; esta cópia (e o R2) cobre o resto.
 //
@@ -27,7 +27,7 @@ pg.types.setTypeParser(1114, (value) => value); // timestamp
 pg.types.setTypeParser(1184, (value) => value); // timestamptz
 
 // Ordem das tabelas: quem é referenciado vem antes, para a restauração respeitar as chaves estrangeiras.
-const TABLES = ['users', 'sessions', 'bookmark_folders', 'bookmarks', 'favorites', 'themes', 'theme_verses', 'daily_verses', 'daily_progress', 'email_blocks'];
+const TABLES = ['users', 'sessions', 'bookmarks', 'themes', 'theme_verses', 'daily_verses', 'daily_progress', 'email_blocks'];
 
 const args = process.argv.slice(2);
 const keep = args.includes('--keep');

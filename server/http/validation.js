@@ -31,7 +31,6 @@ export function parsePaging(query) {
 
 // ---- Marcações ----
 export const MARK_COLORS = ['amarelo', 'verde', 'azul', 'rosa'];
-export const COMMENT_MAX = 2000;
 
 // Lista das marcações: `color` vazio = todas as cores; `order` é recent (padrão) ou canon (ordem dos livros da Bíblia).
 export function parseMarkListQuery(query) {
@@ -51,22 +50,12 @@ export function parsePositiveInt(raw, max, label) {
   return Number.isInteger(value) && value >= 1 && value <= max ? { value } : { error: `${label} inválido.` };
 }
 
-// Corpo do PUT /bookmarks: cor obrigatória; comentário opcional (ausente = mantém o que já existe; null ou vazio = apaga); pasta ainda
-// não existe (qualquer valor diferente de null é recusado em vez de ser ignorado em silêncio).
+// Corpo do PUT /bookmarks: cor e tradução em que foi criada. Campos que o projeto não tem mais (comentário, pasta) são ignorados: não são
+// gravados em lugar nenhum.
 export function parseBookmarkBody(body) {
   const b = body && typeof body === 'object' && !Array.isArray(body) ? body : {};
   if (!MARK_COLORS.includes(b.color)) return { error: `Cor inválida. Escolha entre: ${MARK_COLORS.join(', ')}.` };
   const translation = parseTranslation(b.translation);
   if (translation.error) return { error: translation.error };
-  let comment; // undefined = não mexer
-  if (b.comment !== undefined) {
-    if (b.comment === null || b.comment === '') comment = null;
-    else if (typeof b.comment !== 'string') return { error: 'Comentário inválido.' };
-    else if (b.comment.length > COMMENT_MAX) return { error: `O comentário pode ter no máximo ${COMMENT_MAX} caracteres.` };
-    // eslint-disable-next-line no-control-regex
-    else if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(b.comment)) return { error: 'O comentário tem caracteres que não são aceitos.' };
-    else comment = b.comment;
-  }
-  if (b.folder_id !== undefined && b.folder_id !== null) return { error: 'Pastas ainda não estão disponíveis.' };
-  return { value: { color: b.color, translation: translation.value, comment } };
+  return { value: { color: b.color, translation: translation.value } };
 }

@@ -41,8 +41,8 @@ Este documento descreve a especificação funcional e as decisões técnicas da 
 ## Marcações (exige conta verificada)
 
 7. **Marcar versículo:** o usuário escolhe uma de **4 cores** (amarelo, verde, azul e rosa, em tons suaves). A marcação é **por versículo** e vale nas duas traduções: uma por versículo, e a tradução em que foi criada só serve para exibir (decisão de 14/10/2026).
-8. **Comentário:** cada marcação pode ter um comentário opcional.
-9. **Pastas:** o usuário cria pastas e organiza as marcações nelas.
+8. ~~**Comentário:**~~ **Removido do projeto em 16/10/2026** (decisão do usuário: a marcação por cor já cobre). O número fica reservado para não mudar a numeração das outras regras.
+9. ~~**Pastas:**~~ **Removido do projeto em 16/10/2026** (decisão do usuário: a tela "Marcações" já permite organizar: por data, em ordem canônica e por cor). O número fica reservado.
 10. **Ordem:** as marcações aparecem com a mais recente primeiro.
 
 Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **implementada e aprovada**):
@@ -58,11 +58,9 @@ Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **imple
 - **Releitura ao voltar para a aba:** depois de mais de 45 s fora da aba ou da janela, o leitor relê as marcações do capítulo aberto e dos vizinhos (só conta verificada; nada acontece enquanto uma marcação sua ainda está sendo salva; só repinta se algo mudou), e a tela "Marcações" relê tudo o que já estava carregado (até 200 itens), em silêncio: se falhar, a lista continua como estava. Ausência curta não pede nada.
 - **Barra:** o nome das pílulas "Conta" e "Entrar" sobe 1 px (centro óptico: são quase só letras minúsculas), em todas as larguras; a altura da pílula não muda.
 
-## Favoritos (exige conta verificada)
+## Favoritos (removido do projeto)
 
-11. **Favoritar versículo:** favorito e marcação são independentes. O mesmo versículo pode ter as duas coisas. Um favorito por versículo, valendo nas duas traduções.
-12. **Lista única:** favoritos não podem ser organizados em pastas.
-13. **Ordem:** os favoritos aparecem com o mais recente primeiro.
+11. ~~**Favoritar versículo**~~ · 12. ~~**Lista única**~~ · 13. ~~**Ordem**~~ — **removidos em 16/10/2026** (decisão do usuário: a marcação por cor já cobre). Os números ficam reservados, para não mudar a numeração das outras regras. A tabela `favorites` foi apagada do banco (migração 005), e a tabela `bookmark_folders` e a coluna `bookmarks.folder_id` também (migração 006: as pastas saíram junto).
 
 ## Compartilhamento (público)
 
@@ -120,11 +118,11 @@ Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **imple
 
 ## Navegação entre abas
 
-31. As abas "Marcações" e "Favoritos" ficam sempre visíveis, com nomes curtos, ícones e cores próprias, para serem identificadas à primeira vista.
+31. A aba "Marcações" fica sempre visível, com nomes curtos, ícones e cores próprias, para serem identificadas à primeira vista.
 
 ## Progresso (exige conta verificada)
 
-32. **Positivo:** um por dia, ganho na primeira vez que qualquer tela da Bíblia carrega para o usuário. Vale para página inicial, leitura, marcações, favoritos, busca, comparação e qualquer outra página de texto bíblico.
+32. **Positivo:** um por dia, ganho na primeira vez que qualquer tela da Bíblia carrega para o usuário. Vale para página inicial, leitura, marcações, busca, comparação e qualquer outra página de texto bíblico.
 33. **Sem exigência:** basta a tela carregar. Não há tempo mínimo de leitura nem necessidade de avançar.
 34. **Reset:** o dia é contado pelo horário de São Paulo, com reset à meia-noite, independentemente do fuso do usuário.
 35. **Linha de 7 dias:** check para dia com positivo, X para dia passado sem positivo, bolinha vazia para o dia atual sem positivo ainda. Dias futuros não aparecem.
@@ -136,14 +134,14 @@ Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **imple
     - **Identificação humana:** o sistema não utiliza arrobas (`@usuario`) nem redes sociais; apenas o nome e sobrenome do usuário.
     - **Nomes compostos:** a divisão em dois campos explícitos (*Nome* e *Sobrenome*) permite que pessoas com nomes compostos (ex.: *Maria Laura*, *João Pedro*) preencham o primeiro campo livremente, garantindo que o app e os e-mails usem a saudação correta (*"Olá, Maria Laura"*).
     - **Validação de veracidade:** validação dupla (no front-end para feedback instantâneo ao usuário e no back-end para garantia de segurança e integridade). Textos vazios, espaços excessivos ou nomes puramente numéricos são rejeitados.
-38. **Conta não verificada:** fica nesse estado até o e-mail ser confirmado. Um aviso fixo e chamativo pede a confirmação em qualquer tela logada. Marcações, favoritos, progresso e exportação ficam bloqueados. Leitura, busca, comparação e compartilhamento continuam livres.
+38. **Conta não verificada:** fica nesse estado até o e-mail ser confirmado. Um aviso fixo e chamativo pede a confirmação em qualquer tela logada. Marcações, progresso e exportação ficam bloqueados. Leitura, busca, comparação e compartilhamento continuam livres.
 39. **Reenvio da confirmação:** uma vez. Depois, bloqueado por 12 horas, contadas a partir do último envio.
 40. **Correção do e-mail:** permitida enquanto a conta não estiver verificada, com a mesma regra de reenvio.
 41. **Prazo de 7 dias:** conta não verificada que não for confirmada em 7 dias é apagada, com tudo relacionado a ela. Sem aviso prévio e sem bloqueio do e-mail, que pode se cadastrar de novo.
 42. **Data de abertura:** dia da confirmação do e-mail. Fica registrada para sempre, salvo exclusão da conta.
 43. **Recuperação de senha:** por e-mail.
 44. **Encerrar sessões:** o usuário sai de todos os dispositivos de uma vez.
-45. **Exportação:** todos os dados da conta, com a data de cada marcação e de cada favorito.
+45. **Exportação:** todos os dados da conta, com a data de cada marcação.
 46. **Exclusão:** apaga a conta e todos os dados. Irreversível. Vale também para conta não verificada.
 47. **Bloqueio de e-mail:** após a exclusão de conta verificada, o endereço fica bloqueado por 30 dias. Só o hash do e-mail é guardado para isso. Depois desse prazo, um novo cadastro gera nova data de abertura.
 
@@ -177,7 +175,7 @@ Decididas com o usuário, vendo o resultado na tela:
 - **Botões "Criar Conta Gratuita" e "Começar a Ler Agora":** o mesmo tamanho em todos os aparelhos (235 px, só o conteúdo, centralizados), nunca esticados até as bordas. Com as colunas empilhadas, o vão do primeiro botão para o cartão é igual ao de cima do botão (18 px).
 - **Letras padronizadas abaixo do desktop (1070 px):** o subtítulo (19 px) é a régua. Título da página 36 px, título do capítulo no livro 26 px, texto da Bíblia 19 px, descrição dos cartões 17 px, títulos dos cartões e botões 15 px, seletor NAA/NVT 14 px. No desktop os valores seguem proporcionais à coluna.
 - **Ponto de quebra único em 1070 px:** é a largura em que o livro deixa de caber em duas páginas; abaixo dela a página inteira vira coluna única, como no celular (nunca duas colunas com o livro em uma só).
-- **Cartões "Marcações & Notas", "Progresso diário", "Leitura sem distrações":** todos com a largura do maior e centralizados. Até 640 px (onde a descrição mais longa deixa de caber em uma linha, ~615 px, com folga) o conteúdo empilha: ícone em cima, título e descrição centralizados. O ícone é só um contorno dourado (sem preenchimento), porque o dourado translúcido virava oliva sujo sobre o cartão azul do tema escuro.
+- **Cartões "Marcações", "Progresso diário", "Leitura sem distrações":** todos com a largura do maior e centralizados. Até 640 px (onde a descrição mais longa deixa de caber em uma linha, ~615 px, com folga) o conteúdo empilha: ícone em cima, título e descrição centralizados. O ícone é só um contorno dourado (sem preenchimento), porque o dourado translúcido virava oliva sujo sobre o cartão azul do tema escuro.
 - **Cabeçalho em linha única até 320 px:** abaixo de 520 px a marca (selo e nome) e os botões encolhem com a largura da tela e nunca quebram linha.
 
 ## Navegadores de celular: barras, teclado e entalhe
@@ -207,6 +205,7 @@ Estes itens não entram no projeto, nem agora nem no futuro previsto:
 - Recursos de inteligência artificial.
 - Imagens de card para compartilhamento.
 - Comentários públicos, perfis ou rede social.
+- Comentários nas marcações, favoritos e pastas (removidos do projeto em 16/10/2026: a marcação por cor e a tela "Marcações" já cobrem).
 - Curadoria automática de temas.
 
 ---
