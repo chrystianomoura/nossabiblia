@@ -1189,12 +1189,12 @@ describe('marcações de versículos', opts, () => {
     const A = await entrar(); const B = await entrar(); const NV = await entrar({ verified: false });
     await put(A.cookie, { color: 'verde' }, url(5, 23));
     await put(A.cookie, { color: 'rosa' }, url(1, 1, 1));
-    await put(B.cookie, { color: 'azul' }, url(9, 23));
+    await put(B.cookie, { color: 'azul' }, url(6, 23)); // Salmos 23 tem 6 versículos
     const a = await http.get('/api/bookmarks/index', { cookie: A.cookie });
     assert.equal(a.status, 200);
     assert.match(a.headers.get('cache-control') || '', /no-store/);
     assert.deepEqual(a.json, { marks: [[1, 1, 1, 'rosa'], [SALMOS, 23, 5, 'verde']] }, 'ordem canônica e só as dela');
-    assert.deepEqual((await http.get('/api/bookmarks/index', { cookie: B.cookie })).json, { marks: [[SALMOS, 23, 9, 'azul']] });
+    assert.deepEqual((await http.get('/api/bookmarks/index', { cookie: B.cookie })).json, { marks: [[SALMOS, 23, 6, 'azul']] });
     assert.deepEqual((await http.get('/api/bookmarks/index', { cookie: (await entrar()).cookie })).json, { marks: [] });
     assert.equal((await http.get('/api/bookmarks/index')).status, 401);
     assert.equal((await http.get('/api/bookmarks/index', { cookie: NV.cookie })).status, 403);

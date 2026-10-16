@@ -276,7 +276,9 @@ describe(`marcações: bateria de precisão (escala ${SCALE}; ${totalMarks.toLoc
       const { b, c } = list[0];
       const beyond = list.at(-1).v + 1;
       const r = await put(u, { b, c, v: beyond }, { color: 'amarelo', translation: 'NAA' });
-      if (r.status !== 404 || r.json?.code !== 'versiculo_inexistente') bad.push(`${b}:${c}:${beyond} -> ${r.status} (esperado 404)`);
+      // Além do teto de 176 (o maior capítulo, Salmos 119) o número já é recusado pela validação (400); nos demais, o versículo é que não existe (404).
+      const want = beyond > 176 ? 400 : 404;
+      if (r.status !== want || (want === 404 && r.json?.code !== 'versiculo_inexistente')) bad.push(`${b}:${c}:${beyond} -> ${r.status} (esperado ${want})`);
     });
     const raw = (path, body = { color: 'amarelo' }) => http.request('PUT', path, { body, cookie: u.cookie });
     const hostile = [
