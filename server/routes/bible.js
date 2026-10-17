@@ -6,7 +6,6 @@ import { parseBookId, parsePaging, parseTestament, parseTranslation } from '../h
 import { listBooks, findBook } from '../services/books.js';
 import { getChapter } from '../services/chapters.js';
 import { searchVerses } from '../services/verse-search.js';
-import { getDailyVerse } from '../services/daily-verse.js';
 
 export default async function bibleRoutes(fastify) {
   /**
@@ -98,22 +97,6 @@ export default async function bibleRoutes(fastify) {
     } catch (err) {
       request.log.error(err);
       return reply.status(500).send({ error: 'Erro ao executar busca textual.' });
-    }
-  });
-
-  /**
-   * GET /api/daily-verse
-   * Versículo do dia público (para visitantes na home).
-   */
-  fastify.get('/daily-verse', async (request, reply) => {
-    const translation = String(request.query.translation || 'NAA').toUpperCase();
-    try {
-      const verse = await getDailyVerse(translation);
-      if (!verse) return reply.status(404).send({ error: 'Versículo não encontrado.' });
-      return { daily_verse: verse };
-    } catch (err) {
-      request.log.error(err);
-      return reply.status(500).send({ error: 'Erro ao sortear versículo do dia.' });
     }
   });
 }

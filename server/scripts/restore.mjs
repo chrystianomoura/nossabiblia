@@ -17,7 +17,7 @@ import { S3Client, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/clien
 import { createPool } from '../db-core.js';
 
 // Mesma ordem do backup: quem é referenciado vem antes (as chaves estrangeiras são conferidas a cada linha).
-const TABLES = ['users', 'sessions', 'bookmarks', 'themes', 'theme_verses', 'daily_verses', 'daily_progress', 'email_blocks'];
+const TABLES = ['users', 'sessions', 'bookmarks', 'daily_progress', 'email_blocks'];
 
 const [source] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const apply = process.argv.includes('--apply');
@@ -82,13 +82,6 @@ try {
       // jsonb_populate_recordset converte cada valor para o tipo da coluna (uuid, timestamptz, date...), sem ler o esquema à mão.
       await client.query(`INSERT INTO ${t} SELECT * FROM jsonb_populate_recordset(NULL::${t}, $1::jsonb)`, [JSON.stringify(rows)]);
     }
-  }
-
-  // As colunas serial (só themes e theme_verses; as outras tabelas usam uuid ou chave composta) receberam o id do backup: a
-  // sequência precisa continuar depois do maior id, senão o próximo INSERT repetiria um id existente.
-  for (const t of ['themes', 'theme_verses']) {
-    const { rows } = await client.query(`SELECT pg_get_serial_sequence($1, 'id') AS seq`, [t]);
-    await client.query(`SELECT setval($1, GREATEST((SELECT COALESCE(max(id), 0) FROM ${t}), 1), (SELECT count(*) > 0 FROM ${t}))`, [rows[0].seq]);
   }
 
   // Conferência: o que está no banco tem que ser o que o backup diz.

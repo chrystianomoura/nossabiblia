@@ -1,6 +1,6 @@
 -- Dados FALSOS de todos os tipos, para ensaiar o backup e a restauração (ver LEIA-ME.md). Rode só numa branch de teste da Neon, nunca na
 -- produção. Cobre o que já quebrou um backup: horários com microssegundos (created_at gerado pelo banco), datas (sp_date), acentos, aspas,
--- ids de sequência escolhidos à mão (temas) e as chaves estrangeiras entre as tabelas.
+-- e as chaves estrangeiras entre as tabelas.
 BEGIN;
 
 INSERT INTO users (id, first_name, last_name, email, password_hash, is_verified, verified_at, created_at) VALUES
@@ -17,15 +17,8 @@ INSERT INTO bookmarks (id, user_id, book_id, chapter, verse, created_in_translat
   ('b0b0b0b0-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 43, 3, 16, 'NAA', 'amarelo'),
   ('b0b0b0b0-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 19, 23, 1, 'NVT', 'verde');
 
--- ids escolhidos à mão: depois da restauração a sequência tem que continuar do maior (o próximo tema recebe 13)
-INSERT INTO themes (id, title) VALUES (7, 'Ansiedade'), (12, 'Esperança');
-INSERT INTO theme_verses (id, theme_id, book_id, chapter, verse) VALUES (40, 7, 50, 4, 6), (41, 12, 24, 29, 11);
-
 INSERT INTO daily_progress (user_id, sp_date) VALUES
   ('11111111-1111-1111-1111-111111111111', '2026-10-13'), ('11111111-1111-1111-1111-111111111111', '2026-10-14');
--- daily_verses aponta para themes: por isso a restauração precisa inserir themes antes dela
-INSERT INTO daily_verses (user_id, sp_date, theme_id, book_id, chapter, verse) VALUES
-  ('11111111-1111-1111-1111-111111111111', '2026-10-14', 12, 24, 29, 11);
 
 INSERT INTO email_blocks (email_hash, blocked_until) VALUES (repeat('c', 64), '2026-11-05T00:00:00Z');
 

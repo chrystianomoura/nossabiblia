@@ -27,7 +27,7 @@ pg.types.setTypeParser(1114, (value) => value); // timestamp
 pg.types.setTypeParser(1184, (value) => value); // timestamptz
 
 // Ordem das tabelas: quem é referenciado vem antes, para a restauração respeitar as chaves estrangeiras.
-const TABLES = ['users', 'sessions', 'bookmarks', 'themes', 'theme_verses', 'daily_verses', 'daily_progress', 'email_blocks'];
+const TABLES = ['users', 'sessions', 'bookmarks', 'daily_progress', 'email_blocks'];
 
 const args = process.argv.slice(2);
 const keep = args.includes('--keep');
