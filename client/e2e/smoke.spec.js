@@ -614,3 +614,202 @@ test('marcações (lista): ao voltar para a aba depois de mais de 45 s, relê tu
   await expect(page.locator('.mk-item')).toHaveCount(40); // a releitura falhou em silêncio: a lista e o aviso de erro não mudam
   await expect(page.locator('.mk-empty')).toHaveCount(0);
 });
+
+// ---- Início de quem está logado: saudação, progresso e atalhos ----
+const semana = (...estados) => ({ today: '2026-10-16', opened_on: '2026-08-15', days: estados.map((state, i) => ({ date: `2026-10-${String(10 + i).padStart(2, '0')}`, state })) });
+
+test('início logado: a saudação segue a hora (bom dia, boa tarde, boa noite) com o primeiro nome', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/progress?*', (route) => respondeJson(route, 200, semana('check', 'check', 'x', 'check', 'check', 'check', 'empty')));
+  for (const [hora, texto] of [[5, 'Bom dia'], [9, 'Bom dia'], [11, 'Bom dia'], [12, 'Boa tarde'], [17, 'Boa tarde'], [18, 'Boa noite'], [23, 'Boa noite'], [3, 'Boa noite']]) {
+    await page.clock.setFixedTime(new Date(2026, 9, 16, hora, hora === 11 ? 59 : 0));
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(new RegExp(`^${texto},\\s*Maria$`));
+  }
+});
+
+test('início logado: a semana mostra leu, não leu e hoje ainda não; sem a Bíblia de amostra nem o título; botões na ordem leitura e marcações', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/progress?*', (route) => respondeJson(route, 200, semana('check', 'check', 'x', 'check', 'check', 'check', 'empty')));
+  await page.goto('/');
+  const dias = page.locator('.mh-day');
+  await expect(dias).toHaveCount(7);
+  await expect(page.locator('.mh-dot.is-check')).toHaveCount(5);
+  await expect(page.locator('.mh-dot.is-x')).toHaveCount(1);
+  await expect(page.locator('.mh-dot.is-empty')).toHaveCount(1); // hoje, antes de ler
+  await expect(page.locator('.mh-day.is-today')).toContainText('Hoje'); // no dia de hoje aparece "Hoje", e não o dia da semana
+  await expect(page.locator('.mh-day').first()).toContainText('sáb');
+  await expect(page.getByText('não leu', { exact: false }).first()).toBeAttached(); // o texto para quem usa leitor de tela
+  await expect(page.getByText('Lâmpada para os meus pés')).toHaveCount(0);
+  await expect(page.getByText('Criar Conta Gratuita')).toHaveCount(0);
+  await expect(page.locator('.book')).toHaveCount(0); // sem o livro de amostra
+  const botoes = await page.locator('.mh-actions a span:not(.btn-arrow)').allTextContents();
+  expect(botoes).toEqual(['Começar a leitura', 'Marcações']); // a leitura vem antes das marcações, abaixo do progresso
+  const posicao = await page.evaluate(() => { const p = document.querySelector('.mh-card').getBoundingClientRect(); const a = document.querySelector('.mh-actions').getBoundingClientRect(); return a.top >= p.bottom; });
+  expect(posicao).toBe(true);
+});
+
+test('início logado: "Continuar a leitura" leva ao último texto lido; "Marcações" abre a lista', async ({ page }) => {
+  await entrarComo(page);
+  await page.addInitScript(() => localStorage.setItem('nb-last-read', JSON.stringify({ slug: 'salmos', chapter: 23, translation: 'NVT', verse: null })));
+  await page.route('**/api/progress?*', (route) => respondeJson(route, 200, semana('check', 'check', 'check', 'check', 'check', 'check', 'check')));
+  await page.goto('/');
+  const continuar = page.getByRole('link', { name: /Continuar a leitura/ });
+  await expect(continuar).toHaveAttribute('href', '/ler/salmos/23?t=NVT');
+  await expect(page.getByRole('link', { name: /Marcações/ })).toHaveAttribute('href', '/marcacoes');
+});
+
+test('início logado: tocar no progresso abre o calendário do ano, um mês por vez: verde lido, vermelho não lido, abertura conta como lido; Esc fecha', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/progress?*', (route) => respondeJson(route, 200, semana('check', 'check', 'x', 'check', 'check', 'check', 'check')));
+  await page.route('**/api/progress/year', (route) => respondeJson(route, 200, { today: '2026-10-16', opened_on: '2026-08-15', read: ['2026-08-15', '2026-08-16', '2026-09-01', '2026-10-15', '2026-10-16'] }));
+  await page.goto('/');
+  await page.locator('.mh-progress').click();
+  const janela = page.getByRole('dialog', { name: 'Seu ano de leitura' });
+  await expect(janela).toBeVisible();
+  await expect(janela.getByRole('button', { name: 'Fechar' })).toBeFocused(); // o foco entra na janela
+  await expect(janela).toContainText('Conta aberta em 15 de agosto de 2026');
+  // abre no mês de hoje
+  await expect(janela.locator('.yc-nav b')).toHaveText('Outubro de 2026');
+  await expect(janela.locator('.yc-d.is-read')).toHaveCount(2);
+  await expect(janela.locator('.yc-d.is-miss')).toHaveCount(14);
+  await expect(janela.locator('.yc-d.is-out')).toHaveCount(15); // depois de hoje: só o número, sem cor
+  await expect(janela.getByRole('gridcell')).toHaveCount(35); // o mês inteiro, com as linhas (5 semanas)
+  await expect(janela.getByRole('gridcell', { name: '16 de outubro: você leu' })).toBeVisible();
+  await expect(janela.getByRole('button', { name: 'Próximo mês' })).toBeDisabled(); // não há mês depois do de hoje
+  // setembro e agosto (o mês da abertura)
+  await janela.getByRole('button', { name: 'Mês anterior' }).click();
+  await expect(janela.locator('.yc-nav b')).toHaveText('Setembro de 2026');
+  await expect(janela.locator('.yc-d.is-read')).toHaveCount(1);
+  await expect(janela.locator('.yc-d.is-miss')).toHaveCount(29);
+  await janela.getByRole('button', { name: 'Mês anterior' }).click();
+  await expect(janela.locator('.yc-nav b')).toHaveText('Agosto de 2026');
+  await expect(janela.locator('.yc-d.is-read')).toHaveCount(2); // inclui o dia da abertura (15), que conta como lido
+  await expect(janela.locator('.yc-d.is-miss')).toHaveCount(15);
+  await expect(janela.locator('.yc-d.is-out')).toHaveCount(14); // antes da abertura: só o número, sem cor
+  await expect(janela.getByRole('button', { name: 'Mês anterior' })).toBeDisabled(); // não há mês antes da abertura
+  await page.keyboard.press('Escape');
+  await expect(janela).toHaveCount(0);
+  await expect(page.locator('.mh-progress')).toBeFocused();
+});
+
+test('início logado: conta não verificada vê o aviso, só o pedido antecipado de progresso sai (recusado e ignorado) e tocar abre o aviso discreto', async ({ page }) => {
+  await entrarComo(page, { verificada: false });
+  let pedidos = 0;
+  await page.route('**/api/progress**', (route) => { pedidos++; return respondeJson(route, 403, { error: 'x' }); });
+  await page.goto('/');
+  await expect(page.locator('.mh-note')).toContainText('Confirme seu e-mail para acompanhar seu progresso.');
+  await page.locator('.mh-progress').click();
+  await expect(page.locator('.verify-notice')).toContainText('Confirme seu e-mail');
+  expect(pedidos).toBeLessThanOrEqual(1); // o pedido antecipado (feito antes de saber que a conta não é verificada); nada mais
+});
+
+test('início logado: falha ao carregar a semana mostra a mensagem e "Tentar de novo"', async ({ page }) => {
+  await entrarComo(page);
+  let falhar = true;
+  await page.route('**/api/progress?*', (route) => (falhar ? respondeJson(route, 500, { error: 'x' }) : respondeJson(route, 200, semana('check', 'check', 'check', 'check', 'check', 'check', 'check'))));
+  await page.goto('/');
+  await expect(page.locator('.mh-note')).toContainText('Não foi possível carregar seu progresso.');
+  falhar = false;
+  await page.getByRole('button', { name: 'Tentar de novo' }).click();
+  await expect(page.locator('.mh-dot.is-check')).toHaveCount(7);
+});
+
+test('início logado: o dia da abertura conta como lido, mesmo sem leitura (verde com ✓, sem X)', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/progress?*', (route) => respondeJson(route, 200, { today: '2026-10-16', opened_on: '2026-10-15', days: [{ date: '2026-10-15', state: 'x' }, { date: '2026-10-16', state: 'empty' }] }));
+  await page.goto('/');
+  await expect(page.locator('.mh-dot.is-check')).toHaveCount(1);
+  await expect(page.locator('.mh-dot.is-x')).toHaveCount(0);
+  await expect(page.getByText('abertura da conta', { exact: false }).first()).toBeAttached();
+});
+
+test('início logado: conta nova mostra só os dias desde a abertura (nada de dias antes dela)', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/progress?*', (route) => respondeJson(route, 200, { today: '2026-10-16', opened_on: '2026-10-15', days: [{ date: '2026-10-15', state: 'check' }, { date: '2026-10-16', state: 'empty' }] }));
+  await page.goto('/');
+  await expect(page.locator('.mh-day')).toHaveCount(2);
+  await expect(page.locator('.mh-dot.is-check')).toHaveCount(1); // o dia de abertura, verde
+});
+
+test('progresso: ler um capítulo avisa o servidor uma vez por dia (e de novo no dia seguinte)', async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 9, 16, 10, 0) });
+  await entrarComo(page);
+  const avisos = [];
+  await page.route('**/api/progress/today', (route) => { avisos.push(route.request().method()); return respondeJson(route, 200, { date: '2026-10-16', created: true }); });
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [] }));
+  await page.goto('/ler/salmos/23?t=NAA');
+  await expect(page.locator('#v1')).toBeVisible();
+  await expect.poll(() => avisos.length).toBe(1);
+  await page.goto('/ler/salmos/24?t=NAA');
+  await expect(page.locator('#v1')).toBeVisible();
+  await page.waitForTimeout(300);
+  expect(avisos.length).toBe(1); // no mesmo dia, não repete
+  await page.clock.setFixedTime(new Date(2026, 9, 17, 10, 0));
+  await page.goto('/ler/salmos/25?t=NAA');
+  await expect(page.locator('#v1')).toBeVisible();
+  await expect.poll(() => avisos.length).toBe(2); // dia seguinte: avisa de novo
+});
+
+test('progresso: visitante e a tela inicial não avisam o servidor (a inicial não tem texto da Bíblia)', async ({ page }) => {
+  let avisou = false;
+  await page.route('**/api/progress/today', (route) => { avisou = true; return respondeJson(route, 200, {}); });
+  await page.goto('/ler/salmos/23?t=NAA');
+  await expect(page.locator('#v1')).toBeVisible();
+  const logada = await page.context().newPage();
+  await mockApi(logada);
+  await entrarComo(logada);
+  await logada.route('**/api/progress?*', (route) => respondeJson(route, 200, semana('check', 'check', 'check', 'check', 'check', 'check', 'check')));
+  await logada.route('**/api/progress/today', (route) => { avisou = true; return respondeJson(route, 200, {}); });
+  await logada.goto('/');
+  await expect(logada.locator('.mh-hello')).toBeVisible();
+  await logada.waitForTimeout(400);
+  expect(avisou).toBe(false);
+});
+
+test('voltar por origem: de Marcações o "voltar" leva de volta a quem abriu (início ou leitor) e o menu Conta aparece nas duas telas', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/bookmarks?*', (route) => respondeJson(route, 200, marcas()));
+  // 1) vindo do início
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Marcações' }).click();
+  await expect(page).toHaveURL(/\/marcacoes/);
+  await expect(page.getByRole('link', { name: 'Voltar ao início' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Conta' })).toBeVisible();
+  // 2) vindo do leitor (e a tradução na URL, trocada em replace, não apaga a origem)
+  await page.goto('/ler/salmos/23?t=NVT');
+  await expect(page.getByRole('button', { name: 'Conta' })).toBeVisible();
+  await page.getByRole('link', { name: 'Minhas marcações' }).click();
+  await expect(page.getByRole('link', { name: 'Voltar ao leitor' })).toBeVisible();
+  await page.getByRole('group', { name: 'Tradução dos versículos' }).getByRole('button', { name: 'NAA' }).click();
+  await expect(page.getByRole('link', { name: 'Voltar ao leitor' })).toBeVisible();
+  await page.reload(); // a origem sobrevive ao recarregar
+  await expect(page.getByRole('link', { name: 'Voltar ao leitor' })).toBeVisible();
+  // 3) vindo do início para o leitor
+  await page.goto('/');
+  await page.goto('/ler/salmos/23'); // link direto: sem origem, o padrão
+  await expect(page.getByRole('link', { name: 'Voltar ao início' })).toBeVisible();
+});
+
+test('menu Conta: só "Início" e "Sair"; "Início" na própria inicial relê o progresso e fecha o calendário, sem recarregar nem empilhar histórico', async ({ page }) => {
+  await entrarComo(page);
+  let leituras = 0;
+  await page.route('**/api/progress?*', (route) => { leituras++; return respondeJson(route, 200, { today: '2026-10-16', opened_on: '2026-10-15', days: [{ date: '2026-10-15', state: 'check' }, { date: '2026-10-16', state: 'check' }] }); });
+  await page.route('**/api/progress/year*', (route) => respondeJson(route, 200, { today: '2026-10-16', opened_on: '2026-10-15', read: ['2026-10-15'] }));
+  await page.goto('/');
+  await expect(page.locator('.mh-dot.is-check')).toHaveCount(2);
+  await page.evaluate(() => { window.__marca = 1; });
+  const entradas = await page.evaluate(() => history.length);
+  await page.getByRole('button', { name: 'Conta', exact: true }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Início', 'Sair']);
+  await page.getByRole('menuitem', { name: 'Início' }).click(); // já está no início: relê o progresso
+  await expect.poll(() => leituras).toBeGreaterThan(1);
+  await page.locator('.mh-progress').click();
+  await expect(page.getByRole('dialog', { name: 'Seu ano de leitura' })).toBeVisible();
+  const antes = leituras;
+  await page.evaluate(() => window.dispatchEvent(new Event('nb:home-refresh'))); // o mesmo sinal que o item do menu envia
+  await expect(page.getByRole('dialog', { name: 'Seu ano de leitura' })).toHaveCount(0);
+  await expect.poll(() => leituras).toBeGreaterThan(antes);
+  expect(await page.evaluate(() => window.__marca)).toBe(1); // a página não recarregou
+  expect(await page.evaluate(() => history.length)).toBe(entradas);
+});

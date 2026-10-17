@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMarks } from '../lib/marks';
+import { useRecordReading } from '../lib/progress';
 import { ArrowLeft, Bookmark, Search, Sun, Moon } from 'lucide-react';
 import ReaderCard from './ReaderCard';
 import { displayBookName } from '../lib/books';
 import ReaderBar from './ReaderBar';
 import Link from './Link';
-import { navigate, readPath } from '../lib/router';
+import AccountMenu from './AccountMenu';
+import { useSession } from '../lib/auth';
+import { navigate, originBack, readPath } from '../lib/router';
 import { prefetchJson, useJson } from '../lib/useJson';
 import { TRANSLATIONS } from '../lib/translations';
 import { readStorage, writeStorage } from '../lib/storage';
@@ -26,6 +29,8 @@ function loadFontSize() {
 
 export default function ReadingView({ route, books, booksError, theme, onToggleTheme, onOpenSearch }) {
   const { slug, chapter, translation, verse, verseEnd } = route;
+  const { status: sessionStatus } = useSession();
+  const back = originBack({ to: '/', label: 'Voltar ao início' });
   const bookIndex = books ? books.findIndex((b) => b.slug === slug) : -1;
   const book = bookIndex >= 0 ? books[bookIndex] : null;
   const bookId = book?.id;
@@ -68,6 +73,7 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
   // Enquanto o capítulo novo carrega, o anterior continua na tela (nada de piscar em branco).
   const shown = arrived ? data : (error ? undefined : (lastShown ?? stale));
   const isStale = !arrived && shown !== undefined;
+  useRecordReading(arrived); // o positivo do dia: o texto do capítulo chegou à tela
 
   // Carrega de antemão o capítulo anterior, o seguinte e a outra tradução deste: a troca fica instantânea.
   const prevKey = prev ? `${prev.slug}/${prev.chapter}` : '';
@@ -191,9 +197,9 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
   return (
     <div className="read read--card">
       <header className="read-header">
-        <Link to="/" className="back-link">
+        <Link to={back.to} className="back-link" aria-label={back.label}>
           <ArrowLeft size={18} aria-hidden="true" />
-          <span>Voltar ao início</span>
+          <span>{back.label}</span>
         </Link>
 
         <div className="read-tools">
@@ -217,6 +223,7 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
           >
             {theme === 'dark' ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}
           </button>
+          {sessionStatus === 'in' ? <AccountMenu /> : sessionStatus === 'out' && <Link to="/entrar" className="pill-btn">Entrar</Link>}
         </div>
       </header>
 

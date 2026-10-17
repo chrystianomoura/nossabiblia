@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { logout } from '../lib/auth';
 import Link from './Link';
+import { useLocation } from '../lib/router';
+import { HOME_REFRESH } from '../lib/progress';
 
-// Pílula "Conta" da barra, com um menu pequeno ("Marcações" e "Sair"). Fecha com Esc, clicando fora ou ao escolher; o foco volta
+// Pílula "Conta" da barra, com um menu pequeno ("Início" e "Sair"). Fecha com Esc, clicando fora ou ao escolher; o foco volta
 // para a pílula quando o menu fecha pelo teclado.
 export default function AccountMenu() {
   const [open, setOpen] = useState(false);
+  const onHome = useLocation().pathname === '/';
   const rootRef = useRef(null);
   const buttonRef = useRef(null);
 
@@ -42,8 +45,17 @@ export default function AccountMenu() {
       </button>
       {open && (
         <div className="account-popover" role="menu" aria-label="Conta">
-          <Link to="/marcacoes" role="menuitem" className="account-item" autoFocus onClick={() => setOpen(false)}>
-            Marcações
+          <Link
+            to="/"
+            role="menuitem"
+            className="account-item"
+            autoFocus
+            onClick={(event) => {
+              setOpen(false);
+              if (onHome) { event.preventDefault(); window.dispatchEvent(new Event(HOME_REFRESH)); } // já está aqui: não empilha outra entrada no histórico
+            }}
+          >
+            Início
           </Link>
           <button
             type="button"

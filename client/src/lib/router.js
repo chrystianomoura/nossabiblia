@@ -10,9 +10,31 @@ function getSnapshot() {
   return window.location.pathname + window.location.search;
 }
 
+// Toda navegação nova guarda de onde veio (`nbFrom`, no history.state: some com a aba e sobrevive ao recarregar); trocar a
+// URL sem empilhar (replace) mantém a origem que já estava.
 export function navigate(to, { replace = false } = {}) {
-  window.history[replace ? 'replaceState' : 'pushState'](null, '', to);
+  if (replace) window.history.replaceState(window.history.state, '', to);
+  else window.history.pushState({ nbFrom: window.location.pathname + window.location.search }, '', to);
   window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
+const ORIGIN_LABELS = [
+  [/^\/$/, 'Voltar ao início'],
+  [/^\/ler\//, 'Voltar ao leitor'],
+  [/^\/marcacoes\/?$/, 'Voltar às marcações'],
+];
+
+// De onde a pessoa veio, para o botão "Voltar" das telas. Telas da conta (entrar, cadastrar...) nunca valem como origem
+// (voltar a elas faria um laço); sem origem útil (link direto, mesma tela), devolve `fallback`.
+export function originBack(fallback) {
+  const from = window.history.state?.nbFrom;
+  if (typeof from === 'string' && from.startsWith('/') && !from.startsWith('//')) {
+    const here = window.location.pathname;
+    const path = from.split('?')[0];
+    const label = ORIGIN_LABELS.find(([re]) => re.test(path))?.[1];
+    if (label && path !== here) return { to: from, label };
+  }
+  return fallback;
 }
 
 export function useLocation() {

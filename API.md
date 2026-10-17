@@ -1,12 +1,12 @@
 # API da Fase 4 — contrato (rascunho para revisão)
 
 Escrito **antes** do código, para decidirmos rotas, formatos e erros uma vez só. Nada aqui está implementado. As rotas de
-leitura e busca que já existem (`/api/books`, `/api/books/:book/chapters/:chapter`, `/api/search`, `/api/daily-verse`) continuam
+leitura e busca que já existem (`/api/books`, `/api/books/:book/chapters/:chapter`, `/api/search`) continuam
 como estão. Regras de negócio: `PROJETO.md` (números entre parênteses).
 
 ## Convenções
 
-- **JSON em UTF-8**, datas em ISO 8601 (UTC). O dia de progresso e do versículo do dia usa o horário de São Paulo (`sp_date`).
+- **JSON em UTF-8**, datas em ISO 8601 (UTC). O dia de progresso usa o horário de São Paulo (`sp_date`).
 - **Erros** no formato que a API já usa, com um código estável a mais para a tela decidir o que mostrar:
   `{ "error": "Este e-mail já foi cadastrado", "code": "email_em_uso" }`. O texto vai para o usuário; o `code` não muda.
 - **Status:** 200/201/204 sucesso; 400 dado inválido (com `fields` quando for de formulário); 401 sem sessão; 403 sem permissão
@@ -59,14 +59,18 @@ Um `comment` ou `folder_id` no corpo do `PUT` é ignorado.
 | `GET /api/bookmarks/index` | → `{ marks: [[livro, capítulo, versículo, cor], ...] }` | Todas as marcações da conta, em ordem canônica, no formato mais compacto possível (no máximo 1.000, uns 20 KB). A busca pede uma vez ao abrir para pôr a bolinha da cor nos versículos já marcados, sem uma ida ao servidor por resultado. `Cache-Control: private, no-store`. **Implementada.** |
 | `GET /api/books/:book/chapters/:chapter/marks` | → `{ bookmarks: [...] }` | O que a tela do leitor precisa para pintar o capítulo; uma chamada só. `Cache-Control: private, no-store`. **Implementada.** |
 
-## Progresso e versículo do dia (itens 19, 20, 32 a 36) — só conta verificada
+## Progresso de leitura (itens 32 a 36) — só conta verificada, **implementado**
 
-| Rota | Observações |
-|---|---|
-| `POST /api/progress/today` | Idempotente: grava o positivo do dia de São Paulo se ainda não houver (`ON CONFLICT DO NOTHING`). O cliente chama no máximo uma vez por dia. |
-| `GET /api/progress?days=7` | Linha dos 7 dias (35): `check` / `x` / `vazio`. |
-| `GET /api/progress/year` | Do dia de abertura até hoje (36). |
-| `POST /api/daily-verse` | `theme_id` → sorteia um versículo do tema. Um por dia (`409 versiculo_do_dia_ja_gerado`: "versículo do dia já gerado; reflita e medite sobre ele"). |
+O dia é sempre o de São Paulo, contado pelo banco. Datas saem como texto `AAAA-MM-DD`. Todas as respostas levam `Cache-Control: private, no-store`.
+O **versículo do dia e os temas saíram do projeto em 16/10/2026** (não há `daily-verse`, `themes`, `theme_verses` nem `daily_verses`: migração 007).
+
+| Rota | Resposta | Observações |
+|---|---|---|
+| `POST /api/progress/today` | `{ date, created }` | Idempotente: grava o positivo do dia de São Paulo se ainda não houver (`ON CONFLICT DO NOTHING`); `created` diz se foi este pedido que gravou. O cliente chama no máximo uma vez por dia, quando uma tela com texto bíblico carrega (leitor, marcações, resultados da busca; a tela inicial não tem texto e não conta). Limite por IP: `PROGRESS_RATE_MAX` (padrão 60 por minuto). |
+| `GET /api/progress?days=7` | `{ today, opened_on, days: [{ date, state }] }` | A linha dos últimos dias (35): `state` é `check` (leu), `x` (dia passado sem leitura) ou `empty` (hoje, ainda sem leitura). `days` vai de 1 a 7 (padrão 7; passar disso é o teto, valor inválido ou repetido vale o padrão). **Só entram os dias desde a abertura da conta** (uma conta de 3 dias devolve 4 dias, e a de hoje devolve 1); dias futuros nunca entram. |
+| `GET /api/progress/year` | `{ today, opened_on, read: [datas] }` | O quadro anual (36): o dia de abertura (o da confirmação do e-mail, em São Paulo), hoje e todas as datas com positivo desde a abertura, em ordem. A tela desenha o calendário (um mês por vez) com isso. O dia de abertura conta como lido. |
+
+Erros: `401 sem_sessao`, `403 conta_nao_verificada`, `429` (limite).
 
 ## Decisões fechadas (15/10/2026)
 

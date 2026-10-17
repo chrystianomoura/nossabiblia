@@ -4,6 +4,7 @@ import Spinner from './Spinner';
 import ReferenceResults from './ReferenceResults';
 import MarkDot from './MarkDot';
 import { useMarkIndex } from '../lib/mark-index';
+import { useRecordReading } from '../lib/progress';
 import { navigate, readPath } from '../lib/router';
 import { displayBookName, slugify, useBooks } from '../lib/books';
 import { parseReference } from '../lib/reference';
@@ -179,6 +180,9 @@ export default function SearchModal({ isOpen, onClose }) {
     scrollToActive.current = false;
     (list?.querySelector('.is-active') ?? list?.querySelector('[aria-selected="true"]'))?.scrollIntoView({ block: 'nearest' });
   }, [bookActive, bookListOpen, bookText, filter.testament]);
+
+  // Resultados com versículos na tela (de palavra ou de referência): conta como leitura do dia. Fica antes do `return` de modal fechado (regra dos hooks).
+  useRecordReading(isOpen && Boolean(term) && (parsed.kind === 'reference' || Boolean(results?.items?.length)));
 
   if (!isOpen) return null;
 

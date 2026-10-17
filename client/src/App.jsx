@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import Home from './components/Home';
+import MemberHome from './components/MemberHome';
 import ReadingView from './components/ReadingView';
 import SearchModal from './components/SearchModal';
+import Navbar from './components/Navbar';
 import WakeNotice from './components/WakeNotice';
 import VerifyNotice from './components/VerifyNotice';
 import RegisterPage from './components/RegisterPage';
@@ -10,7 +12,7 @@ import ConfirmPage from './components/ConfirmPage';
 import ForgotPage from './components/ForgotPage';
 import ResetPage from './components/ResetPage';
 import MarksPage from './components/MarksPage';
-import { loadSession } from './lib/auth';
+import { loadSession, useSession } from './lib/auth';
 import { useBooks } from './lib/books';
 import { parseRoute, useLocation } from './lib/router';
 import { useTheme } from './lib/theme';
@@ -25,6 +27,7 @@ export default function App() {
   const route = parseRoute(useLocation());
   const { theme, toggleTheme } = useTheme();
   const { books, error: booksError } = useBooks();
+  const { status: sessionStatus } = useSession();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [previewTranslation, setPreviewTranslation] = useState('NAA');
 
@@ -78,6 +81,14 @@ export default function App() {
           onToggleTheme={toggleTheme}
           onOpenSearch={() => setIsSearchOpen(true)}
         />
+      ) : sessionStatus === 'in' ? (
+        <MemberHome
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenSearch={() => setIsSearchOpen(true)}
+        />
+      ) : sessionStatus === 'loading' ? (
+        <div className="home"><Navbar onOpenSearch={() => setIsSearchOpen(true)} theme={theme} onToggleTheme={toggleTheme} /></div>
       ) : (
         <Home
           theme={theme}

@@ -1,20 +1,11 @@
 // Marcações. Mesmo molde: lê o pedido, valida (server/http/validation.js), chama o serviço e responde. Só conta VERIFICADA (regra 38) e
 // sempre as marcações do próprio usuário da sessão: o id do usuário nunca vem do pedido.
-import { sessionCookieName } from '../auth/session.js';
-import { authenticate } from '../services/accounts.js';
+import { verifiedUser } from '../http/verified-user.js';
 import { findBook } from '../services/books.js';
 import { upsertBookmark, deleteBookmark, chapterMarks, listBookmarks, markIndex, BookmarkError } from '../services/bookmarks.js';
 import { parseBookmarkBody, parseMarkListQuery, parsePositiveInt } from '../http/validation.js';
 
 const MAX_VERSE = 176; // o maior capítulo (Salmos 119)
-
-// Conta verificada ou resposta de erro pronta.
-async function verifiedUser(request, reply) {
-  const user = await authenticate(request.cookies?.[sessionCookieName()]);
-  if (!user) { reply.code(401).send({ error: 'Você não está conectado.', code: 'sem_sessao' }); return null; }
-  if (!user.is_verified) { reply.code(403).send({ error: 'Confirme seu e-mail para usar este recurso.', code: 'conta_nao_verificada' }); return null; }
-  return user;
-}
 
 // Livro (id, nome ou abreviação) + capítulo (+ versículo): valores confiáveis ou resposta de erro pronta.
 async function locate(request, reply, { withVerse }) {

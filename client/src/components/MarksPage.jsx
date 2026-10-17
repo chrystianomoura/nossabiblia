@@ -5,7 +5,9 @@ import TranslationToggle from './TranslationToggle';
 import { authRequest, useSession } from '../lib/auth';
 import { displayBookName } from '../lib/books';
 import { MARK_COLORS } from '../lib/marks';
-import { navigate, readPath } from '../lib/router';
+import AccountMenu from './AccountMenu';
+import { navigate, originBack, readPath } from '../lib/router';
+import { useRecordReading } from '../lib/progress';
 import { relativeTime } from '../lib/relative-time';
 import { useOnReturnToTab } from '../lib/return-to-tab';
 import { readStorage } from '../lib/storage';
@@ -95,6 +97,7 @@ export default function MarksPage({ route, books, theme, onToggleTheme, onOpenSe
 
   const list = useMarkList({ enabled: verified && Boolean(books), order, color, translation });
   useOnReturnToTab(list.refreshQuietly, { enabled: verified && Boolean(books) });
+  useRecordReading(verified && list.items.length > 0); // a lista mostra versículos: conta como leitura do dia
   // O ícone da própria tela: rolada, sobe suavemente (sem animação para quem pediu menos movimento); já no topo, busca a lista de novo
   // (a mesma ordem, cor e tradução, de volta à primeira página), sem recarregar a página inteira.
   function onBookmarkClick() {
@@ -106,7 +109,7 @@ export default function MarksPage({ route, books, theme, onToggleTheme, onOpenSe
     }
   }
 
-  const back = read ? { to: readPath(read.slug, read.chapter, read.translation ?? translation), label: 'Voltar ao leitor' } : { to: '/', label: 'Voltar ao início' };
+  const back = originBack(read ? { to: readPath(read.slug, read.chapter, read.translation ?? translation), label: 'Voltar ao leitor' } : { to: '/', label: 'Voltar ao início' });
 
   let group = null;
   const rows = [];
@@ -143,7 +146,7 @@ export default function MarksPage({ route, books, theme, onToggleTheme, onOpenSe
       </div>
     );
   } else if (verified && !list.loading && list.items.length === 0) {
-    body = <p className="mk-empty">{color ? `Nenhuma marcação na cor ${color}.` : 'Você ainda não marcou nenhum versículo. Toque num versículo enquanto lê para marcar.'}</p>;
+    body = <p className="mk-empty">{color ? `Nenhuma marcação na cor ${color}.` : 'Você ainda não marcou nenhum versículo.'}</p>;
   } else if (rows.length) {
     body = (
       <>
@@ -163,7 +166,7 @@ export default function MarksPage({ route, books, theme, onToggleTheme, onOpenSe
   return (
     <div className="read mk">
       <header className="read-header">
-        <Link to={back.to} className="back-link">
+        <Link to={back.to} className="back-link" aria-label={back.label}>
           <ArrowLeft size={18} aria-hidden="true" />
           <span>{back.label}</span>
         </Link>
@@ -177,6 +180,7 @@ export default function MarksPage({ route, books, theme, onToggleTheme, onOpenSe
           <button type="button" className="icon-btn" onClick={onToggleTheme} aria-label={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}>
             {theme === 'dark' ? <Sun size={17} aria-hidden="true" /> : <Moon size={17} aria-hidden="true" />}
           </button>
+          {status === 'in' && <AccountMenu />}
         </div>
       </header>
 

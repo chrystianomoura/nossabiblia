@@ -1,6 +1,6 @@
 # Nossa Bíblia: especificação do projeto
 
-Este documento descreve a especificação funcional e as decisões técnicas da aplicação **Nossa Bíblia**, um app web pessoal para ler a Bíblia, marcar versículos, organizar leituras por tema e estudar palavras.
+Este documento descreve a especificação funcional e as decisões técnicas da aplicação **Nossa Bíblia**, um app web pessoal para ler a Bíblia, marcar versículos, acompanhar o progresso de leitura e estudar palavras.
 
 ---
 
@@ -47,11 +47,11 @@ Este documento descreve a especificação funcional e as decisões técnicas da 
 
 Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **implementada e aprovada**):
 
-- **Como chegar:** ícone de marcador na barra do leitor (ao lado da lupa) e entrada **"Marcações"** no menu "Conta". Na própria tela o ícone fica preenchido (ativo): com a página rolada ele sobe suavemente (sem animação para quem pede menos movimento); já no topo, busca a lista de novo (sem recarregar a página). Sem número em lugar nenhum (nem contador no ícone, nem total na tela). Visitante vai ao login e volta; conta não verificada vê "Confirme seu e-mail para ver suas marcações.".
+- **Como chegar:** ícone de marcador na barra do leitor (ao lado da lupa) e botão **"Marcações"** na página inicial de quem está logado (o menu "Conta" tem só "Início" e "Sair"). Na própria tela o ícone fica preenchido (ativo): com a página rolada ele sobe suavemente (sem animação para quem pede menos movimento); já no topo, busca a lista de novo (sem recarregar a página). Sem número em lugar nenhum (nem contador no ícone, nem total na tela). Visitante vai ao login e volta; conta não verificada vê "Confirme seu e-mail para ver suas marcações.".
 - **Lista:** cartões com o versículo **completo**, pintado como no leitor, com referência, tradução e data relativa ("há 3 horas", "ontem"). Tocar abre o leitor no versículo. 20 por vez, com "Mostrar mais".
 - **Ordem:** "Mais recentes" (padrão) ou "Ordem canônica", esta com um título por livro (15 px, cor principal do texto).
 - **Filtro de cor:** menu **nativo** ("Todas as cores, Amarelo, Azul, Rosa, Verde"), sem seta; com uma cor escolhida a pílula fica pintada com ela. Combina com a ordem. Sem resultado: "Nenhuma marcação na cor rosa." (com ponto final, decisão do usuário).
-- **Tradução:** seletor NAA | NVT ao lado do filtro, igual ao da busca. Vale para a lista inteira e fica no endereço (`?t=`). Ao chegar, vale a tradução do leitor naquele momento (ícone do leitor) ou, pelo menu "Conta", a última lida (`nb-last-read`), ou a NAA.
+- **Tradução:** seletor NAA | NVT ao lado do filtro, igual ao da busca. Vale para a lista inteira e fica no endereço (`?t=`). Ao chegar, vale a tradução do leitor naquele momento (ícone do leitor) ou, vindo da página inicial, a última lida (`nb-last-read`), ou a NAA.
 - **Busca:** versículo já marcado mostra uma **bolinha cheia da cor** depois da referência, tanto no resultado de palavra quanto no cartão de referência de versículo (um intervalo mostra uma bolinha por versículo marcado). Cartões de capítulo e de livro não mostram. Só mostra: tocar abre o leitor. O índice das marcações é pedido uma vez ao abrir a busca (`GET /api/bookmarks/index`), só para conta verificada.
 - **Leitor:** a paleta mostra as cores em ordem alfabética, sem botão "Remover" (tocar na cor com o certo remove). O fundo da marcação tem 2 px de respiro em cima e embaixo. As marcações chegam **junto** com o texto (o capítulo só entra quando os dois chegaram; as dos capítulos vizinhos são buscadas de antemão; uma nova tentativa silenciosa se falhar, sem aviso).
 - **Paleta e teclado (16/10/2026, aprovados):** as bolinhas da paleta são cheias da cor viva (o certo contrasta com ela). Só um versículo entra na ordem do Tab (o último em que o foco esteve) e ↑ ↓ andam entre eles; Enter ou espaço abre a paleta e leva o foco à cor atual; ← → (e Home/End) andam entre as cores, Enter escolhe, Esc fecha, e depois de escolher ou fechar o foco volta ao versículo. ← → dentro da paleta não trocam de capítulo. Cada versículo é anunciado como "Versículo N".
@@ -72,11 +72,9 @@ Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **imple
 16. **Modo por versículo:** cada versículo mostra logo abaixo o correspondente na outra tradução.
 17. **Versículos ausentes:** quando uma passagem tem numeração diferente nas duas traduções, cada uma mostra só o que existe nela.
 
-## Temas
+## Temas e versículo do dia (removidos do projeto)
 
-18. **Carrosséis de leitura:** sequências de versículos agrupadas por tema (por exemplo, depressão, ansiedade, medo). Os temas e os versículos são curados pelo autor. A curadoria automática está fora de escopo.
-19. **Versículo do dia por tema:** o usuário escolhe um tema e recebe um versículo sorteado daquele tema. Vale um por dia.
-20. **Limite diário:** se o usuário pedir outro no mesmo dia, aparece a mensagem "versículo do dia já gerado; reflita e medite sobre ele".
+18. ~~**Carrosséis de leitura**~~ · 19. ~~**Versículo do dia por tema**~~ · 20. ~~**Limite diário**~~ — **removidos em 16/10/2026** (decisão do usuário). Os números ficam reservados, para não mudar a numeração das outras regras. As tabelas `daily_verses`, `theme_verses` e `themes` foram apagadas do banco (migração 007) e a rota `GET /api/daily-verse` deixou de existir.
 
 ## Busca de palavra (pública)
 
@@ -106,10 +104,14 @@ Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **imple
 
 ## Página inicial
 
-25. Versículo do dia, com o botão para escolher um tema e sortear.
-26. Sessões de temas escolhidos pelo autor.
-27. Botão principal para abrir a Bíblia no último texto lido.
-28. Linha de progresso dos últimos 7 dias.
+Quem **não** está logado vê a apresentação (título, subtítulo, os cartões de benefícios e a Bíblia de amostra). Quem está logado vê a **tela pessoal** abaixo (decidida com o usuário em 16/10/2026; a Bíblia de amostra, o título e o subtítulo não aparecem):
+
+25. ~~Versículo do dia~~ — removido do projeto (ver "Temas e versículo do dia").
+26. ~~Sessões de temas~~ — removidas do projeto.
+27. **Botão principal "Continuar a leitura"** (ou "Começar a leitura" se a pessoa nunca leu): abre a Bíblia no último texto lido, e mostra embaixo onde parou ("Salmos 23 · NAA").
+28. **Linha de progresso dos últimos 7 dias** (ver "Progresso").
+
+Composição, de cima para baixo, **no meio da tela**: a **saudação** ("Bom dia", "Boa tarde" ou "Boa noite", vírgula e o primeiro nome), um **cartão único** com o progresso (a semana; tocar abre o quadro do ano), o botão de **leitura** e, por último, **"Marcações"**. A saudação segue a hora do aparelho; **não existe norma oficial** (nem da Academia Brasileira de Letras, nem do Manual de Redação da Presidência: é costume): "bom dia" das 5 h até 11:59, "boa tarde" das 12 h até 17:59 e "boa noite" das 18 h até 4:59 (a madrugada segue "boa noite"). Conta não verificada vê "Confirme seu e-mail para acompanhar seu progresso." no lugar da semana.
 
 ## Atalho para a Bíblia
 
@@ -122,11 +124,11 @@ Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **imple
 
 ## Progresso (exige conta verificada)
 
-32. **Positivo:** um por dia, ganho na primeira vez que qualquer tela da Bíblia carrega para o usuário. Vale para página inicial, leitura, marcações, busca, comparação e qualquer outra página de texto bíblico.
+32. **Positivo:** um por dia, ganho na primeira vez que uma tela com texto da Bíblia carrega para o usuário: leitura, marcações, resultados da busca (e comparação, quando existir). **A tela inicial não conta**, porque não mostra texto bíblico (decisão de 16/10/2026).
 33. **Sem exigência:** basta a tela carregar. Não há tempo mínimo de leitura nem necessidade de avançar.
 34. **Reset:** o dia é contado pelo horário de São Paulo, com reset à meia-noite, independentemente do fuso do usuário.
-35. **Linha de 7 dias:** check para dia com positivo, X para dia passado sem positivo, bolinha vazia para o dia atual sem positivo ainda. Dias futuros não aparecem.
-36. **Quadro anual:** ao tocar na linha, abre um calendário que começa na data de abertura da conta e vai até hoje, pintando cada dia conforme o positivo. A data de abertura tem destaque próprio. Dias anteriores a ela não aparecem.
+35. **Linha de 7 dias** (a semana é um cartão que se ajusta ao número de dias, de 1 a 7; o título "Progresso diário" define a largura mínima): um círculo por dia, com 42 px (36 px no celular) e 14 px entre eles. Todos os rótulos ficam em negrito, na cor principal do texto. **Verde** com ✓ para dia com positivo, **vermelho** com X para dia passado sem positivo, círculo tracejado para o dia atual sem positivo ainda. **No dia de hoje o rótulo é "Hoje"** (e não o dia da semana), sem borda no círculo. **O dia de abertura da conta conta como lido** (verde com ✓, mesmo sem leitura; a data da abertura aparece como referência no calendário). Dias futuros não aparecem, **nem os anteriores à abertura da conta** (uma conta de 3 dias mostra 4 círculos). Sem número de dias seguidos. Embaixo, centralizado, o texto "ver o ano" (branco e sublinhado, sem seta) abre o quadro anual; o cartão é centralizado e sem anel de foco amarelo. A semana começa a carregar junto com a sessão (sem esperar o `/api/me`) e o servidor a calcula em uma consulta só.
+36. **Quadro anual: calendário de um mês por vez** (decisão do usuário em 16/10/2026, depois de testar o círculo, o gráfico estilo GitHub e outras propostas). Ao tocar no progresso abre uma janela com **o calendário comum no meio**: título "Seu ano de leitura" e "Conta aberta em ..." centralizados, setas para os meses anteriores e seguintes (de hoje para trás, até o mês da abertura; não há mês depois de hoje), os dias da semana (D S T Q Q S S) e **todos os dias do mês**. A divisão entre os dias é uma linha de 2 px **na cor do fundo do cartão** (separa qualquer cor de dia, nos dois temas; uma linha cinza translúcida sumia sobre o verde e o vermelho). **Cada quadrado é inteiro de uma cor só**, sem borda nem anel: **verde** se a pessoa leu (o dia da abertura sempre é verde) e **vermelho** se não leu. Todos os números têm a mesma letra (sem negrito para hoje). Os dias antes da abertura e depois de hoje aparecem **sem cor de leitura, só com o número**, grande e legível, num fundo suave. Legenda de dois itens (leu, não leu), com o texto na cor principal, e nenhum número de contagem. Fecha com o X, o Esc ou um toque fora (fundo da página desfocado); o foco entra no X e volta ao cartão. Cada dia é uma célula de uma grade para leitor de tela ("16 de outubro: você leu"). Cores: `--day-read`, `--day-miss` e `--day-on-read` (texto sobre o verde: branco no claro, escuro no escuro, por contraste).
 
 ## Conta
 
@@ -206,7 +208,7 @@ Estes itens não entram no projeto, nem agora nem no futuro previsto:
 - Imagens de card para compartilhamento.
 - Comentários públicos, perfis ou rede social.
 - Comentários nas marcações, favoritos e pastas (removidos do projeto em 16/10/2026: a marcação por cor e a tela "Marcações" já cobrem).
-- Curadoria automática de temas.
+- Temas e versículo do dia (removidos do projeto em 16/10/2026).
 
 ---
 
@@ -304,11 +306,6 @@ cron.schedule('*/4 6-23 * * *', async () => {
 
 A decisão original previa a Railway para a API; o plano dela deixou de ser gratuito, então a escolha foi a Render (ver as alternativas estudadas no item 21 do "Estado atual").
 
-### Limite diário do versículo por tema (item 19–20)
-
-- O limite é **global**: o usuário recebe um único versículo por dia, independentemente de ter escolhido um tema específico ou de ter pedido de forma geral. Uma vez gerado o versículo do dia, qualquer nova tentativa — em qualquer tema — exibe a mensagem "versículo do dia já gerado; reflita e medite sobre ele".
-- Impacto no esquema: a tabela de controle registra apenas a data do último versículo gerado por usuário, sem vínculo com o tema.
-
 ---
 
 ## Estado atual
@@ -325,7 +322,6 @@ A decisão original previa a Railway para a API; o plano dela deixou de ser grat
    - `GET /api/books`: Retorna os 66 livros da Bíblia na ordem canônica (divididos em AT e NT).
    - `GET /api/books/:book/chapters/:chapter?translation=NAA`: Leitura completa de capítulos em NAA ou NVT.
    - `GET /api/search?q=palavra&translation=NAA&testament=AT&book_id=19&limit=50&offset=0`: Busca exata (itens 21 a 24). O índice GIN acha os versículos candidatos e uma conferência no texto confirma a palavra e conta as ocorrências. Responde `total_occurrences`, `total_verses`, `has_more` e, por versículo, `occurrences` e `matches` (posições para o destaque). `testament` e `book_id` recortam o resultado (item 24). Parâmetros inválidos dão 400: tradução, testamento, `book_id` e também parâmetros repetidos (`?translation=NAA&translation=NVT`). `limit` vai de 1 a 200 e `offset` tem teto de 100.000 (a Bíblia tem 31 mil versículos; um número gigante estourava o inteiro do banco e dava erro 500). Além do fim da lista, a resposta vem com a lista e os totais zerados.
-   - `GET /api/daily-verse`: Versículo do dia público.
 9. ✅ Frontend SPA (Vite + React 19 + CSS puro com tokens + Lucide Icons) estruturado, compilado e rodando:
    - Home em tela dividida: manifesto, benefícios e o livro aberto de Gênesis 1 em NAA/NVT, embutido no código (aparece sem esperar a API).
    - Leitor em cartão vertical com rotas por URL (`/ler/joao/3?t=NVT&v=16-18`), três tamanhos de letra, seletor de livro e capítulo, navegação por setas e gestos, posição lembrada, tema claro e escuro (ver "Interface do leitor").

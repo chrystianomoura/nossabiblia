@@ -323,7 +323,7 @@ nossabiblia/
 ├── server/                     # Backend API (Node.js + Fastify)
 │   ├── routes/
 │   │   └── bible.js            # Rotas públicas: só lê o pedido, valida, chama o serviço e responde (nada de SQL aqui)
-│   ├── services/               # Acesso ao banco e cache: books, chapters, verse-search, daily-verse (a conta entra aqui, no mesmo molde)
+│   ├── services/               # Acesso ao banco e cache: books, chapters, verse-search, bookmarks, progress (a conta entra aqui, no mesmo molde)
 │   ├── http/                   # validation.js (valida os parâmetros) e cache.js (o Cache-Control das respostas imutáveis)
 │   ├── migrations/
 │   │   ├── 001_fase4_conta.sql    # Esquema da Fase 4: contas, sessões, marcações por versículo

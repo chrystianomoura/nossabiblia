@@ -1208,3 +1208,116 @@ describe('marcações de versículos', opts, () => {
     assert.equal((await http.get(`/api/books/${SALMOS}/chapters/23/marks`, { cookie })).status, 401);
   });
 });
+
+// ------------------------------------------------------------------------------------------------------------------------------
+describe('progresso de leitura', opts, () => {
+  let srv; let http;
+  before(async () => { srv = await startServer(fake, { LOGIN_RATE_MAX: '100000', PROGRESS_RATE_MAX: '100000' }); http = client(srv.base); });
+  after(async () => { await srv.stop(); });
+
+  const entrar = async ({ verified = true, abertaHaDias = 0 } = {}) => {
+    const email = `${uniq('pg')}@${EMAIL_DOMAIN}`;
+    const id = await seedUser(email, { verified });
+    if (verified && abertaHaDias) await db.query(`UPDATE users SET verified_at = now() - ($2::int * interval '1 day') WHERE id = $1`, [id, abertaHaDias]);
+    const cookie = (await http.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie;
+    return { email, id, cookie };
+  };
+  const hojeSp = async () => (await db.query(`SELECT to_char((now() AT TIME ZONE 'America/Sao_Paulo')::date, 'YYYY-MM-DD') AS d`)).rows[0].d;
+  const diaSp = async (deslocamento) => (await db.query(`SELECT to_char((now() AT TIME ZONE 'America/Sao_Paulo')::date + $1::int, 'YYYY-MM-DD') AS d`, [deslocamento])).rows[0].d;
+  const positivos = async (id) => (await db.query(`SELECT to_char(sp_date, 'YYYY-MM-DD') AS d FROM daily_progress WHERE user_id = $1 ORDER BY sp_date`, [id])).rows.map((r) => r.d);
+
+  test('sem sessão 401; conta não verificada 403; Origin de fora 403 — e nada é gravado', async () => {
+    const nv = await entrar({ verified: false });
+    for (const [metodo, u] of [['POST', '/api/progress/today'], ['GET', '/api/progress'], ['GET', '/api/progress/year']]) {
+      assert.equal((await http.request(metodo, u)).status, 401, `${metodo} ${u} sem sessão`);
+      const r = await http.request(metodo, u, { cookie: nv.cookie });
+      assert.equal(r.status, 403, `${metodo} ${u} não verificada`);
+      assert.equal(r.json.code, 'conta_nao_verificada');
+    }
+    const ok = await entrar();
+    assert.equal((await http.request('POST', '/api/progress/today', { cookie: ok.cookie, origin: 'http://evil.test' })).status, 403);
+    assert.equal((await http.request('POST', '/api/progress/today', { cookie: ok.cookie, origin: null })).status, 403);
+    assert.deepEqual(await positivos(nv.id), []);
+    assert.deepEqual(await positivos(ok.id), []);
+  });
+
+  test('POST /progress/today é idempotente: o 1º cria, os seguintes não; o dia é o de São Paulo; uma linha só', async () => {
+    const { cookie, id } = await entrar();
+    const a = await http.request('POST', '/api/progress/today', { cookie });
+    assert.equal(a.status, 200);
+    assert.deepEqual(a.json, { date: await hojeSp(), created: true });
+    assert.match(a.headers.get('cache-control') || '', /no-store/);
+    for (let i = 0; i < 3; i++) assert.deepEqual((await http.request('POST', '/api/progress/today', { cookie })).json, { date: await hojeSp(), created: false });
+    assert.deepEqual(await positivos(id), [await hojeSp()]);
+  });
+
+  test('simultâneos: vários POST ao mesmo tempo gravam uma linha só e nenhum dá erro', async () => {
+    const { cookie, id } = await entrar();
+    const rs = await Promise.all(Array.from({ length: 12 }, () => http.request('POST', '/api/progress/today', { cookie })));
+    assert.ok(rs.every((r) => r.status === 200));
+    assert.equal(rs.filter((r) => r.json.created).length, 1, 'só um deles criou');
+    assert.equal((await positivos(id)).length, 1);
+    assert.deepEqual(srv.errorLines().filter((l) => !l.includes('Resend')), []);
+  });
+
+  test('GET /progress: sete dias com check, x e empty; hoje sem leitura é "empty" e vira "check" depois do POST; nada antes da abertura da conta', async () => {
+    const { cookie, id } = await entrar({ abertaHaDias: 10 });
+    for (const d of [-1, -2, -4]) await db.query(`INSERT INTO daily_progress (user_id, sp_date) VALUES ($1, $2::date)`, [id, await diaSp(d)]);
+    const a = (await http.get('/api/progress', { cookie })).json;
+    assert.equal(a.today, await hojeSp());
+    assert.equal(a.days.length, 7);
+    assert.deepEqual(a.days.map((x) => x.date), [await diaSp(-6), await diaSp(-5), await diaSp(-4), await diaSp(-3), await diaSp(-2), await diaSp(-1), await diaSp(0)]);
+    assert.deepEqual(a.days.map((x) => x.state), ['x', 'x', 'check', 'x', 'check', 'check', 'empty']);
+    await http.request('POST', '/api/progress/today', { cookie });
+    assert.equal((await http.get('/api/progress', { cookie })).json.days.at(-1).state, 'check');
+    // conta aberta há 3 dias: só aparecem a abertura e os dias seguintes (4 dias), não os 7
+    const nova = await entrar({ abertaHaDias: 3 });
+    const b = (await http.get('/api/progress', { cookie: nova.cookie })).json;
+    assert.equal(b.days.length, 4);
+    assert.equal(b.opened_on, await diaSp(-3));
+    // conta aberta hoje: só hoje
+    const hoje = await entrar();
+    assert.deepEqual((await http.get('/api/progress', { cookie: hoje.cookie })).json.days.map((x) => x.state), ['empty']);
+  });
+
+  test('GET /progress/year: o dia de abertura, hoje e os dias lidos em ordem; só os da própria conta', async () => {
+    const A = await entrar({ abertaHaDias: 40 }); const B = await entrar({ abertaHaDias: 40 });
+    for (const d of [-30, -29, -10, -1]) await db.query(`INSERT INTO daily_progress (user_id, sp_date) VALUES ($1, $2::date)`, [A.id, await diaSp(d)]);
+    await db.query(`INSERT INTO daily_progress (user_id, sp_date) VALUES ($1, $2::date)`, [B.id, await diaSp(-5)]);
+    const a = (await http.get('/api/progress/year', { cookie: A.cookie })).json;
+    assert.deepEqual(a, { today: await hojeSp(), opened_on: await diaSp(-40), read: [await diaSp(-30), await diaSp(-29), await diaSp(-10), await diaSp(-1)] });
+    assert.deepEqual((await http.get('/api/progress/year', { cookie: B.cookie })).json.read, [await diaSp(-5)]);
+    assert.ok(!/user_id|"id"/.test(JSON.stringify(a)), 'não vaza ids internos');
+  });
+
+  test('"days" hostil vira o padrão ou o teto (nunca erro 500)', async () => {
+    const { cookie } = await entrar({ abertaHaDias: 30 });
+    for (const [q, esperado] of [['', 7], ['?days=1', 1], ['?days=3', 3], ['?days=99', 7], ['?days=0', 7], ['?days=-5', 1], ['?days=abc', 7], ['?days=1e1', 1], ['?days=3&days=5', 7], ['?days[]=2', 7], ["?days=1;DROP TABLE users", 1]]) {
+      const r = await http.get(`/api/progress${q}`, { cookie });
+      assert.equal(r.status, 200, q);
+      assert.equal(r.json.days.length, esperado, q);
+    }
+    assert.deepEqual(srv.errorLines().filter((l) => !l.includes('Resend')), []);
+  });
+
+  test('o limite por IP do POST barra o excesso (429)', async () => {
+    const lim = await startServer(fake, { LOGIN_RATE_MAX: '100000', PROGRESS_RATE_MAX: '3' });
+    try {
+      const h = client(lim.base);
+      const email = `${uniq('pl')}@${EMAIL_DOMAIN}`;
+      await seedUser(email);
+      const cookie = (await h.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie;
+      const codes = [];
+      for (let i = 0; i < 5; i++) codes.push((await h.request('POST', '/api/progress/today', { cookie })).status);
+      assert.deepEqual(codes, [200, 200, 200, 429, 429]);
+    } finally { await lim.stop(); }
+  });
+
+  test('apagar a conta apaga o progresso (cascata) e a sessão deixa de valer', async () => {
+    const { cookie, id } = await entrar();
+    await http.request('POST', '/api/progress/today', { cookie });
+    await db.query('DELETE FROM users WHERE id = $1', [id]);
+    assert.equal(Number((await db.query('SELECT count(*) AS n FROM daily_progress WHERE user_id = $1', [id])).rows[0].n), 0);
+    assert.equal((await http.get('/api/progress', { cookie })).status, 401);
+  });
+});
