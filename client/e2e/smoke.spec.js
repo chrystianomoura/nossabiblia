@@ -1274,7 +1274,6 @@ test('filtro de cor das marcações: o anel de foco só aparece para quem navega
 });
 
 // ---- Revisão geral: erros achados e corrigidos ----
-
 test('endereço com "%" quebrado não derruba a tela (vale como endereço que não existe) e um dado inesperado da API mostra a tela de erro, não uma página em branco', async ({ page }) => {
   await page.goto('/');
   await page.waitForSelector('.navbar');
@@ -1298,4 +1297,16 @@ test('visitante em "Minhas marcações": o login SUBSTITUI a entrada e o Voltar 
   await expect(page).toHaveURL(/\/entrar\?next=%2Fmarcacoes%3Ft%3DNVT/); // e a tradução vai junto
   await page.goBack();
   await expect(page).toHaveURL(/\/ler\/salmos\/23\?t=NVT$/);
+});
+
+test('marcar: se o servidor recusar a REMOÇÃO, a cor volta na tela (antes a remoção que falhava ficava apagada só na tela)', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [{ verse: 2, color: 'verde' }] }));
+  await page.route('**/api/bookmarks/**', (route) => respondeJson(route, 500, { error: 'Erro ao remover a marcação.', code: 'erro_interno' }));
+  await page.goto('/ler/salmos/23?t=NAA');
+  await expect(page.locator('#v2 .vt')).toHaveAttribute('data-mark', 'verde');
+  await page.locator('#v2 .vt').click();
+  await page.getByRole('button', { name: 'Remover a marcação verde' }).click();
+  await expect(page.getByRole('alert')).toBeVisible(); // o erro aparece
+  await expect(page.locator('#v2 .vt')).toHaveAttribute('data-mark', 'verde'); // e a cor continua, porque o servidor ainda a tem
 });

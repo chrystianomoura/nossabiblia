@@ -120,11 +120,12 @@ export function useMarks(bookId, chapter, nearby = []) {
   // ordem (a remoção antes da troca de cor, e a cor vencer). Por isso cada versículo tem uma fila: um pedido só sai depois do anterior.
   const change = useCallback((verse, color, translation) => {
     const prev = latest.current[verse];
-    // Muda o versículo no cache e na tela. Com `onlyIf`, só se o valor atual ainda for esse (o servidor recusou, mas um pedido mais novo
-    // pode já ter mudado o versículo: aí não se desfaz nada).
-    const setVerse = (value, onlyIf) => {
+    // Muda o versículo no cache e na tela. Com `guard`, só se o valor atual ainda for `guard.current` (o servidor recusou, mas um pedido mais
+    // novo pode já ter mudado o versículo: aí não se desfaz nada). O valor atual de um versículo sem marca é `undefined`, por isso o guard é um
+    // objeto: `{ current: undefined }` quer dizer "só se continuar sem marca" (desfazer uma remoção), e a ausência do guard, "sem condição".
+    const setVerse = (value, guard) => {
       const edit = (marks) => {
-        if (onlyIf !== undefined && marks[verse] !== onlyIf) return marks;
+        if (guard && marks[verse] !== guard.current) return marks;
         const rest = omit(marks, verse);
         return value ? { ...rest, [verse]: value } : rest;
       };
@@ -136,7 +137,7 @@ export function useMarks(bookId, chapter, nearby = []) {
     pending.current += 1;
     const run = (queue.current.get(verse) ?? Promise.resolve()).then(async () => {
       const r = color ? await authRequest('PUT', path, { color, translation }) : await authRequest('DELETE', path);
-      if (!r.ok) setVerse(prev, color); // o servidor recusou: volta ao que era
+      if (!r.ok) setVerse(prev, { current: color ?? undefined }); // o servidor recusou: volta ao que era (a remoção que falha também)
       return r;
     }).finally(() => { pending.current -= 1; });
     queue.current.set(verse, run.catch(() => {}));
