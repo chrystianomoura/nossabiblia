@@ -47,3 +47,6 @@ backups/
 # Teste de fumaça (Playwright)
 client/test-results/
 client/playwright-report/
+
+# Trava das skills do agente de código (arquivo local, não vai para o repositório)
+skills-lock.json
