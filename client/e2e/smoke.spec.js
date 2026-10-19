@@ -1290,3 +1290,12 @@ test('endereço com "%" quebrado não derruba a tela (vale como endereço que n�
   await expect(page.getByRole('button', { name: 'Recarregar' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Ir para o início' })).toHaveAttribute('href', '/');
 });
+
+test('visitante em "Minhas marcações": o login SUBSTITUI a entrada e o Voltar do navegador volta ao leitor (antes ficava preso no login)', async ({ page }) => {
+  await page.goto('/ler/salmos/23?t=NVT');
+  await page.waitForSelector('#v1');
+  await page.getByRole('link', { name: 'Minhas marcações' }).click();
+  await expect(page).toHaveURL(/\/entrar\?next=%2Fmarcacoes%3Ft%3DNVT/); // e a tradução vai junto
+  await page.goBack();
+  await expect(page).toHaveURL(/\/ler\/salmos\/23\?t=NVT$/);
+});

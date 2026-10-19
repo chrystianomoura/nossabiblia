@@ -93,7 +93,13 @@ export default function MarksPage({ route, books, theme, onToggleTheme, onOpenSe
   // Visitante vai ao login e volta aqui; conta não verificada vê o aviso discreto (a mesma porta de quem tenta marcar).
   useEffect(() => {
     if (status === 'loading') return;
-    if (!requireVerified() && status === 'out') navigate(`/entrar?next=${encodeURIComponent('/marcacoes')}`, { replace: true });
+    if (status === 'out') {
+      // SUBSTITUI esta entrada do histórico pelo login (e guarda o endereço inteiro, com a tradução): empilhar o login deixaria o "Voltar" do
+      // navegador voltar para cá, que redirecionaria de novo, e o visitante nunca sairia.
+      navigate(`/entrar?next=${encodeURIComponent(window.location.pathname + window.location.search)}`, { replace: true });
+      return;
+    }
+    requireVerified();
   }, [status]);
 
   const list = useMarkList({ enabled: verified && Boolean(books), order, color, translation });
