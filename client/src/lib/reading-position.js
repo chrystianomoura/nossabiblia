@@ -5,10 +5,12 @@ import { readStorage, writeStorage } from './storage';
 
 // Onde a pessoa parou. O leitor chama `recordPosition` sempre que mostra um capítulo (qualquer que seja o caminho: continuar, busca, marcação,
 // seta, link, F5) e de novo quando a rolagem para num versículo. A posição fica no navegador na hora (`nb-last-read`, vale para visitantes) e,
-// para conta verificada, sobe ao servidor (vale em qualquer aparelho). Um envio por segundo no máximo, o último sempre sai; ao esconder ou
-// fechar a aba sai o que estiver pendente; repetir a mesma posição não envia nada.
+// para conta verificada, sobe ao servidor (vale em qualquer aparelho). No máximo um envio a cada 5 s (o último sempre sai); ao esconder ou fechar a
+// aba sai o que estiver pendente; repetir a mesma posição não envia nada; uma falha passageira (rede, 429, 5xx) é tentada de novo até 3 vezes.
+// Quem lê no mesmo aparelho não depende da pressa do envio: a posição do navegador (`dirty`) vale até o servidor confirmar.
 // `dirty` marca a posição do navegador que o servidor ainda não confirmou: enquanto for verdade, ela vence a do servidor (sem comparar relógios).
-const MIN_GAP_MS = 1000;
+const MIN_GAP_MS = 5000;
+let retries = 0;
 let pending = null;
 let lastSent = '';
 let lastSentAt = 0;
@@ -31,7 +33,17 @@ function flush() {
   lastSent = key;
   lastSentAt = Date.now();
   authRequest('PUT', '/api/reading-position', { book: pos.book, chapter: pos.chapter, verse: pos.verse, translation: pos.translation }).then((r) => {
-    if (!r.ok) { lastSent = ''; return; }
+    if (!r.ok) {
+      lastSent = '';
+      const passing = r.status === 0 || r.status === 429 || r.status >= 500;
+      if (passing && retries < 3 && !pending) { // uma posição mais nova, se já houver, é a que vai; senão tenta esta de novo
+        retries += 1;
+        pending = pos;
+        timer = setTimeout(flush, MIN_GAP_MS * 2);
+      }
+      return;
+    }
+    retries = 0;
     const local = localPosition();
     if (sameSpot(local, pos)) writeLocal({ ...local, dirty: false }); // o servidor já tem esta (se a pessoa já andou mais, continua pendente a mais nova)
   });

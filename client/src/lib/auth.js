@@ -99,6 +99,7 @@ export function resendVerification() {
 }
 
 export async function logout() {
+  removeStorage('nb-last-read'); // a posição guardada é de quem estava aqui: a próxima pessoa neste navegador não herda o lugar dela
   setUser(null);
   await authRequest('POST', '/api/auth/logout');
 }

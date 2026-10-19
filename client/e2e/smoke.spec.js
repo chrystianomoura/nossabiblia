@@ -998,7 +998,7 @@ test('posição de leitura: abrir o capítulo já grava (sem rolar); ao parar de
   await expect.poll(() => envios.length).toBe(1); // abriu: já é o lugar onde a pessoa está
   expect(envios[0]).toEqual({ book: 19, chapter: 119, verse: 1, translation: 'NVT' });
   await page.locator('.rb-scroll').evaluate((el) => { el.scrollTop = el.querySelector('#v40').offsetTop + 8; });
-  await expect.poll(() => envios.length, { timeout: 8000 }).toBe(2);
+  await expect.poll(() => envios.length, { timeout: 12000 }).toBe(2); // o segundo envio espera a folga de 5 s entre envios
   expect(envios[1]).toEqual({ book: 19, chapter: 119, verse: 40, translation: 'NVT' });
   await page.waitForTimeout(500);
   expect(envios.length).toBe(2);
@@ -1208,4 +1208,36 @@ test('busca: a tradução escolhida continua depois de fechar e abrir de novo (o
   await abrirBusca(page);
   await expect(page.getByRole('searchbox')).toHaveValue(''); // o termo zera
   await expect(page.getByRole('button', { name: /Tradução NVT/ })).toBeVisible(); // a tradução fica
+});
+
+test('posição de leitura: sair apaga a posição guardada no navegador (a próxima pessoa não herda o lugar)', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/progress?*', (route) => respondeJson(route, 200, semana('check', 'check', 'check', 'check', 'check', 'check', 'check')));
+  await page.route('**/api/reading-position', (route) => respondeJson(route, 200, { position: null }));
+  await page.route('**/api/auth/logout', (route) => route.fulfill({ status: 204 }));
+  await page.addInitScript(() => localStorage.setItem('nb-last-read', JSON.stringify({ slug: 'salmos', chapter: 23, translation: 'NAA', verse: 1, dirty: true })));
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: /Continuar a leitura/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Conta', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Sair' }).click();
+  await expect(page.getByRole('link', { name: 'Entrar' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('nb-last-read'))).toBeNull();
+});
+
+test('posição de leitura: uma falha passageira do servidor (429) é tentada de novo e o lugar chega', async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 9, 19, 10, 0) });
+  await entrarComo(page);
+  const respostas = [];
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [] }));
+  await page.route('**/api/progress/today', (route) => respondeJson(route, 200, { date: '2026-10-19', created: false }));
+  await page.route('**/api/reading-position', (route) => {
+    if (route.request().method() !== 'PUT') return respondeJson(route, 200, { position: null });
+    respostas.push(respostas.length === 0 ? 429 : 204);
+    return route.fulfill({ status: respostas.at(-1), contentType: 'application/json', body: '{}' });
+  });
+  await page.goto('/ler/salmos/23?t=NAA');
+  await expect(page.locator('#v1')).toBeVisible();
+  await expect.poll(() => respostas.length).toBe(1); // 1º envio: recusado (429)
+  await page.clock.fastForward(11_000);
+  await expect.poll(() => respostas).toEqual([429, 204]); // tentou de novo e foi aceito
 });

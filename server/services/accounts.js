@@ -139,8 +139,8 @@ export async function logout(token, { db = defaultPool } = {}) {
 export async function deleteAccount(user, password, { db = defaultPool } = {}) {
   const r = await db.query('SELECT password_hash FROM users WHERE id = $1', [user.id]);
   const found = r.rows[0];
-  const ok = await verifyPassword(typeof password === 'string' ? password : '', found ? found.password_hash : await getDummyHash());
-  if (!found || !ok) throw new AccountError(403, 'senha_incorreta', 'Senha incorreta.');
+  if (!found) throw new AccountError(401, 'sem_sessao', 'Você não está conectado.'); // outro pedido já apagou esta conta (quem chegou aqui tinha sessão)
+  if (!(await verifyPassword(typeof password === 'string' ? password : '', found.password_hash))) throw new AccountError(403, 'senha_incorreta', 'Senha incorreta.');
   const blockHash = user.is_verified ? emailBlockHash(user.email) : null;
   const del = await db.query(
     `WITH blocked AS (
