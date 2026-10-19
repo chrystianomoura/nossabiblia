@@ -226,12 +226,18 @@ export async function resetPassword(token, password, { db = defaultPool } = {}) 
   const invalid = () => new AccountError(400, 'token_invalido', 'Este link não é mais válido. Peça um novo link para redefinir a senha.');
   if (typeof token !== 'string' || token.length < 20 || token.length > 200) throw invalid();
   const passwordHash = await hashPassword(password);
+  // Trocar a senha e encerrar as sessões saem NUM comando só: ou acontecem as duas coisas, ou nenhuma (uma falha entre dois comandos gastaria o
+  // link e deixaria as sessões antigas, inclusive a de um invasor, valendo).
   const r = await db.query(
-    `UPDATE users SET password_hash = $2, reset_password_token_hash = NULL, reset_password_expires_at = NULL
-      WHERE reset_password_token_hash = $1 AND reset_password_expires_at > NOW()
-      RETURNING id`,
+    `WITH changed AS (
+       UPDATE users SET password_hash = $2, reset_password_token_hash = NULL, reset_password_expires_at = NULL
+        WHERE reset_password_token_hash = $1 AND reset_password_expires_at > NOW()
+        RETURNING id
+     ), ended AS (
+       DELETE FROM sessions WHERE user_id IN (SELECT id FROM changed)
+     )
+     SELECT id FROM changed`,
     [hashToken(token), passwordHash],
   );
   if (!r.rowCount) throw invalid();
-  await db.query('DELETE FROM sessions WHERE user_id = $1', [r.rows[0].id]);
 }
