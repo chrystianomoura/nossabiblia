@@ -76,7 +76,7 @@ O único custo recorrente é a renovação do domínio.
 - **Busca exata, não aproximada.** O índice GIN do PostgreSQL só acha *candidatos*; quem decide é uma conferência no texto, com o **mesmo padrão** gerado para o PostgreSQL e para o JavaScript. A bateria de precisão compara a busca com um gabarito independente (varredura de caracteres sobre os arquivos originais): ~104 mil conferências.
 - **Menor privilégio no banco.** O servidor conecta como `nb_app` (lê o conteúdo, lê e grava dados de usuário; não cria nem apaga tabelas). O backup usa um papel só de leitura e a faxina, outro que só apaga em três tabelas. O dono do banco fica só para as migrações.
 - **Migrações versionadas, com ensaio.** Cada migração roda primeiro em modo de teste (transação desfeita no fim) e em uma *branch* separada da Neon; só então é aplicada na produção, com uma guarda que recusa rodar se houver dados que ela trocaria.
-- **Tudo gratuito, com os limites à vista.** A API dorme depois de 15 minutos sem uso: a tela avisa ("Acordando o servidor") em vez de parecer travada. O keep-alive do banco vem desligado porque estouraria as 100 CU-horas mensais da Neon.
+- **Tudo gratuito, com os limites à vista.** A API gratuita dormiria depois de 15 minutos sem uso, então um Worker agendado da Cloudflare a chama a cada 10 minutos (no `/healthz`, que não toca no banco); se mesmo assim ela estiver acordando, a tela avisa ("Acordando o servidor") em vez de parecer travada. O keep-alive do **banco** vem desligado porque estouraria as 100 CU-horas mensais da Neon.
 - **Segurança em camadas.** CORS com lista fixa, cabeçalhos de segurança (helmet e CSP no site, HSTS que sobe aos poucos: 1 dia agora, meses depois de uma semana sem problema), DNS com CAA (só quatro autoridades podem emitir certificado) e DMARC em quarentena (provado com SPF, DKIM e DMARC = PASS no Gmail), limite de requisições por IP, certificado do banco verificado, consultas parametrizadas e entradas hostis cobertas por testes.
 - **Cache pensado na cota gratuita.** O texto bíblico não muda, então a API guarda em memória livros, capítulos e buscas já feitas (com limite de entradas) e manda `Cache-Control` ao navegador: só a primeira leitura de cada coisa acorda o banco da Neon, cuja cota gratuita (100 CU-horas por mês) é o ponto mais frágil de um desenho 100% gratuito.
 - **Um backup só vale se for restaurado.** `restore.mjs` restaura num banco vazio, ensaia antes (transação desfeita), recusa banco com dados e confere contagens. Ele foi ensaiado de ponta a ponta numa branch da Neon, comparando um hash do conteúdo de cada tabela antes e depois, e esse ensaio achou três defeitos que "arquivo enviado e hash conferido" nunca mostraria (ordem das chaves estrangeiras, horários truncados em milissegundos e datas trocadas por fuso).
@@ -482,7 +482,7 @@ Outros comandos úteis:
 ```bash
 npm run build:client          # Build de produção do frontend (client/dist)
 npm run clean:text            # Mostra o que a limpeza dos textos mudaria (com `-- --apply` grava; rode após qualquer seed)
-npm test                      # 81 testes (50 sem banco, que são os do CI; os 31 do banco são pulados sem DATABASE_URL)
+npm test                      # 255 testes (os que dependem do banco rodam só com DATABASE_URL e DATABASE_URL_TEST; o CI roda os que não dependem)
 npm --prefix client run test:e2e   # teste de fumaça da tela (precisa do build antes: npm --prefix client run build)
 node server/scripts/migrate.mjs         # ensaia as migrações pendentes (tudo desfeito no fim); com --apply grava
 node server/scripts/cleanup.mjs         # mostra o que a faxina apagaria (com --apply apaga)
@@ -502,7 +502,7 @@ npm --prefix client run sample:check # Confere se o trecho está em dia (o build
 - **Site:** o Cloudflare constrói a cada push no `main` (`npm ci && npm run build`, raiz `client`, variáveis `NODE_VERSION=24` e `VITE_API_URL`) e publica `dist/` como arquivos estáticos (`client/wrangler.jsonc`). O build gera `dist/_headers` (CSP com o hash do script do tema, `nosniff`, `frame DENY`, cache de um ano só para arquivos com hash no nome).
 - **API:** a Render constrói a partir do `main` e só implanta depois que o CI passa (`npm ci`, `npm run start`, verificação de saúde em `/healthz`, que não toca no banco). Variáveis: `NODE_ENV`, `NODE_VERSION`, `TRUST_PROXY`, `ALLOWED_ORIGINS`, `DATABASE_URL_APP`.
 - **Banco:** migrações aplicadas com `migrate.mjs`, sempre depois de um ensaio em modo de teste e, para mudanças estruturais, numa *branch* separada da Neon.
-- **Plano gratuito, com os limites à vista:** a API dorme depois de 15 minutos sem uso (a tela avisa), a Neon dá 100 CU-horas por mês (por isso o cache em memória e o keep-alive desligado) e o R2 tem retenção de 90 dias.
+- **Plano gratuito, com os limites à vista:** a API é mantida acordada por um Worker agendado (e a tela avisa se acordar), a Neon dá 100 CU-horas por mês (por isso o cache em memória e o keep-alive desligado) e o R2 tem retenção de 90 dias.
 
 ---
 

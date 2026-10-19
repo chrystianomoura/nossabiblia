@@ -21,7 +21,7 @@ desligados. Domínios: `nossabiblia.party` e `www` (esse com redirecionamento 30
 
 ## API (Render)
 `render.yaml`. Depois de criar o serviço, **cole `DATABASE_URL_APP` no painel** (é segredo). **Mudar uma variável só vale depois de um deploy de
-verdade** (Manual Deploy → Deploy latest commit); "Restart service" não relê as variáveis. A API dorme após 15 minutos sem uso.
+verdade** (Manual Deploy → Deploy latest commit); "Restart service" não relê as variáveis. A API dorme após 15 minutos sem uso (o Worker de keep-alive, abaixo, evita isso).
 
 ## Banco (Neon)
 1. Projeto em Ohio. Branch `production` (a proteção de branch não existe no plano gratuito; a janela de recuperação é de 6 horas).

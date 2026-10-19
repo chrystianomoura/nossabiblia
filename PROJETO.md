@@ -281,7 +281,7 @@ cron.schedule('*/4 6-23 * * *', async () => {
 | Camada | Serviço | Custo e limites |
 |---|---|---|
 | Frontend | Cloudflare (Worker com arquivos estáticos, `client/wrangler.jsonc`) | Gratuito; deploy a cada push no `main` |
-| Backend | Render, plano gratuito (`nossabiblia-api`, Ohio) | Gratuito; dorme após 15 minutos sem uso (a primeira requisição leva ~50 s) |
+| Backend | Render, plano gratuito (`nossabiblia-api`, Ohio) | Gratuito; dormiria após 15 minutos sem uso (a primeira requisição levaria ~50 s), então um Worker agendado da Cloudflare chama o `/healthz` a cada 10 minutos (~744 das 750 horas gratuitas do mês) |
 | Banco de dados | Neon | Gratuito: 0,5 GB e 100 CU-horas por mês (por isso o keep-alive vem desligado e a API guarda a leitura em memória) |
 | Backup | GitHub Actions + Cloudflare R2 | Gratuito; retenção de 90 dias; criptografado (AES-256-GCM) antes de sair, com a chave `BACKUP_ENCRYPTION_KEY` |
 | E-mails | Resend | 3.000 por mês e 100 por dia, grátis |
