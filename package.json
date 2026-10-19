@@ -24,6 +24,6 @@
     "test:accuracy:marks": "node --env-file=.env.local --test server/accuracy/marks.accuracy.js"
   },
   "devDependencies": {
-    "@neon/config": "^1.9.1"
+    "@neon/config": "^1.9.2"
   }
 }
