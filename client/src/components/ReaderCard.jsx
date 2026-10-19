@@ -1,21 +1,24 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { displayBookName } from '../lib/books';
-import { writeStorage } from '../lib/storage';
-import { syncReadingPosition } from '../lib/reading-position';
+import { recordPosition } from '../lib/reading-position';
 import MarkPalette from './MarkPalette';
 import { requireVerified } from '../lib/verify-gate';
 
 // Guarda onde o leitor está, sem mexer na URL: o versículo que está no topo fica no estado desta entrada do histórico,
-// e F5, Voltar e Avançar voltam ao mesmo ponto. Também fica no navegador como "última leitura" (ainda sem uso na tela).
+// e F5, Voltar e Avançar voltam ao mesmo ponto. Também vai para a "última leitura" (navegador e servidor, em lib/reading-position.js).
 function rememberPosition(chapterKey, verse, bookId) {
   if (!verse) return;
   try {
     window.history.replaceState({ ...(window.history.state ?? {}), nbKey: chapterKey, nbV: verse }, '');
   } catch { /* o navegador pode recusar */ }
+  notePosition(chapterKey, verse, bookId);
+}
+
+// A última leitura, sem tocar no histórico (usado ao abrir um capítulo: a posição do histórico só nasce quando a pessoa rola).
+function notePosition(chapterKey, verse, bookId) {
   const [slug, chapter, translation] = chapterKey.split('/');
-  writeStorage('nb-last-read', JSON.stringify({ slug, chapter: Number(chapter), translation, verse }));
-  syncReadingPosition({ book: bookId, chapter: Number(chapter), verse, translation });
+  recordPosition({ slug, book: bookId, chapter: Number(chapter), translation, verse });
 }
 
 // O versículo que está no topo da área de leitura e quanto dele (em fração da altura) já passou. A busca é binária: os
@@ -135,12 +138,15 @@ export default function ReaderCard({
     const kept = !saved && sameChapter && !verseChanged ? el.querySelector(`#${place.current.id}`) : null;
     if (kept) {
       el.scrollTop = kept.offsetTop + place.current.fraction * kept.offsetHeight;
+      notePosition(chapterKey, Number(place.current.id.slice(1)), data.book.id);
       return;
     }
+    notePosition(chapterKey, target ?? 1, data.book.id); // abrir um capítulo já é "estar nele", mesmo sem rolar
     if (!sameChapter) place.current = null;
     const node = target ? el.querySelector(`#v${target}`) : null;
     // O versículo guardado fica no topo; o do endereço (?v=) fica um pouco abaixo, para dar contexto acima.
-    if (node) el.scrollTop = Math.max(0, node.offsetTop - (saved ? 0 : el.clientHeight / 3));
+    // O primeiro versículo vai ao topo de verdade (rolagem 0): encostá-lo no topo esconderia o título do capítulo, que fica acima dele.
+    if (node) el.scrollTop = target === 1 ? 0 : Math.max(0, node.offsetTop - (saved ? 0 : el.clientHeight / 3));
   }, [data, stale, chapterKey, verse]);
 
   // Troca do tamanho da letra: o texto se reorganiza, então volta ao versículo que estava no topo (e à mesma altura dele),

@@ -869,6 +869,61 @@ test('voltar à busca: abrir a busca no próprio leitor e escolher um resultado 
   await expect(page.getByRole('searchbox')).toHaveValue('joão 3:16');
 });
 
+test('voltar sai do leitor: trocar de capítulo mantém a origem (início, busca ou link direto); as setas é que andam entre capítulos', async ({ page }) => {
+  // 1) do início ao leitor, e dois capítulos adiante: continua "Voltar ao início"
+  await page.goto('/');
+  await page.getByRole('link', { name: /Começar a Ler Agora/ }).click();
+  await expect(page).toHaveURL(/\/ler\/genesis\/1/);
+  await page.getByRole('button', { name: 'Próximo capítulo' }).click();
+  await page.getByRole('button', { name: 'Próximo capítulo' }).click();
+  await expect(page).toHaveURL(/\/ler\/genesis\/3/);
+  await expect(page.getByRole('link', { name: 'Voltar ao leitor' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Voltar ao início' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  // 2) da busca ao leitor: "Voltar à busca" (desfazer imediato); passando de capítulo, volta a ser o do início
+  await abrirBusca(page);
+  await page.getByRole('searchbox').fill('Deus');
+  await expect(page.getByRole('dialog')).toContainText('3 ocorrências em 2 versículos');
+  await page.locator('.search-result').nth(1).click();
+  await expect(page).toHaveURL(/\/ler\/joao\/3/);
+  await expect(page.getByRole('button', { name: 'Voltar à busca' })).toBeVisible();
+  await page.getByRole('button', { name: 'Próximo capítulo' }).click();
+  await expect(page).toHaveURL(/\/ler\/joao\/4/);
+  await expect(page.getByRole('button', { name: 'Voltar à busca' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Voltar ao início' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  // 3) link direto, um capítulo adiante: sem origem, o padrão
+  await page.goto('/ler/salmos/23');
+  await page.getByRole('button', { name: 'Próximo capítulo' }).click();
+  await expect(page).toHaveURL(/\/ler\/salmos\/24/);
+  await expect(page.getByRole('link', { name: 'Voltar ao início' })).toBeVisible();
+  // o "voltar" do navegador continua andando capítulo por capítulo
+  await page.goBack();
+  await expect(page).toHaveURL(/\/ler\/salmos\/23/);
+});
+
+test('pesquisar no meio da leitura não prende o usuário: o início continua alcançável depois de "Voltar à busca" e de trocar de capítulo', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: /Começar a Ler Agora/ }).click();
+  await expect(page).toHaveURL(/\/ler\/genesis\/1/);
+  await page.getByRole('button', { name: 'Próximo capítulo' }).click();
+  await expect(page).toHaveURL(/\/ler\/genesis\/2/);
+  await abrirBusca(page); // pesquisa de dentro do leitor
+  await page.getByRole('searchbox').fill('Deus');
+  await expect(page.getByRole('dialog')).toContainText('3 ocorrências em 2 versículos');
+  await page.locator('.search-result').nth(1).click(); // João 3:16
+  await expect(page).toHaveURL(/\/ler\/joao\/3\?t=NAA&v=16/);
+  await page.getByRole('button', { name: 'Voltar à busca' }).click(); // desfaz: volta ao capítulo onde a busca foi aberta, com a busca aberta
+  await expect(page).toHaveURL(/\/ler\/genesis\/2/);
+  await expect(page.getByRole('searchbox')).toHaveValue('Deus');
+  await page.locator('.search-result').nth(1).click(); // escolhe de novo
+  await expect(page).toHaveURL(/\/ler\/joao\/3/);
+  await page.getByRole('button', { name: 'Próximo capítulo' }).click();
+  await expect(page.getByRole('button', { name: 'Voltar à busca' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Voltar ao início' }).click(); // a origem da leitura nunca se perdeu
+  await expect(page).toHaveURL(/\/$/);
+});
+
 test('voltar à busca: reabre com o recorte, os resultados que já estavam carregados e a rolagem de antes', async ({ page }) => {
   const pedidos = [];
   const todos = Array.from({ length: 120 }, (_, i) => {
@@ -926,7 +981,7 @@ test('continuar a leitura: conta sem posição no servidor começa por Gênesis 
   await expect(page.getByRole('link', { name: /Começar a leitura/ })).toHaveAttribute('href', '/ler/genesis/1?t=NAA');
 });
 
-test('posição de leitura: ao parar de rolar o leitor avisa o servidor uma vez (PUT com livro, capítulo, versículo e tradução); visitante não envia', async ({ page }) => {
+test('posição de leitura: abrir o capítulo já grava (sem rolar); ao parar de rolar grava o versículo; visitante não envia', async ({ page }) => {
   await entrarComo(page);
   const envios = [];
   await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [] }));
@@ -937,11 +992,13 @@ test('posição de leitura: ao parar de rolar o leitor avisa o servidor uma vez 
   });
   await page.goto('/ler/salmos/119?t=NVT');
   await expect(page.locator('#v1')).toBeVisible();
+  await expect.poll(() => envios.length).toBe(1); // abriu: já é o lugar onde a pessoa está
+  expect(envios[0]).toEqual({ book: 19, chapter: 119, verse: 1, translation: 'NVT' });
   await page.locator('.rb-scroll').evaluate((el) => { el.scrollTop = el.querySelector('#v40').offsetTop + 8; });
-  await expect.poll(() => envios.length, { timeout: 8000 }).toBe(1);
-  expect(envios[0]).toEqual({ book: 19, chapter: 119, verse: 40, translation: 'NVT' });
+  await expect.poll(() => envios.length, { timeout: 8000 }).toBe(2);
+  expect(envios[1]).toEqual({ book: 19, chapter: 119, verse: 40, translation: 'NVT' });
   await page.waitForTimeout(500);
-  expect(envios.length).toBe(1);
+  expect(envios.length).toBe(2);
 
   const visitante = await page.context().newPage();
   await mockApi(visitante);
@@ -950,6 +1007,79 @@ test('posição de leitura: ao parar de rolar o leitor avisa o servidor uma vez 
   await visitante.goto('/ler/salmos/119?t=NVT');
   await expect(visitante.locator('#v1')).toBeVisible();
   await visitante.locator('.rb-scroll').evaluate((el) => { el.scrollTop = el.querySelector('#v40').offsetTop + 8; });
-  await visitante.waitForTimeout(4500);
+  await visitante.waitForTimeout(2000);
   expect(enviou).toBe(false);
+});
+
+// O servidor de mentira guarda o que recebe, como o de verdade; `demorar` faz o PUT falhar, para provar que a posição do navegador ainda não
+// confirmada vence a do servidor.
+async function servidorDePosicao(page, inicial, { falhar = false } = {}) {
+  let guardada = inicial;
+  await page.route('**/api/reading-position', (route) => {
+    if (route.request().method() === 'PUT') {
+      if (falhar) return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' });
+      guardada = route.request().postDataJSON();
+      return route.fulfill({ status: 204 });
+    }
+    return respondeJson(route, 200, { position: guardada });
+  });
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [] }));
+  await page.route('**/api/progress/today', (route) => respondeJson(route, 200, { date: '2026-10-16', created: false }));
+  await page.route('**/api/progress?*', (route) => respondeJson(route, 200, semana('check', 'check', 'check', 'check', 'check', 'check', 'check')));
+}
+
+test('continuar a leitura: avançar um capítulo sem rolar, ir ao início e voltar em "Continuar" abre o capítulo novo', async ({ page }) => {
+  await entrarComo(page);
+  await servidorDePosicao(page, { book: 19, chapter: 23, verse: 1, translation: 'NAA' });
+  await page.goto('/ler/salmos/23?t=NAA');
+  await expect(page.locator('#v1')).toBeVisible();
+  await page.getByRole('button', { name: 'Próximo capítulo' }).click();
+  await expect(page).toHaveURL(/\/ler\/salmos\/24/);
+  await expect(page.locator('#v1')).toBeVisible();
+  await page.getByRole('button', { name: 'Conta' }).click(); // no leitor, o caminho para o início é o menu da conta
+  await page.getByRole('menuitem', { name: 'Início' }).click();
+  await expect(page.getByRole('link', { name: /Continuar a leitura/ })).toHaveAttribute('href', '/ler/salmos/24?t=NAA');
+});
+
+test('continuar a leitura: chegando por busca ou por marcação também grava, e o que o servidor ainda não confirmou vence a posição antiga dele', async ({ page }) => {
+  await entrarComo(page);
+  await servidorDePosicao(page, { book: 1, chapter: 1, verse: 1, translation: 'NAA' }, { falhar: true }); // o servidor não confirma nenhum envio
+  await page.goto('/');
+  await abrirBusca(page);
+  await page.getByRole('searchbox').fill('Deus');
+  await expect(page.getByRole('dialog')).toContainText('3 ocorrências em 2 versículos');
+  await page.locator('.search-result').nth(1).click(); // João 3:16
+  await expect(page).toHaveURL(/\/ler\/joao\/3/);
+  await expect(page.locator('#v1')).toBeVisible();
+  await page.getByRole('button', { name: 'Conta' }).click(); // no leitor, o caminho para o início é o menu da conta
+  await page.getByRole('menuitem', { name: 'Início' }).click();
+  await expect(page.getByRole('link', { name: /Continuar a leitura/ })).toHaveAttribute('href', '/ler/joao/3?t=NAA');
+});
+
+test('voltar ao versículo 1 de um capítulo não esconde o título (a rolagem vai ao topo de verdade)', async ({ page }) => {
+  await page.goto('/ler/genesis/2?t=NAA');
+  await expect(page.locator('#v1')).toBeVisible();
+  await page.evaluate(() => window.history.replaceState({ ...window.history.state, nbKey: 'genesis/2/NAA', nbV: 1 }, '')); // o que o leitor guarda quando a pessoa está no versículo 1
+  await page.reload();
+  await expect(page.locator('#v1')).toBeVisible();
+  expect(await page.locator('.rb-scroll').evaluate((el) => el.scrollTop)).toBe(0);
+  await expect(page.locator('.rb-title')).toBeInViewport();
+  // e um versículo mais adiante continua encostado no topo, como antes
+  await page.evaluate(() => window.history.replaceState({ ...window.history.state, nbKey: 'genesis/2/NAA', nbV: 5 }, ''));
+  await page.reload();
+  await expect(page.locator('#v5')).toBeVisible();
+  const topo = await page.locator('.rb-scroll').evaluate((el) => el.querySelector('#v5').getBoundingClientRect().top - el.getBoundingClientRect().top);
+  expect(Math.abs(topo)).toBeLessThan(12);
+});
+
+test('busca: a tradução escolhida continua depois de fechar e abrir de novo (o termo e o filtro, não)', async ({ page }) => {
+  await page.goto('/');
+  await abrirBusca(page);
+  await page.getByRole('searchbox').fill('Deus');
+  await page.getByRole('button', { name: /Trocar para NVT/ }).click();
+  await expect(page.getByRole('button', { name: /Tradução NVT/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await abrirBusca(page);
+  await expect(page.getByRole('searchbox')).toHaveValue(''); // o termo zera
+  await expect(page.getByRole('button', { name: /Tradução NVT/ })).toBeVisible(); // a tradução fica
 });

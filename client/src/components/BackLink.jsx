@@ -2,7 +2,8 @@ import { ArrowLeft } from 'lucide-react';
 import Link from './Link';
 import { navigate, OPEN_SEARCH } from '../lib/router';
 
-// O botão "Voltar" das telas (ver `originBack`). Vindo de um resultado da busca, volta à tela onde a busca foi aberta e a reabre com o mesmo termo.
+// O botão "Voltar" das telas (ver `originBack`): sai para o que havia antes. O ícone é a seta ← de sempre (o usuário preferiu a antiga à que dobra
+// para trás). Vindo de um resultado da busca, volta à tela onde a busca foi aberta e a reabre como estava.
 export default function BackLink({ back }) {
   const content = (
     <>

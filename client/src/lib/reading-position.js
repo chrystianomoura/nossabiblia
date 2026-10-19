@@ -1,15 +1,24 @@
 import { useEffect, useState } from 'react';
 import { authRequest, getSession, useSession } from './auth';
 import { useBooks } from './books';
-import { readStorage } from './storage';
+import { readStorage, writeStorage } from './storage';
 
-// Onde a pessoa parou, guardado no servidor para valer em qualquer aparelho (o navegador também guarda, em `nb-last-read`, para visitantes).
-// Para não gastar a cota do banco, a posição só sobe quando a rolagem para (3 s sem mudar), quando a aba é escondida ou fechada, e só se for
-// diferente da última enviada.
-const SETTLE_MS = 3000;
+// Onde a pessoa parou. O leitor chama `recordPosition` sempre que mostra um capítulo (qualquer que seja o caminho: continuar, busca, marcação,
+// seta, link, F5) e de novo quando a rolagem para num versículo. A posição fica no navegador na hora (`nb-last-read`, vale para visitantes) e,
+// para conta verificada, sobe ao servidor (vale em qualquer aparelho). Um envio por segundo no máximo, o último sempre sai; ao esconder ou
+// fechar a aba sai o que estiver pendente; repetir a mesma posição não envia nada.
+// `dirty` marca a posição do navegador que o servidor ainda não confirmou: enquanto for verdade, ela vence a do servidor (sem comparar relógios).
+const MIN_GAP_MS = 1000;
 let pending = null;
 let lastSent = '';
+let lastSentAt = 0;
 let timer = 0;
+
+const sameSpot = (a, b) => a && b && a.slug === b.slug && a.chapter === b.chapter && a.verse === b.verse && a.translation === b.translation;
+
+function writeLocal(position) {
+  writeStorage('nb-last-read', JSON.stringify(position));
+}
 
 function flush() {
   clearTimeout(timer);
@@ -20,14 +29,19 @@ function flush() {
   const key = `${user.email}|${pos.book}/${pos.chapter}/${pos.verse}/${pos.translation}`;
   if (key === lastSent) return;
   lastSent = key;
-  authRequest('PUT', '/api/reading-position', pos).then((r) => { if (!r.ok) lastSent = ''; });
+  lastSentAt = Date.now();
+  authRequest('PUT', '/api/reading-position', { book: pos.book, chapter: pos.chapter, verse: pos.verse, translation: pos.translation }).then((r) => {
+    if (!r.ok) { lastSent = ''; return; }
+    const local = localPosition();
+    if (sameSpot(local, pos)) writeLocal({ ...local, dirty: false }); // o servidor já tem esta (se a pessoa já andou mais, continua pendente a mais nova)
+  });
 }
 
-// Chamado pelo leitor quando a rolagem para: `book` é o id do livro.
-export function syncReadingPosition(pos) {
+export function recordPosition(pos) {
+  writeLocal({ slug: pos.slug, chapter: pos.chapter, translation: pos.translation, verse: pos.verse, book: pos.book, dirty: true });
   pending = pos;
   clearTimeout(timer);
-  timer = setTimeout(flush, SETTLE_MS);
+  timer = setTimeout(flush, Math.max(0, lastSentAt + MIN_GAP_MS - Date.now()));
 }
 
 if (typeof document !== 'undefined') {
@@ -43,7 +57,8 @@ function localPosition() {
   return null;
 }
 
-// A última leitura para o "Continuar a leitura": a do servidor quando a conta é verificada (vale em qualquer aparelho), senão a do navegador.
+// A última leitura para o "Continuar a leitura": a do navegador enquanto o servidor ainda não a confirmou (`dirty`); depois, a do servidor quando a
+// conta é verificada (vale em qualquer aparelho); senão, a do navegador.
 // `ready` fica falso enquanto a resposta do servidor não chega e não há nada no navegador (a tela espera em vez de piscar "Começar").
 export function useLastRead() {
   const { status, user } = useSession();
@@ -61,6 +76,7 @@ export function useLastRead() {
   }, [verified]);
 
   const local = localPosition();
+  if (local?.dirty) return { read: local, ready: true };
   const book = remote.position && books ? books.find((b) => b.id === remote.position.book) : null;
   if (book) return { read: { slug: book.slug, chapter: remote.position.chapter, translation: remote.position.translation, verse: remote.position.verse }, ready: true };
   if (local) return { read: local, ready: true };

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Home from './components/Home';
 import MemberHome from './components/MemberHome';
 import ReadingView from './components/ReadingView';
@@ -12,12 +12,13 @@ import ConfirmPage from './components/ConfirmPage';
 import ForgotPage from './components/ForgotPage';
 import ResetPage from './components/ResetPage';
 import MarksPage from './components/MarksPage';
+import DeleteAccountPage from './components/DeleteAccountPage';
 import { loadSession, useSession } from './lib/auth';
 import { useBooks } from './lib/books';
 import { OPEN_SEARCH, parseRoute, useLocation } from './lib/router';
 import { useTheme } from './lib/theme';
 
-const AUTH_PAGES = { register: RegisterPage, login: LoginPage, confirm: ConfirmPage, forgot: ForgotPage, reset: ResetPage };
+const AUTH_PAGES = { register: RegisterPage, login: LoginPage, confirm: ConfirmPage, forgot: ForgotPage, reset: ResetPage, delete: DeleteAccountPage };
 
 function AuthView({ Page, ...props }) {
   return <Page {...props} />;
@@ -30,7 +31,14 @@ export default function App() {
   const { status: sessionStatus } = useSession();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [previewTranslation, setPreviewTranslation] = useState('NAA');
-  const [seed, setSeed] = useState({ id: 0 }); // termo para reabrir a busca ("Voltar à busca"); a `key` nova recria o modal já preenchido
+  const [seed, setSeed] = useState({ id: 0 }); // o que a busca tinha, para reabri-la ("Voltar à busca"); a `key` nova recria o modal já preenchido
+  const searchOpenRef = useRef(false);
+  useEffect(() => { searchOpenRef.current = isSearchOpen; }, [isSearchOpen]);
+  // Fechar a busca recria o modal (`key` nova): a próxima abertura começa vazia, sem depender de limpeza dentro do modal.
+  const closeSearch = useCallback(() => {
+    setIsSearchOpen(false);
+    setSeed((current) => ({ id: current.id + 1 }));
+  }, []);
 
   // ⌘K / Ctrl+K abre e fecha a busca em qualquer tela.
   // Trocou de tela (início, leitor): quem rola é o #root, que não volta ao topo sozinho como a página volta
@@ -42,12 +50,13 @@ export default function App() {
     function onKeyDown(event) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setIsSearchOpen((open) => !open);
+        if (searchOpenRef.current) closeSearch();
+        else setIsSearchOpen(true);
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [closeSearch]);
 
   useEffect(() => {
     function onOpenSearch(event) {
@@ -109,7 +118,7 @@ export default function App() {
         />
       )}
 
-      <SearchModal key={seed.id} initial={seed} isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      <SearchModal key={seed.id} initial={seed} isOpen={isSearchOpen} onClose={closeSearch} />
 
       <WakeNotice />
       <VerifyNotice />

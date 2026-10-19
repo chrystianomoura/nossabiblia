@@ -28,6 +28,9 @@ function highlight(text, matches) {
 
 const TESTAMENTS = { AT: 'Antigo Testamento', NT: 'Novo Testamento' };
 const NO_FILTER = { testament: null, bookId: null };
+// A tradução escolhida na busca vale até a página ser recarregada (fechar a busca zera o termo e o filtro, mas não a tradução). Como o modal é
+// recriado ao fechar, quem lembra é esta variável.
+let lastTranslation = 'NAA';
 const plain = (text) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 const searchUrl = (term, translation, offset = 0, { testament, bookId } = NO_FILTER) =>
@@ -42,7 +45,11 @@ const FOCUSABLE = 'button:not(:disabled), [href], input, select, [tabindex]:not(
 export default function SearchModal({ isOpen, onClose, initial }) {
   const markIndex = useMarkIndex(isOpen); // versículos já marcados pela conta (bolinha nos resultados)
   const [query, setQuery] = useState(initial?.q ?? '');
-  const [translation, setTranslation] = useState(initial?.t ?? 'NAA');
+  const [translation, setTranslationState] = useState(initial?.t ?? lastTranslation);
+  function setTranslation(next) {
+    lastTranslation = next;
+    setTranslationState(next);
+  }
   // Recorte da busca de palavra: um testamento OU um livro (escolher um zera o outro). Zera ao fechar o modal.
   const [filter, setFilter] = useState(initial?.f ?? NO_FILTER);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -93,21 +100,12 @@ export default function SearchModal({ isOpen, onClose, initial }) {
     const previousOverflow = scroller.style.overflow;
     scroller.style.overflow = 'hidden';
 
+    // Não zera o estado aqui: o React em desenvolvimento roda este efeito duas vezes e apagaria o termo com que a busca foi reaberta. Quem zera
+    // é o App, que recria o modal (troca a `key`) ao fechar.
     return () => {
       scroller.style.overflow = previousOverflow;
       openerRef.current?.focus?.();
       moreRef.current?.abort();
-      setQuery('');
-      setFilter(NO_FILTER);
-      setFilterOpen(false);
-      setBookText(null);
-      setBookListOpen(false);
-      savedScroll.current = null;
-      restore.current = null;
-      setResults(null);
-      setError(false);
-      setLoadingMore(false);
-      setMoreError(false);
     };
   }, [isOpen]);
 

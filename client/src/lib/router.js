@@ -10,21 +10,32 @@ function getSnapshot() {
   return window.location.pathname + window.location.search;
 }
 
-const ACCOUNT_PATH = /^\/(cadastrar|entrar|confirmar|esqueci-senha|redefinir-senha)\/?$/;
+const ACCOUNT_PATH = /^\/(cadastrar|entrar|confirmar|esqueci-senha|redefinir-senha|conta\/excluir)\/?$/;
+const READER_PATH = /^\/ler\//;
 
 // Toda navegação nova guarda de onde veio (`nbFrom`, no history.state: some com a aba e sobrevive ao recarregar); trocar a
-// URL sem empilhar (replace) mantém a origem que já estava. Entre duas telas da conta (entrar -> criar conta) a origem também
-// se mantém: voltar leva ao que havia ANTES de a pessoa entrar na conta, não a outra tela da conta. `search` (o termo, a
-// tradução, o recorte, a rolagem e quantos resultados estavam carregados) vai junto quando a navegação sai de um resultado da busca: o leitor oferece "Voltar à busca". `position` ({ key, verse })
-// abre o leitor naquele versículo, no topo e sem destaque (o mesmo que o leitor faz no F5); a `key` é `livro/capítulo/tradução`.
+// URL sem empilhar (replace) mantém a origem que já estava. A origem também se mantém entre duas telas da conta (entrar -> criar
+// conta) e entre dois capítulos do leitor: o "Voltar" SAI da tela (leva a onde a leitura começou), quem anda entre capítulos são as setas.
+// `search` (termo, tradução, recorte, rolagem e quantos resultados estavam carregados) vai junto quando a navegação sai de um resultado
+// da busca; ele guarda também a tela onde a busca foi aberta (`at`). A busca é uma ferramenta, não um lugar: abrir um resultado a partir
+// do leitor NÃO apaga a origem da leitura (início, marcações), e o "Voltar à busca" vale só na tela em que o resultado abriu (trocar de
+// capítulo o descarta). `position` ({ key, verse }) abre o leitor naquele versículo, no topo e sem destaque (o mesmo que o leitor faz
+// no F5); a `key` é `livro/capítulo/tradução`.
 export function navigate(to, { replace = false, search = null, position = null } = {}) {
   if (replace) {
     window.history.replaceState(window.history.state, '', to);
   } else {
     const here = window.location.pathname;
-    const keep = ACCOUNT_PATH.test(here) && ACCOUNT_PATH.test(to.split('?')[0]);
-    const nbFrom = keep ? window.history.state?.nbFrom : here + window.location.search;
-    window.history.pushState({ ...(nbFrom ? { nbFrom } : {}), ...(search ? { nbSearch: search } : {}), ...(position ? { nbKey: position.key, nbV: position.verse } : {}) }, '', to);
+    const hereFull = here + window.location.search;
+    const target = to.split('?')[0];
+    const current = window.history.state;
+    const accountToAccount = ACCOUNT_PATH.test(here) && ACCOUNT_PATH.test(target);
+    const readerToReader = READER_PATH.test(here) && READER_PATH.test(target);
+    let nbFrom;
+    if (search) nbFrom = READER_PATH.test(here) ? current?.nbFrom : hereFull; // a busca aberta no leitor não apaga a origem da leitura
+    else nbFrom = accountToAccount || readerToReader ? current?.nbFrom : hereFull;
+    const nbSearch = search ? { ...search, at: hereFull } : null;
+    window.history.pushState({ ...(nbFrom ? { nbFrom } : {}), ...(nbSearch ? { nbSearch } : {}), ...(position ? { nbKey: position.key, nbV: position.verse } : {}) }, '', to);
   }
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
@@ -40,7 +51,7 @@ const ORIGIN_LABELS = [
 
 // De onde a pessoa veio, para o botão "Voltar" das telas. Telas da conta (entrar, cadastrar...) nunca valem como origem
 // (voltar a elas faria um laço); sem origem útil (link direto, mesma tela), devolve `fallback`. Quem chegou por um resultado
-// da busca recebe `search` (termo e tradução): o botão volta à tela onde a busca foi aberta e a reabre com o mesmo termo.
+// da busca recebe `search` (o que a busca tinha): o botão volta à tela onde a busca foi aberta e a reabre como estava.
 export function originBack(fallback) {
   const state = window.history.state;
   const from = state?.nbFrom;
@@ -55,7 +66,8 @@ export function originBack(fallback) {
       n: Number.isInteger(saved.n) && saved.n > 0 ? Math.min(saved.n, 200) : 0, // quantos resultados já estavam carregados
       f: { testament: f.testament === 'AT' || f.testament === 'NT' ? f.testament : null, bookId: Number.isInteger(f.bookId) && f.bookId >= 1 && f.bookId <= 66 ? f.bookId : null },
     };
-    return { to: validFrom ? from : '/', label: 'Voltar à busca', search };
+    const at = typeof saved.at === 'string' && saved.at.startsWith('/') && !saved.at.startsWith('//') ? saved.at : null; // a tela onde a busca foi aberta
+    return { to: at ?? (validFrom ? from : '/'), label: 'Voltar à busca', search };
   }
   if (validFrom) {
     const here = window.location.pathname;
@@ -82,7 +94,7 @@ export function readPath(slug, chapter, translation = 'NAA', verse = null, verse
 export function parseRoute({ pathname, search }) {
   const account = pathname.match(ACCOUNT_PATH);
   if (account) {
-    const view = { cadastrar: 'register', entrar: 'login', confirmar: 'confirm', 'esqueci-senha': 'forgot', 'redefinir-senha': 'reset' }[account[1]];
+    const view = { cadastrar: 'register', entrar: 'login', confirmar: 'confirm', 'esqueci-senha': 'forgot', 'redefinir-senha': 'reset', 'conta/excluir': 'delete' }[account[1]];
     return { view, next: search.get('next'), token: search.get('token') };
   }
 
