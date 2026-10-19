@@ -106,11 +106,18 @@ export function parseRoute({ pathname, search }) {
   const match = pathname.match(/^\/ler\/([^/]+)(?:\/(\d+))?\/?$/);
   if (!match) return { view: 'home' };
 
+  // Um endereço com "%" quebrado (link mal copiado, como /ler/50%/1) não decodifica: vale como endereço que não existe, e não derruba a tela.
+  let slug;
+  try {
+    slug = decodeURIComponent(match[1]);
+  } catch {
+    return { view: 'home' };
+  }
   const t = (search.get('t') || '').toUpperCase();
   const range = (search.get('v') || '').match(/^(\d+)(?:-(\d+))?$/);
   return {
     view: 'read',
-    slug: decodeURIComponent(match[1]),
+    slug,
     chapter: match[2] ? parseInt(match[2], 10) : 1,
     translation: TRANSLATIONS.includes(t) ? t : 'NAA',
     verse: range ? parseInt(range[1], 10) || null : null,

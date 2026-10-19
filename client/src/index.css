@@ -3263,3 +3263,8 @@ html[data-input="keys"] .mk-select:focus-visible {
 .yc-legend .is-miss {
   background: var(--day-miss);
 }
+
+/* Tela de erro da raiz (ErrorBoundary): não tem barra, então não reserva a altura dela embaixo */
+.error-screen .auth-main {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}

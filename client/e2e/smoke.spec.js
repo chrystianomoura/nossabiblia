@@ -1272,3 +1272,21 @@ test('filtro de cor das marcações: o anel de foco só aparece para quem navega
   await page.keyboard.press('Escape');
   expect(await anel()).toBe('none'); // mouse: sem anel
 });
+
+// ---- Revisão geral: erros achados e corrigidos ----
+
+test('endereço com "%" quebrado não derruba a tela (vale como endereço que não existe) e um dado inesperado da API mostra a tela de erro, não uma página em branco', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForSelector('.navbar');
+  await page.evaluate(() => { history.pushState({}, '', '/ler/%E0%A4%A/1'); window.dispatchEvent(new PopStateEvent('popstate')); });
+  await expect(page.locator('.navbar')).toBeVisible(); // antes: página em branco, sem barra e sem saída
+
+  // capítulo sem a lista de versículos (resposta fora do contrato): a rede de segurança da raiz aparece, com saídas
+  const erros = [];
+  page.on('pageerror', (e) => erros.push(e.message));
+  await page.route('**/api/books/19/chapters/23*', (route) => respondeJson(route, 200, { book: { id: 19, name: 'Salmos', chapters_count: 150 }, chapter: 23, translation: 'NAA' }));
+  await page.goto('/ler/salmos/23?t=NAA');
+  await expect(page.getByRole('heading', { name: 'Algo deu errado' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Recarregar' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Ir para o início' })).toHaveAttribute('href', '/');
+});
