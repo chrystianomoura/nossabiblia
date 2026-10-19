@@ -815,7 +815,7 @@ test('menu Conta: só "Início" e "Sair"; "Início" na própria inicial relê o 
 });
 
 // ---- "Voltar" nas telas da conta e "Voltar à busca" no leitor ----
-test('voltar nas telas da conta: leva a quem abriu, mesmo depois de ir de "Entrar" a "Criar conta"', async ({ page }) => {
+test('voltar nas telas da conta: leva ao leitor mesmo depois de ir de "Entrar" a "Criar conta"; sem origem (início ou link direto) não há "Voltar"', async ({ page }) => {
   await simularTurnstile(page);
   await page.goto('/ler/salmos/23?t=NVT');
   await page.getByRole('link', { name: 'Entrar' }).click();
@@ -827,11 +827,14 @@ test('voltar nas telas da conta: leva a quem abriu, mesmo depois de ir de "Entra
   await expect(page.getByRole('link', { name: 'Voltar ao leitor' })).toBeVisible();
   await page.getByRole('link', { name: 'Voltar ao leitor' }).click();
   await expect(page).toHaveURL(/\/ler\/salmos\/23\?t=NVT/);
-  // link direto para uma tela da conta: sem origem, o padrão
+  // link direto, ou vindo do início: sem "Voltar" (a marca no canto já leva ao início)
   await page.goto('/entrar');
-  await expect(page.getByRole('link', { name: 'Voltar ao início' })).toBeVisible();
-  await page.getByRole('link', { name: 'Voltar ao início' }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator('.auth-card')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Voltar/ })).toHaveCount(0);
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Entrar' }).click();
+  await expect(page).toHaveURL(/\/entrar/);
+  await expect(page.getByRole('link', { name: /Voltar/ })).toHaveCount(0);
 });
 
 test('voltar à busca: o resultado abre o leitor e o botão reabre a busca com o mesmo termo e tradução, sobre a tela de onde veio', async ({ page }) => {
