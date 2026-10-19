@@ -183,7 +183,7 @@ O script é idempotente (rodar de novo não encontra mais nada) e atualiza o ín
 
 | Comando | O que faz | Tempo |
 |---|---|---|
-| `npm test` | **81 testes**: regras da busca, referências, validação, cache, configuração de proxy e, contra o banco (só leitura), o contrato da busca, dos filtros e do cache. **50 rodam no CI**; os 31 que dependem do banco são pulados sem `DATABASE_URL` | ~60 s |
+| `npm test` | **255 testes**: regras da busca, referências, validação, cache, configuração de proxy, criptografia do backup e, contra o banco, o contrato da busca, dos filtros e do cache (só leitura) e a conta (abuso por HTTP, só na branch de teste). O CI roda os que não dependem do banco; o resto é pulado sem `DATABASE_URL` e `DATABASE_URL_TEST` | ~15 min completo |
 | `npm --prefix client run test:e2e` | **Teste de fumaça da tela** (Playwright): o site compilado, servido com os cabeçalhos reais, num navegador de verdade e com a API simulada com os textos do `NAA.json`: 68 cenários em desktop e celular (leitura, busca, conta, marcações, progresso, posição de leitura, "Voltar", exclusão de conta, tema escuro, rolagem lateral e a política de conteúdo, inclusive que ela **bloqueia** script injetado). Roda no CI | ~25 s |
 | `npm run test:accuracy` | **Bateria de precisão**: 15 camadas, cerca de 104 mil conferências contra um gabarito independente (inclui os filtros) | ~18 min |
 | `ACCURACY_SCALE=0.2 npm run test:accuracy` | A mesma bateria em escala pequena, para uma rodada rápida | ~3 min |
