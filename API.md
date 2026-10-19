@@ -72,6 +72,17 @@ O **versículo do dia e os temas saíram do projeto em 16/10/2026** (não há `d
 
 Erros: `401 sem_sessao`, `403 conta_nao_verificada`, `429` (limite).
 
+## Posição de leitura (onde a pessoa parou) — só conta verificada, **implementado** (migração 008)
+
+Uma posição por usuário (a última); serve ao "Continuar a leitura" da tela inicial valer em qualquer aparelho. Só livro, capítulo, versículo e tradução.
+
+| Rota | Resposta | Observações |
+|---|---|---|
+| `PUT /api/reading-position` | `204` | Corpo `{ book, chapter, verse, translation }` (`book` é o id 1 a 66 ou o nome; capítulo dentro do livro; versículo de 1 a 176; `NAA` ou `NVT`). Troca a posição anterior; repetir a mesma não regrava nada. Livro inexistente: `404 livro_inexistente`; o resto inválido: `400 dados_invalidos`. O cliente só envia quando a rolagem para (3 s), quando a aba é escondida ou fechada, e só se a posição mudou. Limite por IP: `POSITION_RATE_MAX` (padrão 60 por minuto). |
+| `GET /api/reading-position` | `{ position: { book, chapter, verse, translation } }` ou `{ position: null }` | `book` é o id do livro. `Cache-Control: private, no-store`. |
+
+Erros: `401 sem_sessao`, `403 conta_nao_verificada`, `429` (limite). Apagar a conta apaga a posição (cascata).
+
 ## Decisões fechadas (15/10/2026)
 
 1. ~~Apagar uma pasta apaga as marcações dela.~~ **Removida em 16/10/2026: as pastas saíram do projeto** (a tela "Marcações" já organiza por data, ordem canônica e cor). O número fica reservado.

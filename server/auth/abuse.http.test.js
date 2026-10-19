@@ -1321,3 +1321,104 @@ describe('progresso de leitura', opts, () => {
     assert.equal((await http.get('/api/progress', { cookie })).status, 401);
   });
 });
+
+describe('posição de leitura (onde a pessoa parou)', opts, () => {
+  let srv; let http;
+  before(async () => { srv = await startServer(fake, { LOGIN_RATE_MAX: '100000', POSITION_RATE_MAX: '100000' }); http = client(srv.base); });
+  after(async () => { await srv.stop(); });
+
+  const entrar = async ({ verified = true } = {}) => {
+    const email = `${uniq('rp')}@${EMAIL_DOMAIN}`;
+    const id = await seedUser(email, { verified });
+    const cookie = (await http.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie;
+    return { id, cookie };
+  };
+  const linhas = async (id) => (await db.query('SELECT book_id, chapter, verse, translation, updated_at::text AS at FROM reading_positions WHERE user_id = $1', [id])).rows;
+  const put = (cookie, body, extra = {}) => http.request('PUT', '/api/reading-position', { cookie, body, ...extra });
+
+  test('sem sessão 401; conta não verificada 403; Origin de fora 403 — e nada é gravado', async () => {
+    const nv = await entrar({ verified: false });
+    const ok = await entrar();
+    const corpo = { book: 19, chapter: 23, verse: 2, translation: 'NAA' };
+    assert.equal((await put(undefined, corpo)).status, 401);
+    assert.equal((await http.request('GET', '/api/reading-position')).status, 401);
+    const r = await put(nv.cookie, corpo);
+    assert.equal(r.status, 403);
+    assert.equal(r.json.code, 'conta_nao_verificada');
+    assert.equal((await http.request('GET', '/api/reading-position', { cookie: nv.cookie })).status, 403);
+    assert.equal((await put(ok.cookie, corpo, { origin: 'http://evil.test' })).status, 403);
+    assert.equal((await put(ok.cookie, corpo, { origin: null })).status, 403);
+    assert.deepEqual(await linhas(nv.id), []);
+    assert.deepEqual(await linhas(ok.id), []);
+  });
+
+  test('sem leitura o GET devolve null; o PUT grava e o GET devolve; gravar de novo troca a linha (uma só)', async () => {
+    const { cookie, id } = await entrar();
+    const vazio = await http.request('GET', '/api/reading-position', { cookie });
+    assert.equal(vazio.status, 200);
+    assert.deepEqual(vazio.json, { position: null });
+    assert.match(vazio.headers.get('cache-control') || '', /no-store/);
+
+    assert.equal((await put(cookie, { book: 19, chapter: 23, verse: 2, translation: 'NAA' })).status, 204);
+    assert.deepEqual((await http.request('GET', '/api/reading-position', { cookie })).json, { position: { book: 19, chapter: 23, verse: 2, translation: 'NAA' } });
+
+    assert.equal((await put(cookie, { book: 43, chapter: 3, verse: 16, translation: 'nvt' })).status, 204);
+    assert.deepEqual((await http.request('GET', '/api/reading-position', { cookie })).json, { position: { book: 43, chapter: 3, verse: 16, translation: 'NVT' } });
+    assert.equal((await linhas(id)).length, 1);
+  });
+
+  test('repetir a mesma posição não regrava (updated_at não muda); nome do livro também vale', async () => {
+    const { cookie, id } = await entrar();
+    await put(cookie, { book: 19, chapter: 1, verse: 1, translation: 'NAA' });
+    const antes = (await linhas(id))[0].at;
+    await put(cookie, { book: 'Salmos', chapter: 1, verse: 1, translation: 'NAA' });
+    assert.equal((await linhas(id))[0].at, antes);
+  });
+
+  test('pedidos inválidos dão 400/404 e não gravam nada', async () => {
+    const { cookie, id } = await entrar();
+    const ruins = [
+      [{ book: 19, chapter: 151, verse: 1, translation: 'NAA' }, 400], // Salmos tem 150
+      [{ book: 19, chapter: 0, verse: 1, translation: 'NAA' }, 400],
+      [{ book: 19, chapter: '1e1', verse: 1, translation: 'NAA' }, 400],
+      [{ book: 19, chapter: 1, verse: 177, translation: 'NAA' }, 400],
+      [{ book: 19, chapter: 1, verse: -1, translation: 'NAA' }, 400],
+      [{ book: 19, chapter: 1, verse: 1, translation: 'ARA' }, 400],
+      [{ book: 999, chapter: 1, verse: 1, translation: 'NAA' }, 404],
+      [{ book: { $ne: 1 }, chapter: 1, verse: 1, translation: 'NAA' }, 404],
+      [{ chapter: 1, verse: 1, translation: 'NAA' }, 404],
+      [[1, 2, 3], 404],
+      [null, 404],
+    ];
+    for (const [corpo, status] of ruins) assert.equal((await put(cookie, corpo)).status, status, JSON.stringify(corpo));
+    assert.deepEqual(await linhas(id), []);
+    assert.deepEqual(srv.errorLines().filter((l) => !l.includes('Resend')), []);
+  });
+
+  test('cada conta vê só a própria posição', async () => {
+    const a = await entrar();
+    const b = await entrar();
+    await put(a.cookie, { book: 1, chapter: 1, verse: 1, translation: 'NAA' });
+    assert.deepEqual((await http.request('GET', '/api/reading-position', { cookie: b.cookie })).json, { position: null });
+  });
+
+  test('o limite por IP do PUT barra o excesso (429)', async () => {
+    const lim = await startServer(fake, { LOGIN_RATE_MAX: '100000', POSITION_RATE_MAX: '3' });
+    try {
+      const h = client(lim.base);
+      const email = `${uniq('rl')}@${EMAIL_DOMAIN}`;
+      await seedUser(email);
+      const cookie = (await h.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie;
+      const codes = [];
+      for (let i = 0; i < 5; i++) codes.push((await h.request('PUT', '/api/reading-position', { cookie, body: { book: 1, chapter: 1, verse: 1, translation: 'NAA' } })).status);
+      assert.deepEqual(codes, [204, 204, 204, 429, 429]);
+    } finally { await lim.stop(); }
+  });
+
+  test('apagar a conta apaga a posição (cascata)', async () => {
+    const { cookie, id } = await entrar();
+    await put(cookie, { book: 1, chapter: 1, verse: 1, translation: 'NAA' });
+    await db.query('DELETE FROM users WHERE id = $1', [id]);
+    assert.deepEqual(await linhas(id), []);
+  });
+});

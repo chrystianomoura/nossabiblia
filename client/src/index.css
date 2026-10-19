@@ -2923,6 +2923,10 @@ body:has(.read) {
   margin-top: 22px;
 }
 
+.mh-actions.is-wait {
+  visibility: hidden; /* espera a posição de leitura do servidor, para o botão não trocar de "Começar" para "Continuar" diante da pessoa */
+}
+
 .mh-actions .btn-primary,
 .mh-actions .btn-secondary {
   min-width: 0;

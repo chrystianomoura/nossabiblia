@@ -12,9 +12,9 @@ function getSnapshot() {
 
 // Toda navegação nova guarda de onde veio (`nbFrom`, no history.state: some com a aba e sobrevive ao recarregar); trocar a
 // URL sem empilhar (replace) mantém a origem que já estava.
-export function navigate(to, { replace = false } = {}) {
+export function navigate(to, { replace = false, position = null } = {}) {
   if (replace) window.history.replaceState(window.history.state, '', to);
-  else window.history.pushState({ nbFrom: window.location.pathname + window.location.search }, '', to);
+  else window.history.pushState({ nbFrom: window.location.pathname + window.location.search, ...(position ? { nbKey: position.key, nbV: position.verse } : {}) }, '', to);
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 

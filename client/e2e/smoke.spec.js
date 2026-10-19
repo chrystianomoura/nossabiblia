@@ -813,3 +813,55 @@ test('menu Conta: só "Início" e "Sair"; "Início" na própria inicial relê o 
   expect(await page.evaluate(() => window.__marca)).toBe(1); // a página não recarregou
   expect(await page.evaluate(() => history.length)).toBe(entradas);
 });
+
+// ---- Posição de leitura guardada no servidor ----
+test('continuar a leitura: a posição do servidor vale em outro aparelho (sem nada guardado no navegador); sem posição, "Começar a leitura"', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/progress?*', (route) => respondeJson(route, 200, semana('check', 'check', 'check', 'check', 'check', 'check', 'check')));
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [] }));
+  await page.route('**/api/reading-position', (route) => respondeJson(route, 200, { position: { book: 19, chapter: 119, verse: 40, translation: 'NVT' } }));
+  await page.goto('/');
+  const continuar = page.getByRole('link', { name: /Continuar a leitura/ });
+  await expect(continuar).toHaveAttribute('href', '/ler/salmos/119?t=NVT');
+  await continuar.click();
+  await expect(page).toHaveURL(/\/ler\/salmos\/119\?t=NVT$/); // sem ?v=
+  await expect(page.locator('#v40')).toBeVisible();
+  await expect.poll(() => page.locator('.rb-scroll').evaluate((el) => el.querySelector('#v40').getBoundingClientRect().top - el.getBoundingClientRect().top)).toBeLessThan(12); // o versículo guardado fica no topo
+  await expect(page.locator('.is-target')).toHaveCount(0); // e não é destacado
+});
+
+test('continuar a leitura: conta sem posição no servidor começa por Gênesis 1', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/progress?*', (route) => respondeJson(route, 200, semana('check', 'check', 'check', 'check', 'check', 'check', 'check')));
+  await page.route('**/api/reading-position', (route) => respondeJson(route, 200, { position: null }));
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: /Começar a leitura/ })).toHaveAttribute('href', '/ler/genesis/1?t=NAA');
+});
+
+test('posição de leitura: ao parar de rolar o leitor avisa o servidor uma vez (PUT com livro, capítulo, versículo e tradução); visitante não envia', async ({ page }) => {
+  await entrarComo(page);
+  const envios = [];
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [] }));
+  await page.route('**/api/progress/today', (route) => respondeJson(route, 200, { date: '2026-10-16', created: false }));
+  await page.route('**/api/reading-position', (route) => {
+    if (route.request().method() === 'PUT') { envios.push(route.request().postDataJSON()); return route.fulfill({ status: 204 }); }
+    return respondeJson(route, 200, { position: null });
+  });
+  await page.goto('/ler/salmos/119?t=NVT');
+  await expect(page.locator('#v1')).toBeVisible();
+  await page.locator('.rb-scroll').evaluate((el) => { el.scrollTop = el.querySelector('#v40').offsetTop + 8; });
+  await expect.poll(() => envios.length, { timeout: 8000 }).toBe(1);
+  expect(envios[0]).toEqual({ book: 19, chapter: 119, verse: 40, translation: 'NVT' });
+  await page.waitForTimeout(500);
+  expect(envios.length).toBe(1);
+
+  const visitante = await page.context().newPage();
+  await mockApi(visitante);
+  let enviou = false;
+  await visitante.route('**/api/reading-position', (route) => { enviou = true; return route.fulfill({ status: 204 }); });
+  await visitante.goto('/ler/salmos/119?t=NVT');
+  await expect(visitante.locator('#v1')).toBeVisible();
+  await visitante.locator('.rb-scroll').evaluate((el) => { el.scrollTop = el.querySelector('#v40').offsetTop + 8; });
+  await visitante.waitForTimeout(4500);
+  expect(enviou).toBe(false);
+});

@@ -2,18 +2,20 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { displayBookName } from '../lib/books';
 import { writeStorage } from '../lib/storage';
+import { syncReadingPosition } from '../lib/reading-position';
 import MarkPalette from './MarkPalette';
 import { requireVerified } from '../lib/verify-gate';
 
 // Guarda onde o leitor está, sem mexer na URL: o versículo que está no topo fica no estado desta entrada do histórico,
 // e F5, Voltar e Avançar voltam ao mesmo ponto. Também fica no navegador como "última leitura" (ainda sem uso na tela).
-function rememberPosition(chapterKey, verse) {
+function rememberPosition(chapterKey, verse, bookId) {
   if (!verse) return;
   try {
     window.history.replaceState({ ...(window.history.state ?? {}), nbKey: chapterKey, nbV: verse }, '');
   } catch { /* o navegador pode recusar */ }
   const [slug, chapter, translation] = chapterKey.split('/');
   writeStorage('nb-last-read', JSON.stringify({ slug, chapter: Number(chapter), translation, verse }));
+  syncReadingPosition({ book: bookId, chapter: Number(chapter), verse, translation });
 }
 
 // O versículo que está no topo da área de leitura e quanto dele (em fração da altura) já passou. A busca é binária: os
@@ -164,7 +166,7 @@ export default function ReaderCard({
         const top = el.scrollTop + 4;
         for (const node of el.querySelectorAll('.rb-verse')) {
           if (node.offsetTop + node.offsetHeight > top) {
-            rememberPosition(chapterKey, Number(node.id.slice(1)));
+            rememberPosition(chapterKey, Number(node.id.slice(1)), data.book.id);
             return;
           }
         }

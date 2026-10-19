@@ -1,7 +1,7 @@
 import { navigate } from '../lib/router';
 
 // Link que respeita clique com modificador (nova aba) e clique do meio.
-export default function Link({ to, replace, onClick, ...props }) {
+export default function Link({ to, replace, position, onClick, ...props }) {
   function handleClick(event) {
     onClick?.(event);
     if (
@@ -11,7 +11,7 @@ export default function Link({ to, replace, onClick, ...props }) {
       props.target === '_blank'
     ) return;
     event.preventDefault();
-    navigate(to, { replace });
+    navigate(to, { replace, position });
   }
 
   return <a href={to} {...props} onClick={handleClick} />;

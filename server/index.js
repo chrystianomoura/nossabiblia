@@ -8,6 +8,7 @@ import bibleRoutes from './routes/bible.js';
 import authRoutes from './routes/auth.js';
 import marksRoutes from './routes/marks.js';
 import progressRoutes from './routes/progress.js';
+import readingPositionRoutes from './routes/reading-position.js';
 import { startKeepAlive } from './keepalive.js';
 import { parseTrustProxy, parseAllowedOrigins } from './config.js';
 import { createOriginGuard } from './http/origin-guard.js';
@@ -91,6 +92,7 @@ await fastify.register(bibleRoutes, { prefix: '/api' });
 await fastify.register(authRoutes, { prefix: '/api' });
 await fastify.register(marksRoutes, { prefix: '/api' });
 await fastify.register(progressRoutes, { prefix: '/api' });
+await fastify.register(readingPositionRoutes, { prefix: '/api' });
 
 // Inicia o servidor
 const PORT = process.env.PORT || 3001;

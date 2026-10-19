@@ -7,7 +7,7 @@ import { useSession } from '../lib/auth';
 import { greetingFor } from '../lib/greeting';
 import { HOME_REFRESH, useWeek } from '../lib/progress';
 import { readPath } from '../lib/router';
-import { readStorage } from '../lib/storage';
+import { useLastRead } from '../lib/reading-position';
 import { requireVerified } from '../lib/verify-gate';
 
 const WEEKDAY = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', timeZone: 'UTC' });
@@ -15,23 +15,16 @@ const WEEKDAY_LONG = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', timeZon
 const dayOf = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
 const STATE_TEXT = { check: 'leu', x: 'não leu', empty: 'ainda não leu hoje' };
 
-// Onde a pessoa parou (guardado pelo leitor): é o destino do botão principal. Sem leitura nenhuma, começa por Gênesis 1.
-function lastRead() {
-  try {
-    const saved = JSON.parse(readStorage('nb-last-read'));
-    if (saved && typeof saved.slug === 'string' && saved.chapter > 0) return saved;
-  } catch { /* nada guardado */ }
-  return null;
-}
-
 // Página inicial de quem está logado: saudação, a semana de leitura (toque abre o quadro do ano) e, embaixo, os botões da leitura e das marcações.
 export default function MemberHome({ theme, onToggleTheme, onOpenSearch }) {
   const { user } = useSession();
   const verified = Boolean(user?.is_verified);
   const [yearOpen, setYearOpen] = useState(false);
   const week = useWeek(verified);
-  const read = lastRead();
+  const { read, ready } = useLastRead(); // onde a pessoa parou: do servidor (vale em qualquer aparelho) ou do navegador; sem leitura nenhuma, começa por Gênesis 1
   const target = read ? readPath(read.slug, read.chapter, read.translation ?? 'NAA') : readPath('genesis', 1, 'NAA');
+
+  const where = read?.verse > 0 ? { key: `${read.slug}/${read.chapter}/${read.translation ?? 'NAA'}`, verse: read.verse } : undefined; // abre no versículo em que parou, sem destacá-lo
 
   // "Início" no menu da conta estando aqui: fecha o calendário, volta ao topo e relê o progresso (como um recarregamento, sem perder nada).
   const { refresh } = week;
@@ -101,8 +94,8 @@ export default function MemberHome({ theme, onToggleTheme, onOpenSearch }) {
             {!failed && <span className="mh-more">ver o ano</span>}
           </Wrap>
         </section>
-        <div className="mh-actions">
-          <Link to={target} className="btn-primary">
+        <div className={`mh-actions${ready ? '' : ' is-wait'}`}>
+          <Link to={target} position={where} className="btn-primary">
             <span>{read ? 'Continuar a leitura' : 'Começar a leitura'}</span>
             <span className="btn-arrow" aria-hidden="true"><ArrowRight size={16} /></span>
           </Link>
