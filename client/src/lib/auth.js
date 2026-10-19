@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { apiUrl, trackedFetch } from './api';
-import { readStorage, writeStorage } from './storage';
+import { readStorage, writeStorage, removeStorage } from './storage';
 
 // Estado da sessão. O cookie é HttpOnly (o JavaScript não o vê), então só o servidor sabe se há sessão. Para não chamar a API
 // (e acordá-la) em toda visita de quem nunca entrou, o navegador lembra apenas "já entrei aqui" (sem dado nenhum da pessoa).
@@ -101,4 +101,16 @@ export function resendVerification() {
 export async function logout() {
   setUser(null);
   await authRequest('POST', '/api/auth/logout');
+}
+
+// Excluir a conta (regras 33 e 34): senha da própria conta. Dando certo, o servidor já apagou tudo e o cookie; aqui sai a sessão e o que o
+// navegador guardava dessa pessoa (onde parou de ler, o dia já avisado ao progresso).
+export async function deleteAccount(password) {
+  const r = await authRequest('DELETE', '/api/me', { password });
+  if (r.ok) {
+    setUser(null);
+    removeStorage('nb-last-read');
+    removeStorage('nb-progress-day');
+  }
+  return r;
 }

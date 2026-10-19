@@ -10,7 +10,7 @@ import { sendEmail } from './email.js';
 const VERIFICATION_HOURS = 24;
 const RESET_MINUTES = 60; // validade do link de redefinição
 const RESET_COOLDOWN_MINUTES = 15; // no máximo um e-mail de recuperação por conta a cada 15 min (4 por hora)
-const RESEND_COOLDOWN_HOURS = 12; // regra 39: o 1º reenvio é imediato; depois, só 12 h depois do último envio
+const RESEND_COOLDOWN_HOURS = 12; // regra 29: o 1º reenvio é imediato; depois, só 12 h depois do último envio
 // Teto de cadastros (= e-mails de confirmação) por 24 h. O plano grátis do Resend dá 100 envios por dia; passar disso derruba o envio
 // para todo mundo. Conta os cadastros no banco (sobrevive a reinício da API) e deixa folga para os reenvios.
 const DAILY_CAP = () => Number(process.env.EMAIL_DAILY_CAP || 80);
@@ -94,7 +94,7 @@ const invalidToken = () => new AccountError(400, 'token_invalido', 'Este link n�
 let dummyHash;
 const getDummyHash = () => (dummyHash ??= hashPassword('senha-que-nao-existe'));
 
-// Login: mensagem única para e-mail inexistente e senha errada. Conta não verificada entra (recursos bloqueados, regra 38).
+// Login: mensagem única para e-mail inexistente e senha errada. Conta não verificada entra (recursos bloqueados, regra 28).
 export async function login(email, password, { db = defaultPool, deviceLabel = null } = {}) {
   const r = await db.query(
     'SELECT id, first_name, last_name, email, password_hash, is_verified, verified_at FROM users WHERE email = $1',
@@ -133,7 +133,29 @@ export async function logout(token, { db = defaultPool } = {}) {
   await db.query('DELETE FROM sessions WHERE token_hash = $1', [hashToken(token)]);
 }
 
-// Reenvio do e-mail de confirmação (regra 39): o primeiro é imediato (verification_resends = 0); os seguintes só 12 h depois do último
+// Exclusão da conta (regras 33 e 34): confere a senha, apaga o usuário (o ON DELETE CASCADE leva sessões, marcações, progresso e posição de
+// leitura) e, se a conta era verificada, grava o bloqueio do e-mail por 30 dias (só o HMAC). Bloqueio e exclusão saem num único comando
+// (CTE com escrita), então ou acontecem os dois ou nenhum. Conta não verificada não gera bloqueio. Quem pede é sempre a conta da sessão.
+export async function deleteAccount(user, password, { db = defaultPool } = {}) {
+  const r = await db.query('SELECT password_hash FROM users WHERE id = $1', [user.id]);
+  const found = r.rows[0];
+  const ok = await verifyPassword(typeof password === 'string' ? password : '', found ? found.password_hash : await getDummyHash());
+  if (!found || !ok) throw new AccountError(403, 'senha_incorreta', 'Senha incorreta.');
+  const blockHash = user.is_verified ? emailBlockHash(user.email) : null;
+  const del = await db.query(
+    `WITH blocked AS (
+       INSERT INTO email_blocks (email_hash, blocked_until)
+       SELECT $2::text, NOW() + interval '30 days' WHERE $3::boolean
+       ON CONFLICT (email_hash) DO UPDATE SET blocked_until = EXCLUDED.blocked_until
+       RETURNING 1
+     )
+     DELETE FROM users WHERE id = $1 RETURNING id`,
+    [user.id, blockHash, Boolean(user.is_verified)],
+  );
+  if (!del.rowCount) throw new AccountError(401, 'sem_sessao', 'Você não está conectado.'); // outro pedido já apagou esta conta
+}
+
+// Reenvio do e-mail de confirmação (regra 29): o primeiro é imediato (verification_resends = 0); os seguintes só 12 h depois do último
 // envio. O link anterior deixa de valer. Tudo num único UPDATE com a trava da linha, então pedidos simultâneos não passam juntos. Se o
 // envio falhar, o estado anterior (link, data e contagem) é restaurado: quem não recebeu nada não perde o link antigo nem gasta o
 // reenvio. A data anterior volta como TEXTO: um Date do JavaScript perde os microssegundos.

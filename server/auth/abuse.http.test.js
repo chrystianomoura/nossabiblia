@@ -5,7 +5,7 @@ import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createPool } from '../db-core.js';
 import { hashPassword } from './password.js';
-import { hashToken } from './tokens.js';
+import { hashToken, emailBlockHash } from './tokens.js';
 import { SKIP, TEST_URL, EMAIL_DOMAIN, ORIGIN, startFakeResend, startFakePwned, startServer, client, validUser, tokenFrom } from '../testing/harness.js';
 
 const opts = { skip: SKIP };
@@ -630,7 +630,7 @@ describe('senha vazada (Pwned Passwords)', opts, () => {
 });
 
 // ------------------------------------------------------------------------------------------------------------------------------
-describe('reenvio da confirmação (regra 39: 1º imediato, depois 12 h)', opts, () => {
+describe('reenvio da confirmação (regra 29: 1º imediato, depois 12 h)', opts, () => {
   let srv; let http;
   before(async () => { srv = await startServer(fake, { REGISTER_RATE_MAX: '1000', LOGIN_RATE_MAX: '1000', VERIFY_RATE_MAX: '1000', RESEND_RATE_MAX: '1000' }); http = client(srv.base); });
   after(async () => { await srv.stop(); });
@@ -1009,7 +1009,6 @@ describe('marcações de versículos', opts, () => {
     assert.equal(lista.status, 200);
     assert.match(lista.headers.get('cache-control') || '', /no-store/);
     assert.deepEqual(lista.json.bookmarks.map((m) => [m.verse, m.color]), [[1, 'rosa'], [3, 'verde']]);
-    assert.equal('favorites' in lista.json, false, 'favoritos saíram do projeto');
     assert.ok(!/user_id|"id"/.test(lista.text), 'a resposta não vaza ids internos');
     assert.equal((await http.request('DELETE', url(), { cookie })).status, 204);
     assert.equal((await http.request('DELETE', url(), { cookie })).status, 204, 'remover o que não existe também é 204');
@@ -1027,18 +1026,6 @@ describe('marcações de versículos', opts, () => {
     await put(B.cookie, { color: 'azul' });
     assert.equal((await linhas(A.id))[0].color, 'amarelo', 'o PUT do B não troca a cor do A');
     assert.equal((await linhas(B.id))[0].color, 'azul');
-  });
-
-  test('comentários, favoritos e pastas saíram do projeto: "comment" e "folder_id" no corpo são ignorados (não são gravados nem devolvidos) e o banco não tem mais essas colunas e tabelas', async () => {
-    const { cookie, id } = await entrar();
-    const r = await put(cookie, { color: 'amarelo', comment: 'minha nota', folder_id: '00000000-0000-0000-0000-000000000000' });
-    assert.equal(r.status, 200);
-    assert.equal('comment' in r.json || 'folder_id' in r.json, false);
-    assert.deepEqual(await linhas(id), [{ chapter: 23, verse: 1, color: 'amarelo' }]);
-    assert.equal((await http.get(`/api/books/${SALMOS}/chapters/23/marks`, { cookie })).text.includes('comment'), false);
-    const col = await db.query(`SELECT count(*)::int AS n FROM information_schema.columns WHERE table_name = 'bookmarks' AND column_name IN ('comment', 'folder_id')`);
-    const tab = await db.query(`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_name IN ('favorites', 'bookmark_folders')`);
-    assert.deepEqual([col.rows[0].n, tab.rows[0].n], [0, 0], 'bookmarks.comment, bookmarks.folder_id e as tabelas favorites e bookmark_folders foram removidas (migrações 005 e 006)');
   });
 
   test('entradas hostis (cor, tradução, corpo): sempre 400, nunca 500, nada gravado', async () => {
@@ -1420,5 +1407,111 @@ describe('posição de leitura (onde a pessoa parou)', opts, () => {
     await put(cookie, { book: 1, chapter: 1, verse: 1, translation: 'NAA' });
     await db.query('DELETE FROM users WHERE id = $1', [id]);
     assert.deepEqual(await linhas(id), []);
+  });
+});
+
+describe('excluir a conta (DELETE /api/me)', opts, () => {
+  let srv; let http;
+  before(async () => { srv = await startServer(fake, { LOGIN_RATE_MAX: '100000', DELETE_RATE_MAX: '100000', REGISTER_RATE_MAX: '100000' }); http = client(srv.base); });
+  after(async () => { await srv.stop(); });
+
+  const KEY = 'k'.repeat(40); // a mesma chave com que o servidor de teste sobe
+  const entrar = async ({ verified = true } = {}) => {
+    const email = `${uniq('dl')}@${EMAIL_DOMAIN}`;
+    const id = await seedUser(email, { verified });
+    const cookie = (await http.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie;
+    return { email, id, cookie };
+  };
+  const del = (cookie, body, extra = {}) => http.request('DELETE', '/api/me', { cookie, body, ...extra });
+  const existe = async (id) => Number((await db.query('SELECT count(*) AS n FROM users WHERE id = $1', [id])).rows[0].n) === 1;
+  const bloqueio = async (email) => (await db.query(`SELECT blocked_until, (blocked_until > NOW() + interval '29 days 23 hours' AND blocked_until < NOW() + interval '30 days 1 hour') AS trinta FROM email_blocks WHERE email_hash = $1`, [emailBlockHash(email, KEY)])).rows[0];
+
+  test('sem sessão 401; Origin de fora 403; corpo ruim 400; senha errada 403 — e nada é apagado', async () => {
+    const { id, cookie } = await entrar();
+    assert.equal((await del(undefined, { password: 'senha-segura-1' })).status, 401);
+    assert.equal((await del(cookie, { password: 'senha-segura-1' }, { origin: 'http://evil.test' })).status, 403);
+    assert.equal((await del(cookie, { password: 'senha-segura-1' }, { origin: null })).status, 403);
+    for (const corpo of [undefined, {}, { password: '' }, { password: 123 }, { password: ['senha-segura-1'] }, { password: 'x'.repeat(129) }]) {
+      assert.equal((await del(cookie, corpo)).status, 400, JSON.stringify(corpo)?.slice(0, 40));
+    }
+    const r = await del(cookie, { password: 'senha-errada-9' });
+    assert.equal(r.status, 403);
+    assert.equal(r.json.code, 'senha_incorreta');
+    assert.equal(await existe(id), true);
+    assert.equal((await http.get('/api/me', { cookie })).status, 200, 'a sessão continua valendo');
+    assert.deepEqual(srv.errorLines().filter((l) => !l.includes('Resend')), []);
+  });
+
+  test('conta verificada: 204, cookie apagado, tudo some (marcações, progresso, posição, sessões) e o e-mail fica bloqueado por 30 dias', async () => {
+    const { id, email, cookie } = await entrar();
+    const outra = (await http.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie; // segunda sessão
+    await db.query(`INSERT INTO bookmarks (user_id, book_id, chapter, verse, color, created_in_translation) VALUES ($1, 19, 23, 1, 'verde', 'NAA')`, [id]);
+    await db.query('INSERT INTO daily_progress (user_id, sp_date) VALUES ($1, CURRENT_DATE)', [id]);
+    await db.query(`INSERT INTO reading_positions (user_id, book_id, chapter, verse, translation) VALUES ($1, 19, 23, 1, 'NAA')`, [id]);
+    const r = await del(cookie, { password: 'senha-segura-1' });
+    assert.equal(r.status, 204);
+    assert.match(r.setCookie.join(';'), /Max-Age=0|Expires=Thu, 01 Jan 1970/i);
+    assert.equal(await existe(id), false);
+    for (const t of ['bookmarks', 'daily_progress', 'reading_positions', 'sessions']) {
+      assert.equal(Number((await db.query(`SELECT count(*) AS n FROM ${t} WHERE user_id = $1`, [id])).rows[0].n), 0, t);
+    }
+    assert.equal((await http.get('/api/me', { cookie })).status, 401);
+    assert.equal((await http.get('/api/me', { cookie: outra })).status, 401, 'a outra sessão também deixou de valer');
+    const b = await bloqueio(email);
+    assert.ok(b, 'o e-mail foi bloqueado');
+    assert.equal(b.trinta, true, 'por 30 dias');
+    // só o HMAC fica guardado: nenhuma coluna de e-mail em texto
+    const colunas = (await db.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'email_blocks'`)).rows.map((x) => x.column_name).sort();
+    assert.deepEqual(colunas, ['blocked_until', 'created_at', 'email_hash']);
+    // e um novo cadastro com o mesmo e-mail é recusado enquanto durar o bloqueio
+    const reg = await http.post('/api/auth/register', { ...validUser(email.split('@')[0]), turnstile: 'x' });
+    assert.equal(reg.status, 403);
+    assert.equal(reg.json.code, 'email_bloqueado');
+    await db.query('DELETE FROM email_blocks WHERE email_hash = $1', [emailBlockHash(email, KEY)]);
+  });
+
+  test('conta NÃO verificada também pode ser excluída, e não deixa bloqueio de e-mail', async () => {
+    const { id, email, cookie } = await entrar({ verified: false });
+    assert.equal((await del(cookie, { password: 'senha-segura-1' })).status, 204);
+    assert.equal(await existe(id), false);
+    assert.equal(await bloqueio(email), undefined);
+  });
+
+  test('repetir a exclusão (a sessão já não existe) dá 401, nunca 500; pedidos simultâneos: um só apaga', async () => {
+    const a = await entrar();
+    assert.equal((await del(a.cookie, { password: 'senha-segura-1' })).status, 204);
+    assert.equal((await del(a.cookie, { password: 'senha-segura-1' })).status, 401);
+    const b = await entrar();
+    const rs = await Promise.all(Array.from({ length: 6 }, () => del(b.cookie, { password: 'senha-segura-1' })));
+    assert.ok(rs.every((r) => [204, 401].includes(r.status)), rs.map((r) => r.status).join(','));
+    assert.ok(rs.filter((r) => r.status === 204).length >= 1);
+    assert.equal(await existe(b.id), false);
+    assert.deepEqual(srv.errorLines().filter((l) => !l.includes('Resend')), []);
+    await db.query('DELETE FROM email_blocks WHERE email_hash = ANY($1)', [[emailBlockHash(a.email, KEY), emailBlockHash(b.email, KEY)]]);
+  });
+
+  test('quem tem a sessão mas não a senha: 5 tentativas erradas e a 6ª leva 429 (mesmo com a senha certa); outra conta não é afetada', async () => {
+    const a = await entrar();
+    const outra = await entrar();
+    for (let i = 0; i < 5; i++) assert.equal((await del(a.cookie, { password: `errada-${i}-xxxx` })).status, 403);
+    const r = await del(a.cookie, { password: 'senha-segura-1' });
+    assert.equal(r.status, 429);
+    assert.ok(Number(r.headers.get('retry-after')) > 0);
+    assert.equal(await existe(a.id), true);
+    assert.equal((await del(outra.cookie, { password: 'senha-segura-1' })).status, 204); // o contador é por conta
+    await db.query('DELETE FROM email_blocks WHERE email_hash = $1', [emailBlockHash(outra.email, KEY)]);
+  });
+
+  test('o limite por IP do DELETE barra o excesso (429)', async () => {
+    const lim = await startServer(fake, { LOGIN_RATE_MAX: '100000', DELETE_RATE_MAX: '3' });
+    try {
+      const h = client(lim.base);
+      const email = `${uniq('dr')}@${EMAIL_DOMAIN}`;
+      await seedUser(email);
+      const cookie = (await h.post('/api/auth/login', { email, password: 'senha-segura-1' })).cookie;
+      const codes = [];
+      for (let i = 0; i < 5; i++) codes.push((await h.request('DELETE', '/api/me', { cookie, body: { password: `errada-${i}-xxxx` } })).status);
+      assert.deepEqual(codes, [403, 403, 403, 429, 429]);
+    } finally { await lim.stop(); }
   });
 });

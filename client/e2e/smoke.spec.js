@@ -791,7 +791,7 @@ test('voltar por origem: de Marcações o "voltar" leva de volta a quem abriu (i
   await expect(page.getByRole('link', { name: 'Voltar ao início' })).toBeVisible();
 });
 
-test('menu Conta: só "Início" e "Sair"; "Início" na própria inicial relê o progresso e fecha o calendário, sem recarregar nem empilhar histórico', async ({ page }) => {
+test('menu Conta: "Início", "Sair" e "Excluir conta"; "Início" na própria inicial relê o progresso e fecha o calendário, sem recarregar nem empilhar histórico', async ({ page }) => {
   await entrarComo(page);
   let leituras = 0;
   await page.route('**/api/progress?*', (route) => { leituras++; return respondeJson(route, 200, { today: '2026-10-16', opened_on: '2026-10-15', days: [{ date: '2026-10-15', state: 'check' }, { date: '2026-10-16', state: 'check' }] }); });
@@ -801,7 +801,7 @@ test('menu Conta: só "Início" e "Sair"; "Início" na própria inicial relê o 
   await page.evaluate(() => { window.__marca = 1; });
   const entradas = await page.evaluate(() => history.length);
   await page.getByRole('button', { name: 'Conta', exact: true }).click();
-  await expect(page.getByRole('menuitem')).toHaveText(['Início', 'Sair']);
+  await expect(page.getByRole('menuitem')).toHaveText(['Início', 'Sair', 'Excluir conta']);
   await page.getByRole('menuitem', { name: 'Início' }).click(); // já está no início: relê o progresso
   await expect.poll(() => leituras).toBeGreaterThan(1);
   await page.locator('.mh-progress').click();
@@ -1070,6 +1070,119 @@ test('voltar ao versículo 1 de um capítulo não esconde o título (a rolagem v
   await expect(page.locator('#v5')).toBeVisible();
   const topo = await page.locator('.rb-scroll').evaluate((el) => el.querySelector('#v5').getBoundingClientRect().top - el.getBoundingClientRect().top);
   expect(Math.abs(topo)).toBeLessThan(12);
+});
+
+// ---- Excluir conta ----
+async function paraExcluir(page, { verificada = true, delete: resposta = { status: 204, body: {} } } = {}) {
+  await entrarComo(page, { verificada });
+  const pedidos = [];
+  await page.route('**/api/progress?*', (route) => respondeJson(route, 200, semana('check', 'check', 'check', 'check', 'check', 'check', 'check')));
+  await page.route('**/api/reading-position', (route) => respondeJson(route, 200, { position: null }));
+  await page.route('**/api/bookmarks/index', (route) => respondeJson(route, 200, { marks: Array.from({ length: 38 }, (_, i) => [19, 23, i + 1, 'verde']) }));
+  await page.route('**/api/progress/year', (route) => respondeJson(route, 200, { today: '2026-10-16', opened_on: '2026-08-15', read: Array.from({ length: 62 }, (_, i) => new Date(Date.UTC(2026, 7, 16 + i)).toISOString().slice(0, 10)) })); // 62 leituras gravadas, depois do dia de abertura (15/08)
+  await page.route('**/api/me', (route) => {
+    if (route.request().method() === 'DELETE') { pedidos.push(route.request().postDataJSON()); return route.fulfill({ status: resposta.status, contentType: 'application/json', body: JSON.stringify(resposta.body) }); }
+    return route.fallback();
+  });
+  return pedidos;
+}
+
+test('excluir conta: o menu Conta leva à tela, que mostra o que será apagado com os números reais e não tem "Voltar ao início"', async ({ page }) => {
+  await paraExcluir(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Conta' }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Início', 'Sair', 'Excluir conta']); // a exclusão fica por último, separada
+  await page.getByRole('menuitem', { name: 'Excluir conta' }).click();
+  await expect(page).toHaveURL(/\/conta\/excluir$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Excluir conta');
+  await expect(page.locator('.del-list')).toContainText('38 marcações de versículos');
+  await expect(page.locator('.del-list')).toContainText('63 dias de progresso de leitura'); // 62 gravados + o dia de abertura, que conta como lido
+  await expect(page.getByText('bloqueado por 30 dias')).toBeVisible();
+  await expect(page.getByRole('link', { name: /Voltar/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Excluir minha conta' })).toBeDisabled(); // sem senha, não deixa
+  await page.getByRole('link', { name: 'Cancelar' }).click();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test('excluir conta: senha errada mostra o erro no campo e a conta continua; a certa apaga, mostra a despedida e limpa o que o navegador guardava', async ({ page }) => {
+  let resposta = { status: 403, body: { error: 'Senha incorreta.', code: 'senha_incorreta' } };
+  const pedidos = await paraExcluir(page, { delete: resposta });
+  await page.addInitScript(() => localStorage.setItem('nb-last-read', JSON.stringify({ slug: 'salmos', chapter: 23, translation: 'NAA', verse: 1 })));
+  await page.goto('/conta/excluir');
+  await page.getByLabel('Confirme com a sua senha').fill('errada-123');
+  await page.getByRole('button', { name: 'Excluir minha conta' }).click();
+  await expect(page.getByText('Senha incorreta.')).toBeVisible();
+  await expect(page).toHaveURL(/\/conta\/excluir$/);
+  expect(pedidos).toEqual([{ password: 'errada-123' }]);
+  // agora o servidor aceita
+  await page.unroute('**/api/me');
+  await page.route('**/api/me', (route) => (route.request().method() === 'DELETE' ? route.fulfill({ status: 204 }) : route.fallback()));
+  await page.getByLabel('Confirme com a sua senha').fill('senha-certa-1');
+  await page.getByRole('button', { name: 'Excluir minha conta' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Conta excluída');
+  await expect(page.getByRole('link', { name: 'Ir para o início' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Entrar' })).toBeVisible(); // a sessão acabou: a barra voltou a "Entrar"
+  expect(await page.evaluate(() => localStorage.getItem('nb-last-read'))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('nb-session'))).toBe('0');
+  await page.getByRole('link', { name: 'Ir para o início' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('link', { name: 'Criar Conta Gratuita' })).toBeVisible(); // início de visitante
+});
+
+test('excluir conta: muitas tentativas (429) e falha de rede mostram a mensagem sem sair da tela', async ({ page }) => {
+  await paraExcluir(page, { delete: { status: 429, body: { error: 'Muitas tentativas. Tente de novo mais tarde.', code: 'muitas_tentativas', retry_after: 600 } } });
+  await page.goto('/conta/excluir');
+  await page.getByLabel('Confirme com a sua senha').fill('qualquer-123');
+  await page.getByRole('button', { name: 'Excluir minha conta' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Muitas tentativas. Tente de novo mais tarde.');
+  await page.unroute('**/api/me');
+  await page.route('**/api/me', (route) => (route.request().method() === 'DELETE' ? route.abort('failed') : route.fallback()));
+  await page.getByRole('button', { name: 'Excluir minha conta' }).click();
+  await expect(page.getByRole('alert')).toContainText('Não foi possível conectar');
+  await expect(page).toHaveURL(/\/conta\/excluir$/);
+});
+
+test('excluir conta: visitante vai ao login; conta não verificada vê a tela sem números e sem o aviso do bloqueio de e-mail', async ({ page, context }) => {
+  await page.goto('/conta/excluir');
+  await expect(page).toHaveURL(/\/entrar$/);
+  const outra = await context.newPage();
+  await mockApi(outra);
+  await paraExcluir(outra, { verificada: false });
+  await outra.goto('/conta/excluir');
+  await expect(outra.getByRole('heading', { level: 1 })).toHaveText('Excluir conta');
+  await expect(outra.locator('.del-list li')).toHaveCount(2); // só o lugar de leitura e os dados de acesso
+  await expect(outra.locator('.del-list')).not.toContainText('marcações');
+  await expect(outra.getByText('bloqueado por 30 dias')).toHaveCount(0);
+});
+
+test('excluir conta: vindo do leitor, a tela mostra "Voltar ao leitor" e o Cancelar também volta ao leitor', async ({ page }) => {
+  await paraExcluir(page);
+  await page.route('**/api/books/*/chapters/*/marks', (route) => respondeJson(route, 200, { bookmarks: [] }));
+  await page.route('**/api/progress/today', (route) => respondeJson(route, 200, { date: '2026-10-16', created: false }));
+  await page.goto('/ler/salmos/23?t=NAA');
+  await expect(page.locator('#v1')).toBeVisible();
+  await page.getByRole('button', { name: 'Conta' }).click();
+  await page.getByRole('menuitem', { name: 'Excluir conta' }).click();
+  await expect(page.getByRole('link', { name: 'Voltar ao leitor' })).toBeVisible();
+  await page.getByRole('link', { name: 'Cancelar' }).click();
+  await expect(page).toHaveURL(/\/ler\/salmos\/23/);
+});
+
+test('excluir conta: os dias contam como o calendário (o dia de abertura vale como lido, e sem contar duas vezes se ele também tem leitura)', async ({ page }) => {
+  await paraExcluir(page);
+  const ano = (read) => page.route('**/api/progress/year', (route) => respondeJson(route, 200, { today: '2026-10-19', opened_on: '2026-10-15', read }));
+  await page.unroute('**/api/progress/year');
+  await ano(['2026-10-16', '2026-10-19']); // a conta do usuário: aberta em 15/10, leituras em 16 e 19 -> 3 dias
+  await page.goto('/conta/excluir');
+  await expect(page.locator('.del-list')).toContainText('3 dias de progresso de leitura');
+  await page.unroute('**/api/progress/year');
+  await ano(['2026-10-15', '2026-10-16']); // leu também no dia da abertura -> 2 dias, não 3
+  await page.reload();
+  await expect(page.locator('.del-list')).toContainText('2 dias de progresso de leitura');
+  await page.unroute('**/api/progress/year');
+  await ano([]); // só o dia de abertura -> 1 dia (no singular)
+  await page.reload();
+  await expect(page.locator('.del-list')).toContainText('1 dia de progresso de leitura');
 });
 
 test('busca: a tradução escolhida continua depois de fechar e abrir de novo (o termo e o filtro, não)', async ({ page }) => {

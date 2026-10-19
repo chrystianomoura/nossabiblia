@@ -5,6 +5,6 @@ export function safeNext(raw) {
   if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) return '/';
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001F\u007F]/.test(raw)) return '/';
-  if (/^\/(entrar|cadastrar|confirmar|esqueci-senha|redefinir-senha)(\/|\?|$)/.test(raw)) return '/';
+  if (/^\/(entrar|cadastrar|confirmar|esqueci-senha|redefinir-senha|conta\/excluir)(\/|\?|$)/.test(raw)) return '/';
   return raw;
 }

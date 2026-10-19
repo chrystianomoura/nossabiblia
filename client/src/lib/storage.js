@@ -12,3 +12,9 @@ export function writeStorage(key, value) {
     localStorage.setItem(key, value);
   } catch { /* armazenamento indisponível */ }
 }
+
+export function removeStorage(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch { /* armazenamento indisponível */ }
+}

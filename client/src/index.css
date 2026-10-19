@@ -2252,6 +2252,72 @@ body:has(.read) {
   color: var(--text-secondary);
 }
 
+/* Excluir conta */
+.del-box {
+  background: var(--bg-card-subtle);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin: 12px 0 6px;
+}
+
+.del-box-title {
+  margin: 0 0 6px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.del-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.del-list li::before {
+  content: "–";
+  margin-right: 8px;
+  color: var(--auth-error);
+  font-weight: 700;
+}
+
+.del-wait::after {
+  content: "";
+  display: inline-block;
+  width: 58%;
+  height: 0.7em;
+  border-radius: 6px;
+  background: var(--border-light);
+  vertical-align: middle; /* reserva as duas linhas dos números enquanto eles chegam, para a tela não pular */
+}
+
+.del-list b {
+  color: var(--text-main);
+}
+
+.del-note {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.btn-danger {
+  --on-danger: #FFFFFF;
+  background: var(--auth-error);
+  color: var(--on-danger);
+  border-color: transparent;
+}
+
+[data-theme="dark"] .btn-danger {
+  --on-danger: #1A0B0B;
+}
+
+.account-sep {
+  height: 1px;
+  margin: 6px 8px;
+  background: var(--border-light);
+}
+
 .auth-alt {
   margin-top: 18px;
   text-align: center;
@@ -2398,6 +2464,11 @@ body:has(.read) {
 
 .account-item:focus-visible {
   background: var(--bg-card-subtle);
+}
+
+/* "Excluir conta": vermelho. Fica DEPOIS de .account-item (a regra mais abaixo vence). */
+.account-item.account-item--danger {
+  color: var(--auth-error);
 }
 
 /* Telas da conta: textos de apoio do cartão, uma ideia por linha */

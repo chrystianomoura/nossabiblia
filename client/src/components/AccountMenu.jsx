@@ -4,7 +4,7 @@ import Link from './Link';
 import { useLocation } from '../lib/router';
 import { HOME_REFRESH } from '../lib/progress';
 
-// Pílula "Conta" da barra, com um menu pequeno ("Início" e "Sair"). Fecha com Esc, clicando fora ou ao escolher; o foco volta
+// Pílula "Conta" da barra, com um menu pequeno ("Início", "Sair" e, separado por uma linha, "Excluir conta"). Fecha com Esc, clicando fora ou ao escolher; o foco volta
 // para a pílula quando o menu fecha pelo teclado.
 export default function AccountMenu() {
   const [open, setOpen] = useState(false);
@@ -65,6 +65,10 @@ export default function AccountMenu() {
           >
             Sair
           </button>
+          <div className="account-sep" role="separator" />
+          <Link to="/conta/excluir" role="menuitem" className="account-item account-item--danger" onClick={() => setOpen(false)}>
+            Excluir conta
+          </Link>
         </div>
       )}
     </div>

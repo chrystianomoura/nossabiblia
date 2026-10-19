@@ -2,7 +2,7 @@
 import { validateRegister, validateForgot, validateReset, normalizeEmail } from '../auth/validation.js';
 import { serializeSessionCookie, clearSessionCookie, sessionCookieName } from '../auth/session.js';
 import { createAttemptLimiter } from '../http/attempt-limiter.js';
-import { register, verifyEmail, resendVerification, requestPasswordReset, resetPassword, login, logout, authenticate, publicUser, AccountError } from '../services/accounts.js';
+import { register, verifyEmail, resendVerification, requestPasswordReset, resetPassword, login, logout, authenticate, publicUser, deleteAccount, AccountError } from '../services/accounts.js';
 import { verifyTurnstile } from '../services/turnstile.js';
 import { isPwned } from '../services/pwned.js';
 
@@ -113,6 +113,33 @@ export default async function authRoutes(fastify) {
     }
   });
 
+  // Exclusão da conta (regras 33 e 34): sessão + senha. Limite por IP e, contra quem tem a sessão mas não a senha, 5 tentativas por conta a
+  // cada 15 min (acerto zera). Vale também para conta não verificada. A resposta apaga o cookie.
+  const deleteLimit = { rateLimit: { max: Number(process.env.DELETE_RATE_MAX || 10), timeWindow: '1 hour' } };
+  const deleteAttempts = createAttemptLimiter({ max: 5, windowMs: 15 * 60 * 1000 });
+
+  fastify.delete('/me', { config: deleteLimit, bodyLimit: BODY_LIMIT }, async (request, reply) => {
+    try {
+      const user = await authenticate(request.cookies?.[sessionCookieName()]);
+      if (!user) return reply.code(401).send({ error: 'Você não está conectado.', code: 'sem_sessao' });
+      const password = request.body?.password;
+      if (typeof password !== 'string' || !password || password.length > 128) {
+        return reply.code(400).send({ error: 'Informe a sua senha.', code: 'dados_invalidos' });
+      }
+      const limit = deleteAttempts.hit(user.id);
+      if (!limit.allowed) {
+        reply.header('Retry-After', limit.retryAfter);
+        return reply.code(429).send({ error: 'Muitas tentativas. Tente de novo mais tarde.', code: 'muitas_tentativas', retry_after: limit.retryAfter });
+      }
+      await deleteAccount(user, password);
+      deleteAttempts.reset(user.id);
+      reply.header('Set-Cookie', clearSessionCookie());
+      return reply.code(204).send();
+    } catch (err) {
+      return fail(request, reply, err);
+    }
+  });
+
   // Reenvio do e-mail de confirmação: exige sessão (o destinatário é sempre o e-mail da própria conta; o corpo não escolhe nada).
   fastify.post('/auth/resend-verification', { config: resendLimit, bodyLimit: BODY_LIMIT }, async (request, reply) => {
     try {
@@ -125,7 +152,7 @@ export default async function authRoutes(fastify) {
     }
   });
 
-  // "Esqueci minha senha": sempre 202 com a mesma mensagem, exista a conta ou não (regra 43). Turnstile e limite por IP; o e-mail sai em
+  // "Esqueci minha senha": sempre 202 com a mesma mensagem, exista a conta ou não (regra 32). Turnstile e limite por IP; o e-mail sai em
   // segundo plano, e uma conta recebe no máximo um a cada 15 min.
   fastify.post('/auth/forgot-password', { config: forgotLimit, bodyLimit: BODY_LIMIT }, async (request, reply) => {
     const parsed = validateForgot(request.body);
