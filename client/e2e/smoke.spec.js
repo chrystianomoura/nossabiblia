@@ -814,6 +814,58 @@ test('menu Conta: só "Início" e "Sair"; "Início" na própria inicial relê o 
   expect(await page.evaluate(() => history.length)).toBe(entradas);
 });
 
+// ---- "Voltar" nas telas da conta e "Voltar à busca" no leitor ----
+test('voltar nas telas da conta: leva a quem abriu, mesmo depois de ir de "Entrar" a "Criar conta"', async ({ page }) => {
+  await simularTurnstile(page);
+  await page.goto('/ler/salmos/23?t=NVT');
+  await page.getByRole('link', { name: 'Entrar' }).click();
+  await expect(page.getByRole('link', { name: 'Voltar ao leitor' })).toBeVisible();
+  await page.getByRole('link', { name: 'Criar conta' }).click();
+  await expect(page).toHaveURL(/\/cadastrar/);
+  await expect(page.getByRole('link', { name: 'Voltar ao leitor' })).toBeVisible(); // a origem passa de uma tela da conta à outra
+  await page.reload();
+  await expect(page.getByRole('link', { name: 'Voltar ao leitor' })).toBeVisible();
+  await page.getByRole('link', { name: 'Voltar ao leitor' }).click();
+  await expect(page).toHaveURL(/\/ler\/salmos\/23\?t=NVT/);
+  // link direto para uma tela da conta: sem origem, o padrão
+  await page.goto('/entrar');
+  await expect(page.getByRole('link', { name: 'Voltar ao início' })).toBeVisible();
+  await page.getByRole('link', { name: 'Voltar ao início' }).click();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test('voltar à busca: o resultado abre o leitor e o botão reabre a busca com o mesmo termo e tradução, sobre a tela de onde veio', async ({ page }) => {
+  await page.goto('/');
+  await abrirBusca(page);
+  await page.getByRole('searchbox').fill('Deus');
+  await expect(page.getByRole('dialog')).toContainText('3 ocorrências em 2 versículos');
+  await page.locator('.search-result').nth(1).click();
+  await expect(page).toHaveURL(/\/ler\/joao\/3\?t=NAA&v=16/);
+  const voltar = page.getByRole('button', { name: 'Voltar à busca' });
+  await expect(voltar).toBeVisible();
+  await page.reload(); // sobrevive ao recarregar
+  await expect(voltar).toBeVisible();
+  await voltar.click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('searchbox')).toHaveValue('Deus');
+  await expect(page.getByRole('dialog')).toContainText('3 ocorrências em 2 versículos');
+  // fechar e abrir de novo pelo atalho: a busca começa vazia (o termo guardado serve só ao "Voltar à busca")
+  await page.keyboard.press('Escape');
+  await abrirBusca(page);
+  await expect(page.getByRole('searchbox')).toHaveValue('');
+});
+
+test('voltar à busca: abrir a busca no próprio leitor e escolher um resultado do mesmo capítulo também oferece o botão', async ({ page }) => {
+  await page.goto('/ler/joao/3?t=NAA');
+  await abrirBusca(page);
+  await page.getByRole('searchbox').fill('joão 3:16');
+  await page.locator('.search-result--go').first().click();
+  await expect(page).toHaveURL(/\/ler\/joao\/3\?t=NAA&v=16/);
+  await page.getByRole('button', { name: 'Voltar à busca' }).click();
+  await expect(page).toHaveURL(/\/ler\/joao\/3\?t=NAA$/);
+  await expect(page.getByRole('searchbox')).toHaveValue('joão 3:16');
+});
+
 // ---- Posição de leitura guardada no servidor ----
 test('continuar a leitura: a posição do servidor vale em outro aparelho (sem nada guardado no navegador); sem posição, "Começar a leitura"', async ({ page }) => {
   await entrarComo(page);

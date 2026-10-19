@@ -14,7 +14,7 @@ import ResetPage from './components/ResetPage';
 import MarksPage from './components/MarksPage';
 import { loadSession, useSession } from './lib/auth';
 import { useBooks } from './lib/books';
-import { parseRoute, useLocation } from './lib/router';
+import { OPEN_SEARCH, parseRoute, useLocation } from './lib/router';
 import { useTheme } from './lib/theme';
 
 const AUTH_PAGES = { register: RegisterPage, login: LoginPage, confirm: ConfirmPage, forgot: ForgotPage, reset: ResetPage };
@@ -30,6 +30,7 @@ export default function App() {
   const { status: sessionStatus } = useSession();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [previewTranslation, setPreviewTranslation] = useState('NAA');
+  const [seed, setSeed] = useState({ id: 0 }); // termo para reabrir a busca ("Voltar à busca"); a `key` nova recria o modal já preenchido
 
   // ⌘K / Ctrl+K abre e fecha a busca em qualquer tela.
   // Trocou de tela (início, leitor): quem rola é o #root, que não volta ao topo sozinho como a página volta
@@ -46,6 +47,15 @@ export default function App() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    function onOpenSearch(event) {
+      setSeed((current) => ({ id: current.id + 1, q: event.detail.q, t: event.detail.t }));
+      setIsSearchOpen(true);
+    }
+    window.addEventListener(OPEN_SEARCH, onOpenSearch);
+    return () => window.removeEventListener(OPEN_SEARCH, onOpenSearch);
   }, []);
 
   useEffect(() => {
@@ -99,7 +109,7 @@ export default function App() {
         />
       )}
 
-      <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      <SearchModal key={seed.id} initial={seed} isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
 
       <WakeNotice />
       <VerifyNotice />

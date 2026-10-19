@@ -10,13 +10,27 @@ function getSnapshot() {
   return window.location.pathname + window.location.search;
 }
 
+const ACCOUNT_PATH = /^\/(cadastrar|entrar|confirmar|esqueci-senha|redefinir-senha)\/?$/;
+
 // Toda navegação nova guarda de onde veio (`nbFrom`, no history.state: some com a aba e sobrevive ao recarregar); trocar a
-// URL sem empilhar (replace) mantém a origem que já estava.
-export function navigate(to, { replace = false, position = null } = {}) {
-  if (replace) window.history.replaceState(window.history.state, '', to);
-  else window.history.pushState({ nbFrom: window.location.pathname + window.location.search, ...(position ? { nbKey: position.key, nbV: position.verse } : {}) }, '', to);
+// URL sem empilhar (replace) mantém a origem que já estava. Entre duas telas da conta (entrar -> criar conta) a origem também
+// se mantém: voltar leva ao que havia ANTES de a pessoa entrar na conta, não a outra tela da conta. `search` (o termo e a
+// tradução) vai junto quando a navegação sai de um resultado da busca: o leitor oferece "Voltar à busca". `position` ({ key, verse })
+// abre o leitor naquele versículo, no topo e sem destaque (o mesmo que o leitor faz no F5); a `key` é `livro/capítulo/tradução`.
+export function navigate(to, { replace = false, search = null, position = null } = {}) {
+  if (replace) {
+    window.history.replaceState(window.history.state, '', to);
+  } else {
+    const here = window.location.pathname;
+    const keep = ACCOUNT_PATH.test(here) && ACCOUNT_PATH.test(to.split('?')[0]);
+    const nbFrom = keep ? window.history.state?.nbFrom : here + window.location.search;
+    window.history.pushState({ ...(nbFrom ? { nbFrom } : {}), ...(search ? { nbSearch: search } : {}), ...(position ? { nbKey: position.key, nbV: position.verse } : {}) }, '', to);
+  }
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
+
+// Pedido para reabrir a busca com um termo (o "Voltar à busca" do leitor): o App ouve e abre o modal já preenchido.
+export const OPEN_SEARCH = 'nb:open-search';
 
 const ORIGIN_LABELS = [
   [/^\/$/, 'Voltar ao início'],
@@ -25,10 +39,18 @@ const ORIGIN_LABELS = [
 ];
 
 // De onde a pessoa veio, para o botão "Voltar" das telas. Telas da conta (entrar, cadastrar...) nunca valem como origem
-// (voltar a elas faria um laço); sem origem útil (link direto, mesma tela), devolve `fallback`.
+// (voltar a elas faria um laço); sem origem útil (link direto, mesma tela), devolve `fallback`. Quem chegou por um resultado
+// da busca recebe `search` (termo e tradução): o botão volta à tela onde a busca foi aberta e a reabre com o mesmo termo.
 export function originBack(fallback) {
-  const from = window.history.state?.nbFrom;
-  if (typeof from === 'string' && from.startsWith('/') && !from.startsWith('//')) {
+  const state = window.history.state;
+  const from = state?.nbFrom;
+  const validFrom = typeof from === 'string' && from.startsWith('/') && !from.startsWith('//');
+  const q = state?.nbSearch?.q;
+  const t = state?.nbSearch?.t;
+  if (typeof q === 'string' && q.trim() && q.length <= 600 && TRANSLATIONS.includes(t)) {
+    return { to: validFrom ? from : '/', label: 'Voltar à busca', search: { q, t } };
+  }
+  if (validFrom) {
     const here = window.location.pathname;
     const path = from.split('?')[0];
     const label = ORIGIN_LABELS.find(([re]) => re.test(path))?.[1];
@@ -51,7 +73,7 @@ export function readPath(slug, chapter, translation = 'NAA', verse = null, verse
 }
 
 export function parseRoute({ pathname, search }) {
-  const account = pathname.match(/^\/(cadastrar|entrar|confirmar|esqueci-senha|redefinir-senha)\/?$/);
+  const account = pathname.match(ACCOUNT_PATH);
   if (account) {
     const view = { cadastrar: 'register', entrar: 'login', confirmar: 'confirm', 'esqueci-senha': 'forgot', 'redefinir-senha': 'reset' }[account[1]];
     return { view, next: search.get('next'), token: search.get('token') };

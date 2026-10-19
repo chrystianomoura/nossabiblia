@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMarks } from '../lib/marks';
 import { useRecordReading } from '../lib/progress';
-import { ArrowLeft, Bookmark, Search, Sun, Moon } from 'lucide-react';
+import { Bookmark, Search, Sun, Moon } from 'lucide-react';
 import ReaderCard from './ReaderCard';
 import { displayBookName } from '../lib/books';
 import ReaderBar from './ReaderBar';
 import Link from './Link';
+import BackLink from './BackLink';
 import AccountMenu from './AccountMenu';
 import { useSession } from '../lib/auth';
 import { navigate, originBack, readPath } from '../lib/router';
@@ -197,10 +198,7 @@ export default function ReadingView({ route, books, booksError, theme, onToggleT
   return (
     <div className="read read--card">
       <header className="read-header">
-        <Link to={back.to} className="back-link" aria-label={back.label}>
-          <ArrowLeft size={18} aria-hidden="true" />
-          <span>{back.label}</span>
-        </Link>
+        <BackLink back={back} />
 
         <div className="read-tools">
           <Link to={`/marcacoes?t=${translation}`} className="icon-btn" aria-label="Minhas marcações">

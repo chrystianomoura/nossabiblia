@@ -37,10 +37,11 @@ const searchUrl = (term, translation, offset = 0, { testament, bookId } = NO_FIL
 
 const FOCUSABLE = 'button:not(:disabled), [href], input, select, [tabindex]:not([tabindex="-1"])';
 
-export default function SearchModal({ isOpen, onClose }) {
+// `initial`: termo e tradução para abrir já preenchida (o "Voltar à busca" do leitor); o App troca a `key` a cada pedido.
+export default function SearchModal({ isOpen, onClose, initial }) {
   const markIndex = useMarkIndex(isOpen); // versículos já marcados pela conta (bolinha nos resultados)
-  const [query, setQuery] = useState('');
-  const [translation, setTranslation] = useState('NAA');
+  const [query, setQuery] = useState(initial?.q ?? '');
+  const [translation, setTranslation] = useState(initial?.t ?? 'NAA');
   // Recorte da busca de palavra: um testamento OU um livro (escolher um zera o outro). Zera ao fechar o modal.
   const [filter, setFilter] = useState(NO_FILTER);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -311,12 +312,12 @@ export default function SearchModal({ isOpen, onClose }) {
 
   function selectResult(r) {
     onClose();
-    navigate(readPath(slugify(r.book_name), r.chapter, translation, r.verse));
+    navigate(readPath(slugify(r.book_name), r.chapter, translation, r.verse), { search: { q: term, t: translation } });
   }
 
   function openReference({ book, chapter, verse, verseEnd }) {
     onClose();
-    navigate(readPath(slugify(book.name), chapter, translation, verse, verseEnd));
+    navigate(readPath(slugify(book.name), chapter, translation, verse, verseEnd), { search: { q: term, t: translation } });
   }
 
   return (

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Bookmark, BookOpen, Moon, Search, Sun } from 'lucide-react';
+import { Bookmark, BookOpen, Moon, Search, Sun } from 'lucide-react';
 import Link from './Link';
+import BackLink from './BackLink';
 import TranslationToggle from './TranslationToggle';
 import { authRequest, useSession } from '../lib/auth';
 import { displayBookName } from '../lib/books';
@@ -166,10 +167,7 @@ export default function MarksPage({ route, books, theme, onToggleTheme, onOpenSe
   return (
     <div className="read mk">
       <header className="read-header">
-        <Link to={back.to} className="back-link" aria-label={back.label}>
-          <ArrowLeft size={18} aria-hidden="true" />
-          <span>{back.label}</span>
-        </Link>
+        <BackLink back={back} />
         <div className="read-tools">
           <button type="button" className="icon-btn icon-btn--active" onClick={onBookmarkClick} aria-label="Minhas marcações" aria-current="page">
             <Bookmark size={17} aria-hidden="true" />
