@@ -14,7 +14,7 @@ Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, c
 - **Traduções:** Nova Almeida Atualizada (**NAA**) e Nova Versão Transformadora (**NVT**).
 - **Ordem dos Livros:** 100% canônica (Gênesis a Apocalipse).
 - **Leitura Pública & Acessível:** Livre de autenticação para leitura de capítulos, comparação e buscas textuais.
-- **Área Pessoal (Próxima Fase):** Recursos devocionais como marcações coloridas, progresso de leitura em 7 dias/calendário anual mediante cadastro verificado por e-mail.
+- **Área Pessoal:** marcações coloridas, progresso de leitura (7 dias e calendário do ano), o lugar onde parou de ler em qualquer aparelho e exclusão da conta, mediante cadastro verificado por e-mail.
 - **Privacidade & Foco:** Sem rede social, sem `@arrobas`, sem algoritmos de engajamento forçado ou notificações invasivas.
 - **Design Devocional:** Tipografia editorial (Newsreader na leitura e nos títulos, Plus Jakarta Sans na interface e Archivo na marca), fundo de iluminação natural acolhedor e tema claro e escuro, que respeita a preferência do sistema e fica salvo no navegador.
 - **Marca:** selo **NB** (letras N e B da Archivo expandida) com o nome "Nossa Bíblia" em Archivo; o favicon é o mesmo selo em SVG.
@@ -25,7 +25,7 @@ Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, c
 |---|---|
 | ✅ **Pronto e no ar** | Leitura (NAA e NVT), busca exata de palavra e por referência, filtros, layout para celular, tablet e desktop, tema claro e escuro |
 | ✅ **Infraestrutura** | Site, API, banco, backup e e-mail publicados em domínio próprio, com CI, rotinas diárias e custo zero |
-| 🔜 **Próxima fase** | Cadastro com confirmação por e-mail, marcações, progresso diário (o esquema do banco e o contrato da API já existem: `API.md`, `server/migrations/`) |
+| ✅ **Conta e área pessoal** | Cadastro com confirmação por e-mail, login, recuperação de senha, marcações por cor, progresso de leitura, posição de leitura guardada no servidor e exclusão de conta (contrato em `API.md`, esquema em `server/migrations/`) |
 
 ---
 
@@ -34,13 +34,13 @@ Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, c
 | Camada | Tecnologia / Serviço | Finalidade |
 |---|---|---|
 | **Banco de Dados** | PostgreSQL 18 ([Neon](https://neon.tech)) | 62.207 versículos com `tsvector` e índice GIN; três papéis de menor privilégio; migrações versionadas |
-| **Backend** | Node.js 24 + [Fastify](https://fastify.dev/) | API REST: leitura, busca exata e (na próxima fase) contas. `helmet`, limite de requisições, CORS com lista fixa e cache em memória |
+| **Backend** | Node.js 24 + [Fastify](https://fastify.dev/) | API REST: leitura, busca exata, contas, marcações e progresso. `helmet`, limite de requisições, CORS com lista fixa e cache em memória |
 | **Frontend** | React 19 + [Vite](https://vitejs.dev/) | SPA responsiva, com rotas próprias via History API (sem biblioteca de roteamento) |
 | **Estilização** | CSS puro (tokens de design) em um único `index.css` | Modo escuro nativo, animações só de `transform`/`opacity`, `prefers-reduced-motion` respeitado |
 | **Ícones** | [Lucide React](https://lucide.dev/) | Iconografia minimalista |
 | **Hospedagem** | Cloudflare (site e DNS), [Render](https://render.com) (API) | Deploy a cada push; a API só atualiza depois que o CI passa |
-| **Backup** | GitHub Actions + Cloudflare R2 | Cópia diária dos dados dos usuários, enviada e conferida; restauração ensaiada |
-| **E-mail** | [Resend](https://resend.com) | Envio transacional (a Fase 4 vai usá-lo); domínio verificado com SPF, DKIM e DMARC |
+| **Backup** | GitHub Actions + Cloudflare R2 | Cópia diária dos dados dos usuários, **criptografada** (AES-256-GCM) antes de sair, enviada e conferida; restauração ensaiada |
+| **E-mail** | [Resend](https://resend.com) | Envio transacional (confirmação de e-mail e recuperação de senha); domínio verificado com SPF, DKIM e DMARC |
 | **Qualidade** | GitHub Actions, `node:test`, oxlint, Playwright, Dependabot | CI a cada push (auditoria, lint, testes e teste de fumaça da tela); bateria de precisão e verificações de tela detalhadas rodam localmente |
 
 ---
@@ -52,7 +52,7 @@ flowchart LR
   U["Navegador<br/>React 19 + Vite"] -->|HTML, JS e CSS| CF["Cloudflare<br/>nossabiblia.party<br/>Worker com arquivos estáticos"]
   U -->|JSON, CORS só do site oficial| API["Render (grátis)<br/>api.nossabiblia.party<br/>Node + Fastify"]
   API -->|papel nb_app<br/>certificado verificado| DB[("Neon<br/>PostgreSQL 18<br/>62.207 versículos")]
-  API -. "e-mail (Fase 4)" .-> RS["Resend<br/>nao-responda@nossabiblia.party"]
+  API -->|e-mail| RS["Resend<br/>nao-responda@nossabiblia.party"]
   GH["GitHub Actions<br/>CI + rotinas diárias"] -->|nb_backup, só leitura| DB
   GH -->|"nb_maint, faxina"| DB
   GH -->|"backup conferido (sha256)"| R2[("Cloudflare R2<br/>bucket privado, 90 dias")]
@@ -65,9 +65,9 @@ flowchart LR
 | Site (SPA estática) | Cloudflare, deploy a cada push no `main`, HTTPS, CSP com hash do script do tema | R$ 0 |
 | API | Render (plano gratuito), `/healthz` sem banco | R$ 0 |
 | Banco | Neon, três papéis de menor privilégio (`nb_app`, `nb_backup`, `nb_maint`) | R$ 0 |
-| Backup | GitHub Actions → R2 (privado, retenção de 90 dias, envio conferido baixando de volta e comparando o hash) | R$ 0 |
-| DNS, e-mail de entrada, certificados | Cloudflare (TLS estrito, CAA, SPF, DKIM, DMARC em quarentena, `www` redirecionando para o domínio principal; DNSSEC aguardando a publicação automática do DS) | R$ 0 |
-| E-mail de saída | Resend, domínio verificado (a Fase 4 ainda vai usá-lo) | R$ 0 |
+| Backup | GitHub Actions → R2 (privado, retenção de 90 dias, criptografado antes de sair; o envio é conferido baixando de volta, comparando o hash e decifrando) | R$ 0 |
+| DNS, e-mail de entrada, certificados | Cloudflare (TLS estrito, CAA, SPF, DKIM, DMARC em quarentena, `www` redirecionando para o domínio principal; DNSSEC ativo) | R$ 0 |
+| E-mail de saída | Resend, domínio verificado (confirmação de e-mail e recuperação de senha) | R$ 0 |
 
 O único custo recorrente é a renovação do domínio.
 
@@ -83,7 +83,7 @@ O único custo recorrente é a renovação do domínio.
 - **Limite de requisições que não se burla.** Atrás de proxies o IP vem em `X-Forwarded-For`, que o cliente pode forjar; `TRUST_PROXY` é o número de proxies na frente do servidor, não "confie em tudo".
 - **Cadeia de suprimentos e infraestrutura como código.** O CI barra vulnerabilidade alta ou crítica, o Dependabot atualiza toda semana (e as de segurança na hora), as ações do GitHub e as dependências sem uso saíram, e a API, o DNS e o mapa da infraestrutura estão no repositório (`render.yaml`, `infra/`), não só em painéis.
 - **Privacidade por padrão.** As fontes são servidas pelo próprio site (nenhuma visita entrega o IP ao Google) e a política de conteúdo só aceita o próprio site e a API.
-- **Servidor em camadas.** Rotas só lêem e respondem; a validação e o acesso ao banco têm lugar próprio; a conta da próxima fase entra nesse molde.
+- **Servidor em camadas.** Rotas só lêem e respondem; a validação e o acesso ao banco têm lugar próprio; a conta, as marcações e o progresso seguem o mesmo molde.
 - **Honestidade sobre o que não está feito.** A área pessoal (cadastro, marcações, progresso) está **desenhada e com o banco pronto** (`API.md`, migrações 001 a 003), mas ainda sem código de aplicação.
 
 ## 🔁 Integração contínua e rotinas
@@ -184,7 +184,7 @@ O script é idempotente (rodar de novo não encontra mais nada) e atualiza o ín
 | Comando | O que faz | Tempo |
 |---|---|---|
 | `npm test` | **81 testes**: regras da busca, referências, validação, cache, configuração de proxy e, contra o banco (só leitura), o contrato da busca, dos filtros e do cache. **50 rodam no CI**; os 31 que dependem do banco são pulados sem `DATABASE_URL` | ~60 s |
-| `npm --prefix client run test:e2e` | **Teste de fumaça da tela** (Playwright): o site compilado, servido com os cabeçalhos reais, num navegador de verdade e com a API simulada com os textos do `NAA.json`: 10 cenários em desktop e celular (leitura, busca, referência, erro de rede, tema escuro, rolagem lateral e a política de conteúdo, inclusive que ela **bloqueia** script injetado). Roda no CI | ~5 s |
+| `npm --prefix client run test:e2e` | **Teste de fumaça da tela** (Playwright): o site compilado, servido com os cabeçalhos reais, num navegador de verdade e com a API simulada com os textos do `NAA.json`: 68 cenários em desktop e celular (leitura, busca, conta, marcações, progresso, posição de leitura, "Voltar", exclusão de conta, tema escuro, rolagem lateral e a política de conteúdo, inclusive que ela **bloqueia** script injetado). Roda no CI | ~25 s |
 | `npm run test:accuracy` | **Bateria de precisão**: 15 camadas, cerca de 104 mil conferências contra um gabarito independente (inclui os filtros) | ~18 min |
 | `ACCURACY_SCALE=0.2 npm run test:accuracy` | A mesma bateria em escala pequena, para uma rodada rápida | ~3 min |
 | `playwright-cli ... run-code --filename=client/scripts/ui-checks/<arquivo>.js` | **Verificações da tela** no navegador (comportamento e visual); ver abaixo | 1 a 5 min cada |
@@ -283,33 +283,59 @@ nossabiblia/
 │   │   └── ui-checks/                 # Verificações da tela (playwright-cli run-code): comportamento, visual, filtros
 │   ├── src/
 │   │   ├── components/
+│   │   │   ├── AccountMenu.jsx         # Menu "Conta": Início, Sair e Excluir conta
+│   │   │   ├── AuthFields.jsx          # Campos dos formulários da conta (com erro ligado ao campo e senha com "Mostrar")
+│   │   │   ├── AuthLayout.jsx          # Moldura das telas da conta: barra, "Voltar" e cartão central
+│   │   │   ├── BackLink.jsx            # Botão "Voltar" que aprende de onde a pessoa veio
 │   │   │   ├── BenefitsCards.jsx       # Cards de benefícios devocionais
 │   │   │   ├── BrandMark.jsx           # Selo NB da marca
-│   │   │   ├── Home.jsx                # Página inicial
+│   │   │   ├── ChapterPicker.jsx       # Seletor de livro e capítulo do leitor
+│   │   │   ├── ConfirmPage.jsx         # Confirmação do e-mail
+│   │   │   ├── DeleteAccountPage.jsx   # Excluir conta (senha, o que será apagado, despedida)
+│   │   │   ├── ForgotPage.jsx          # "Esqueci minha senha"
+│   │   │   ├── Home.jsx                # Página inicial (visitante)
 │   │   │   ├── Link.jsx                # Link de navegação interna (respeita clique com modificador)
+│   │   │   ├── LoginPage.jsx           # Entrar
+│   │   │   ├── MarkDot.jsx             # Bolinha da cor da marcação nos resultados da busca
+│   │   │   ├── MarkPalette.jsx         # Paleta de 4 cores ao tocar num versículo
+│   │   │   ├── MarksPage.jsx           # Tela "Marcações"
+│   │   │   ├── MemberHome.jsx          # Página inicial de quem está logado: saudação, progresso da semana e atalhos
 │   │   │   ├── Navbar.jsx              # Cabeçalho com marca, busca, tema e entrada
 │   │   │   ├── OpenBibleCard.jsx       # Livro aberto com a amostra de Gênesis 1 (sem requisição)
-│   │   │   ├── ChapterPicker.jsx       # Seletor de livro e capítulo do leitor
 │   │   │   ├── ReaderBar.jsx           # Barra do leitor: seletor, NAA/NVT e tamanho da letra
 │   │   │   ├── ReaderCard.jsx          # Cartão vertical: texto que rola por dentro e setas de capítulo
-│   │   │   ├── ReferenceResults.jsx    # Cartões de referência e de livro na busca
 │   │   │   ├── ReadingView.jsx         # Leitor: rotas, carga, teclado, gestos e carga antecipada
+│   │   │   ├── ReferenceResults.jsx    # Cartões de referência e de livro na busca
+│   │   │   ├── RegisterPage.jsx        # Criar conta
+│   │   │   ├── ResetPage.jsx           # Redefinir a senha
 │   │   │   ├── SearchModal.jsx         # Busca instantânea estilo Spotlight, com os filtros (testamento e livro)
 │   │   │   ├── Spinner.jsx             # Indicador de carregamento
 │   │   │   ├── TranslationToggle.jsx   # Seletor NAA | NVT
-│   │   │   └── WakeNotice.jsx          # Aviso "Acordando o servidor" (a API gratuita dorme após 15 min sem uso)
+│   │   │   ├── TurnstileWidget.jsx     # Desafio anti-robô da Cloudflare (cadastro e recuperação de senha)
+│   │   │   ├── VerifyNotice.jsx        # Aviso de conta não verificada
+│   │   │   ├── WakeNotice.jsx          # Aviso "Acordando o servidor" (a API gratuita dorme após 15 min sem uso)
+│   │   │   └── YearDialog.jsx          # Calendário do ano de leitura
 │   │   ├── data/
 │   │   │   └── hero-sample.json        # Gênesis 1:1-9 em NAA e NVT, embutido no bundle (gerado)
 │   │   ├── lib/
 │   │   │   ├── api.js                  # Endereço da API (VITE_API_URL) e rastreio de chamadas lentas
+│   │   │   ├── auth.js                 # Sessão e chamadas da conta (entrar, sair, excluir...)
 │   │   │   ├── books.js                # Lista de livros (carregada uma vez) e slugs
+│   │   │   ├── greeting.js             # Bom dia, boa tarde ou boa noite pela hora do aparelho
+│   │   │   ├── mark-index.js           # Índice das marcações da conta (bolinha nos resultados da busca)
+│   │   │   ├── marks.js                # Marcações no leitor: otimista, com fila por versículo
+│   │   │   ├── next-path.js            # Destino seguro depois do login (nada de redirecionar para fora do site)
+│   │   │   ├── progress.js             # Progresso de leitura: avisa o servidor uma vez por dia e carrega a semana
+│   │   │   ├── reading-position.js     # Onde a pessoa parou: navegador na hora e servidor em seguida
 │   │   │   ├── reference.js            # Entende referências ("salmos 23", "joão 3:16-18", "mat")
-│   │   │   ├── reference.test.js       # Testes do analisador de referências
-│   │   │   ├── router.js               # Rotas por History API
+│   │   │   ├── return-to-tab.js        # Relê os dados ao voltar para a aba depois de um tempo
+│   │   │   ├── router.js               # Rotas por History API e a origem do "Voltar"
 │   │   │   ├── storage.js              # localStorage seguro (falha sem quebrar)
 │   │   │   ├── theme.js                # Tema claro/escuro persistido
 │   │   │   ├── translations.js         # Traduções disponíveis
-│   │   │   └── useJson.js              # GET de JSON com cache, texto anterior (`stale`), carga antecipada e retry
+│   │   │   ├── turnstile.js            # Carrega o desafio da Cloudflare
+│   │   │   ├── useJson.js              # GET de JSON com cache, texto anterior (`stale`), carga antecipada e retry
+│   │   │   └── verify-gate.js          # Porta para o que exige conta verificada
 │   │   ├── App.jsx                 # Raiz: rotas, atalho ⌘K, tema e avisos
 │   │   ├── index.css               # Design system: tokens e estilos de todos os componentes
 │   │   └── main.jsx                # Ponto de entrada React
@@ -322,18 +348,26 @@ nossabiblia/
 │
 ├── server/                     # Backend API (Node.js + Fastify)
 │   ├── routes/
-│   │   └── bible.js            # Rotas públicas: só lê o pedido, valida, chama o serviço e responde (nada de SQL aqui)
-│   ├── services/               # Acesso ao banco e cache: books, chapters, verse-search, bookmarks, progress (a conta entra aqui, no mesmo molde)
+│   │   ├── bible.js            # Leitura e busca: só lê o pedido, valida, chama o serviço e responde (nada de SQL aqui)
+│   │   ├── auth.js             # Cadastro, confirmação, login, sair, recuperação de senha, /me e exclusão da conta
+│   │   ├── marks.js            # Marcações por versículo
+│   │   ├── progress.js         # Progresso de leitura
+│   │   └── reading-position.js # Onde a pessoa parou
+│   ├── auth/                   # Senha (argon2id), tokens, sessão por cookie, validação, e-mails e os testes de abuso por HTTP
+│   ├── services/               # Regra e SQL: books, chapters, verse-search, accounts, bookmarks, progress, reading-position, e-mail e Turnstile
 │   ├── http/                   # validation.js (valida os parâmetros) e cache.js (o Cache-Control das respostas imutáveis)
 │   ├── migrations/
-│   │   ├── 001_fase4_conta.sql    # Esquema da Fase 4: contas, sessões, marcações por versículo
+│   │   ├── 001_fase4_conta.sql    # Contas, sessões e marcações por versículo
 │   │   ├── 002_papel_app.sql      # Permissões mínimas do papel do servidor (nb_app)
-│   │   └── 003_papeis_rotinas.sql # Permissões mínimas do backup (só leitura) e da faxina (ler e apagar em 3 tabelas)
+│   │   ├── 003_papeis_rotinas.sql # Permissões mínimas do backup (só leitura) e da faxina (ler e apagar em 3 tabelas)
+│   │   ├── 004 a 007              # Contagem de reenvios da confirmação e ajustes do esquema
+│   │   └── 008_posicao_de_leitura.sql # Onde cada pessoa parou de ler
 │   ├── scripts/
 │   │   ├── migrate.mjs            # Aplica as migrações (modo teste por padrão; --apply grava)
 │   │   ├── create-role.mjs        # Cria um papel de banco sem permissão (senha só no .env.local, nunca impressa)
-│   │   ├── backup.mjs             # Cópia dos dados dos usuários: envia ao R2, baixa de volta e confere o hash
-│   │   ├── restore.mjs            # Restaura um backup num banco vazio; ensaia antes de gravar
+│   │   ├── backup.mjs             # Cópia dos dados dos usuários: criptografa, envia ao R2, baixa de volta, decifra e confere
+│   │   ├── backup-crypto.mjs      # AES-256-GCM do backup (e os testes dele)
+│   │   ├── restore.mjs            # Restaura um backup (decifra se preciso) num banco vazio; ensaia antes de gravar
 │   │   ├── cleanup.mjs            # Faxina diária: contas não verificadas há 7 dias, sessões e bloqueios vencidos
 │   │   └── clean-verse-text.mjs   # Limpa os textos (hífen invisível, acento desmontado); rode após cada carga
 │   ├── ensaio-restauracao/     # Roteiro repetível que prova o backup: dados falsos, comparação por hash e passo a passo
@@ -361,7 +395,7 @@ nossabiblia/
 │       ├── ci.yml              # Auditoria, lint, testes sem banco, build e teste de fumaça a cada push e pull request
 │       └── rotinas.yml         # 03:30 (São Paulo): backup para o R2 e, depois, a faxina
 │
-├── API.md                      # Contrato da API da Fase 4 (rascunho, nada implementado)
+├── API.md                      # Contrato da API: conta, marcações, progresso e posição de leitura
 ├── render.yaml                 # A API na Render descrita como código (Blueprint)
 ├── infra/                      # Mapa da infraestrutura (LEIA-ME.md) e os registros DNS (dns.md)
 ├── schema.sql                  # DDL completo do PostgreSQL (tabelas, índices GIN e funções)
@@ -398,13 +432,16 @@ Sem `DATABASE_URL_APP` o servidor usa essa conexão e avisa; em produção ela �
 | `DATABASE_URL_BACKUP` / `DATABASE_URL_MAINT` | rotinas do GitHub | Papéis `nb_backup` (só leitura) e `nb_maint` (faxina) |
 | `DATABASE_URL_RESTORE` | `restore.mjs` | Destino da restauração; sem valor padrão, de propósito |
 | `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | backup e restauração | Bucket privado do R2, com chave restrita a ele |
-| `RESEND_API_KEY` | e-mail (Fase 4) | Envio transacional (chave só de envio) |
+| `BACKUP_ENCRYPTION_KEY` | backup | Chave do backup (32 bytes em base64: `openssl rand -base64 32`). Obrigatória para enviar ao R2; sem ela o backup não abre, então guarde uma cópia fora do computador |
+| `RESEND_API_KEY` | e-mail | Envio transacional (chave só de envio) |
 | `APP_URL` | servidor | Endereço do site nos links dos e-mails (padrão: `https://nossabiblia.party` em produção) |
 | `EMAIL_BLOCK_KEY` | servidor | Chave (32+ caracteres) do HMAC do bloqueio de e-mail apagado; obrigatória para o cadastro |
 | `TURNSTILE_SECRET` | servidor | Segredo do Turnstile; sem ele, em produção, o cadastro é recusado (falha fechada) |
 | `EMAIL_DAILY_CAP` | servidor | Teto de cadastros por 24 h (padrão 80; o plano grátis do Resend dá 100 e-mails por dia) |
 | `REGISTER_RATE_MAX` / `LOGIN_RATE_MAX` / `VERIFY_RATE_MAX` / `RESEND_RATE_MAX` / `FORGOT_RATE_MAX` / `RESET_RATE_MAX` | servidor | Limites por IP das rotas da conta (padrões 10 por hora, 10 por 15 min, 20 por hora, 10 por hora, 5 por hora, 10 por hora) |
 | `MARKS_RATE_MAX` | servidor | Marcações (PUT e DELETE) por minuto por IP (padrão 120) |
+| `DELETE_RATE_MAX` | servidor | Exclusões de conta por hora por IP (padrão 10) |
+| `POSITION_RATE_MAX` | servidor | Envios da posição de leitura por minuto por IP (padrão 60) |
 | `PWNED_CHECK` | servidor | `on`/`off` da checagem de senha vazada (padrão: ligada em produção) |
 | `DATABASE_URL_TEST` | testes de abuso | Branch de teste da Neon; os testes de escrita só rodam nela e recusam a URL de produção |
 | `ALLOWED_ORIGINS` | servidor | Origens aceitas no CORS (padrão: o domínio oficial e `localhost:3000`) |
@@ -449,7 +486,7 @@ npm test                      # 81 testes (50 sem banco, que são os do CI; os 3
 npm --prefix client run test:e2e   # teste de fumaça da tela (precisa do build antes: npm --prefix client run build)
 node server/scripts/migrate.mjs         # ensaia as migrações pendentes (tudo desfeito no fim); com --apply grava
 node server/scripts/cleanup.mjs         # mostra o que a faxina apagaria (com --apply apaga)
-node server/scripts/backup.mjs          # exporta os dados dos usuários, envia ao R2 e confere
+node server/scripts/backup.mjs          # exporta os dados dos usuários, criptografa, envia ao R2 e confere
 node server/scripts/restore.mjs r2:latest  # ensaia a restauração do último backup (DATABASE_URL_RESTORE obrigatória)
 npm run test:accuracy         # Bateria de precisão: ~104 mil conferências contra um gabarito independente (~18 min, só leitura)
 ACCURACY_SCALE=0.2 npm run test:accuracy   # a mesma bateria em escala pequena (~3 min)
@@ -470,4 +507,4 @@ npm --prefix client run sample:check # Confere se o trecho está em dia (o build
 ---
 
 ## 📄 Especificação Detalhada
-Para ler as 47 regras de negócio, diretrizes de conta, progresso e detalhes de produto, consulte o documento [PROJETO.md](PROJETO.md).
+Para ler as 34 regras de negócio, diretrizes de conta, progresso e detalhes de produto, consulte o documento [PROJETO.md](PROJETO.md).

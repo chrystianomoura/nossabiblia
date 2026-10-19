@@ -1,10 +1,10 @@
-// Faxina diária (regra 41 do PROJETO e limpeza do que venceu). Roda pelo GitHub Actions (rotinas.yml) com o papel nb_maint
+// Faxina diária (regra 30 do PROJETO e limpeza do que venceu). Roda pelo GitHub Actions (rotinas.yml) com o papel nb_maint
 // (DATABASE_URL_MAINT), que só lê e apaga em users, sessions e email_blocks.
 //
 //   - contas NÃO verificadas com mais de 7 dias: apagadas, com tudo relacionado a elas (ON DELETE CASCADE), sem aviso e sem
-//     bloquear o e-mail, que pode se cadastrar de novo (regra 41);
+//     bloquear o e-mail, que pode se cadastrar de novo (regra 30);
 //   - sessões vencidas;
-//   - bloqueios de e-mail vencidos (regra 47: 30 dias).
+//   - bloqueios de e-mail vencidos (regra 34: 30 dias).
 //
 // Uso:
 //   node server/scripts/cleanup.mjs            só mostra o que seria apagado (não grava)

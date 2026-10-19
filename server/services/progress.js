@@ -1,4 +1,4 @@
-// Progresso de leitura (itens 32 a 36 do PROJETO.md). O dia é sempre o de São Paulo (America/Sao_Paulo), contado pelo banco: o fuso do aparelho
+// Progresso de leitura (itens 22 a 26 do PROJETO.md). O dia é sempre o de São Paulo (America/Sao_Paulo), contado pelo banco: o fuso do aparelho
 // de quem lê não decide nada. Datas saem como texto "AAAA-MM-DD" (o driver converteria `date` para um Date do JavaScript e o dia poderia mudar).
 import pool from '../db.js';
 
@@ -15,7 +15,7 @@ export async function markToday(userId, db = pool) {
   return { date: t.rows[0].date, created: false };
 }
 
-// Dia de abertura da conta: o da confirmação do e-mail, no horário de São Paulo (item 42). Antes dele nada aparece (itens 35 e 36).
+// Dia de abertura da conta: o da confirmação do e-mail, no horário de São Paulo (item 31). Antes dele nada aparece (itens 25 e 26).
 const OPENED = "(u.verified_at AT TIME ZONE 'America/Sao_Paulo')::date";
 
 // Os últimos `days` dias (sem os anteriores à abertura da conta e sem os futuros): check (leu), x (dia passado sem leitura) e empty (hoje, ainda sem leitura).

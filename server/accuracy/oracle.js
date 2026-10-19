@@ -3,7 +3,7 @@
 // outro jeito que server/search.js (varredura de caracteres em vez de expressão regular; índice em memória em
 // vez de PostgreSQL), para um erro de um não se repetir no outro. Se os dois discordam, um deles está errado.
 //
-// As regras são as do PROJETO.md (itens 21 a 24):
+// As regras são as do PROJETO.md (itens 13 a 16):
 //  1. palavra inteira e exata, sem stemming        4. várias palavras = sequência exata, em ordem
 //  2. maiúscula e minúscula são iguais             5. palavra com hífen é uma palavra só
 //  3. acento por palavra: sem acento vale qualquer forma, com acento tem que bater
