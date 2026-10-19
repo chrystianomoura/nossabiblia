@@ -14,8 +14,8 @@ const ACCOUNT_PATH = /^\/(cadastrar|entrar|confirmar|esqueci-senha|redefinir-sen
 
 // Toda navegação nova guarda de onde veio (`nbFrom`, no history.state: some com a aba e sobrevive ao recarregar); trocar a
 // URL sem empilhar (replace) mantém a origem que já estava. Entre duas telas da conta (entrar -> criar conta) a origem também
-// se mantém: voltar leva ao que havia ANTES de a pessoa entrar na conta, não a outra tela da conta. `search` (o termo e a
-// tradução) vai junto quando a navegação sai de um resultado da busca: o leitor oferece "Voltar à busca". `position` ({ key, verse })
+// se mantém: voltar leva ao que havia ANTES de a pessoa entrar na conta, não a outra tela da conta. `search` (o termo, a
+// tradução, o recorte, a rolagem e quantos resultados estavam carregados) vai junto quando a navegação sai de um resultado da busca: o leitor oferece "Voltar à busca". `position` ({ key, verse })
 // abre o leitor naquele versículo, no topo e sem destaque (o mesmo que o leitor faz no F5); a `key` é `livro/capítulo/tradução`.
 export function navigate(to, { replace = false, search = null, position = null } = {}) {
   if (replace) {
@@ -45,10 +45,17 @@ export function originBack(fallback) {
   const state = window.history.state;
   const from = state?.nbFrom;
   const validFrom = typeof from === 'string' && from.startsWith('/') && !from.startsWith('//');
-  const q = state?.nbSearch?.q;
-  const t = state?.nbSearch?.t;
-  if (typeof q === 'string' && q.trim() && q.length <= 600 && TRANSLATIONS.includes(t)) {
-    return { to: validFrom ? from : '/', label: 'Voltar à busca', search: { q, t } };
+  const saved = state?.nbSearch;
+  if (typeof saved?.q === 'string' && saved.q.trim() && saved.q.length <= 600 && TRANSLATIONS.includes(saved.t)) {
+    const f = saved.f ?? {};
+    const search = {
+      q: saved.q,
+      t: saved.t,
+      y: Number.isFinite(saved.y) && saved.y > 0 ? Math.round(saved.y) : 0, // rolagem da lista de resultados
+      n: Number.isInteger(saved.n) && saved.n > 0 ? Math.min(saved.n, 200) : 0, // quantos resultados já estavam carregados
+      f: { testament: f.testament === 'AT' || f.testament === 'NT' ? f.testament : null, bookId: Number.isInteger(f.bookId) && f.bookId >= 1 && f.bookId <= 66 ? f.bookId : null },
+    };
+    return { to: validFrom ? from : '/', label: 'Voltar à busca', search };
   }
   if (validFrom) {
     const here = window.location.pathname;

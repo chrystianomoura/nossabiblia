@@ -51,7 +51,7 @@ export default function App() {
 
   useEffect(() => {
     function onOpenSearch(event) {
-      setSeed((current) => ({ id: current.id + 1, q: event.detail.q, t: event.detail.t }));
+      setSeed((current) => ({ ...event.detail, id: current.id + 1 }));
       setIsSearchOpen(true);
     }
     window.addEventListener(OPEN_SEARCH, onOpenSearch);

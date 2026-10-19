@@ -37,13 +37,14 @@ const searchUrl = (term, translation, offset = 0, { testament, bookId } = NO_FIL
 
 const FOCUSABLE = 'button:not(:disabled), [href], input, select, [tabindex]:not([tabindex="-1"])';
 
-// `initial`: termo e tradução para abrir já preenchida (o "Voltar à busca" do leitor); o App troca a `key` a cada pedido.
+// `initial`: o que a busca tinha (termo, tradução, recorte, rolagem e quantos resultados estavam carregados) para abrir como estava (o "Voltar à busca"
+// do leitor); o App troca a `key` a cada pedido.
 export default function SearchModal({ isOpen, onClose, initial }) {
   const markIndex = useMarkIndex(isOpen); // versículos já marcados pela conta (bolinha nos resultados)
   const [query, setQuery] = useState(initial?.q ?? '');
   const [translation, setTranslation] = useState(initial?.t ?? 'NAA');
   // Recorte da busca de palavra: um testamento OU um livro (escolher um zera o outro). Zera ao fechar o modal.
-  const [filter, setFilter] = useState(NO_FILTER);
+  const [filter, setFilter] = useState(initial?.f ?? NO_FILTER);
   const [filterOpen, setFilterOpen] = useState(false);
   const filterBtnRef = useRef(null);
   // Pílula do seletor Toda a Bíblia | Antigo | Novo: uma só, que desliza até o botão marcado.
@@ -72,6 +73,9 @@ export default function SearchModal({ isOpen, onClose, initial }) {
   const [moreError, setMoreError] = useState(false);
   const moreRef = useRef(null); // requisição de "Mostrar mais" em andamento, para cancelar se a busca mudar
   const inputRef = useRef(null);
+  const bodyRef = useRef(null); // a área de resultados, que rola
+  // Busca reaberta pelo "Voltar à busca": volta a rolagem e os resultados que já estavam carregados (valem para a mesma busca).
+  const restore = useRef(initial?.y > 0 ? { y: initial.y, n: initial.n, key: `${initial.q.trim()}|${initial.t}|${(initial.f ?? NO_FILTER).testament}|${(initial.f ?? NO_FILTER).bookId}` } : null);
   const { books } = useBooks();
   const term = query.trim();
   // "salmos 23", "joão 3:16", "mat": referência ou livro. Referência com número não vira busca de palavra.
@@ -99,6 +103,7 @@ export default function SearchModal({ isOpen, onClose, initial }) {
       setBookText(null);
       setBookListOpen(false);
       savedScroll.current = null;
+      restore.current = null;
       setResults(null);
       setError(false);
       setLoadingMore(false);
@@ -116,7 +121,9 @@ export default function SearchModal({ isOpen, onClose, initial }) {
       setError(false);
       setLoadingMore(false);
       setMoreError(false);
-      trackedFetch(searchUrl(term, translation, 0, filter), { signal: controller.signal })
+      const key = `${term}|${translation}|${filter.testament}|${filter.bookId}`;
+      const again = restore.current?.key === key && restore.current.n > 50 ? `&limit=${restore.current.n}` : ''; // repõe de uma vez o que já estava carregado
+      trackedFetch(searchUrl(term, translation, 0, filter) + again, { signal: controller.signal })
         .then((res) => {
           if (!res.ok) throw new Error('Falha na busca.');
           return res.json();
@@ -124,7 +131,7 @@ export default function SearchModal({ isOpen, onClose, initial }) {
         .then((data) => {
           setResults({
             // Identifica de qual busca são estes resultados; "Mostrar mais" só anexa se ainda for a mesma.
-            key: `${term}|${translation}|${filter.testament}|${filter.bookId}`,
+            key,
             items: data.results,
             totalOccurrences: data.total_occurrences,
             totalVerses: data.total_verses,
@@ -181,6 +188,14 @@ export default function SearchModal({ isOpen, onClose, initial }) {
     scrollToActive.current = false;
     (list?.querySelector('.is-active') ?? list?.querySelector('[aria-selected="true"]'))?.scrollIntoView({ block: 'nearest' });
   }, [bookActive, bookListOpen, bookText, filter.testament]);
+
+  // Chegaram os resultados da busca reaberta: devolve a rolagem de antes (uma vez só; se a busca mudou no caminho, desiste).
+  useLayoutEffect(() => {
+    const saved = restore.current;
+    if (!saved || !results) return;
+    restore.current = null;
+    if (results.key === saved.key && bodyRef.current) bodyRef.current.scrollTop = saved.y;
+  }, [results]);
 
   // Resultados com versículos na tela (de palavra ou de referência): conta como leitura do dia. Fica antes do `return` de modal fechado (regra dos hooks).
   useRecordReading(isOpen && Boolean(term) && (parsed.kind === 'reference' || Boolean(results?.items?.length)));
@@ -310,14 +325,19 @@ export default function SearchModal({ isOpen, onClose, initial }) {
     }
   }
 
+  // O que a busca tinha ao sair, para o "Voltar à busca" do leitor reabri-la igual.
+  const leaving = () => ({ q: term, t: translation, f: filter, y: bodyRef.current?.scrollTop ?? 0, n: shown?.items.length ?? 0 });
+
   function selectResult(r) {
+    const search = leaving();
     onClose();
-    navigate(readPath(slugify(r.book_name), r.chapter, translation, r.verse), { search: { q: term, t: translation } });
+    navigate(readPath(slugify(r.book_name), r.chapter, translation, r.verse), { search });
   }
 
   function openReference({ book, chapter, verse, verseEnd }) {
+    const search = leaving();
     onClose();
-    navigate(readPath(slugify(book.name), chapter, translation, verse, verseEnd), { search: { q: term, t: translation } });
+    navigate(readPath(slugify(book.name), chapter, translation, verse, verseEnd), { search });
   }
 
   return (
@@ -468,7 +488,7 @@ export default function SearchModal({ isOpen, onClose, initial }) {
         )}
 
         {hasContent && (
-          <div className="search-body" aria-live="polite" aria-busy={busy}>
+          <div ref={bodyRef} className="search-body" aria-live="polite" aria-busy={busy}>
             {parsed.kind !== 'none' && (
               <>
                 {parsed.kind === 'book' && <h3 className="search-group-label">Livro</h3>}

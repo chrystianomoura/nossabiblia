@@ -869,6 +869,39 @@ test('voltar à busca: abrir a busca no próprio leitor e escolher um resultado 
   await expect(page.getByRole('searchbox')).toHaveValue('joão 3:16');
 });
 
+test('voltar à busca: reabre com o recorte, os resultados que já estavam carregados e a rolagem de antes', async ({ page }) => {
+  const pedidos = [];
+  const todos = Array.from({ length: 120 }, (_, i) => {
+    const chapter = 1 + Math.floor(i / 31); const verse = (i % 31) + 1;
+    return { book_id: 1, book_name: 'Gênesis', book_abbrev: 'Gn', testament: 'AT', chapter, verse, translation: 'NAA', text: `Deus verso ${i}`, occurrences: 1, matches: [[0, 4]] };
+  });
+  await page.route('**/api/search*', (route) => {
+    const u = new URL(route.request().url());
+    pedidos.push({ offset: Number(u.searchParams.get('offset')), limit: u.searchParams.get('limit'), testament: u.searchParams.get('testament') });
+    const offset = Number(u.searchParams.get('offset')); const limit = Number(u.searchParams.get('limit') || 50);
+    const results = todos.slice(offset, offset + limit);
+    return respondeJson(route, 200, { query: 'deus', translation: 'NAA', offset, limit, total_occurrences: 120, total_verses: 120, has_more: offset + limit < 120, results });
+  });
+  await page.goto('/');
+  await abrirBusca(page);
+  await page.getByRole('searchbox').fill('Deus');
+  await expect(page.locator('.search-result')).toHaveCount(50);
+  await page.getByRole('button', { name: 'Mostrar mais' }).click();
+  await expect(page.locator('.search-result')).toHaveCount(100);
+  const corpo = page.locator('.search-body');
+  await corpo.evaluate((el) => { el.scrollTop = 1500; });
+  const antes = await corpo.evaluate((el) => el.scrollTop);
+  expect(antes).toBeGreaterThan(1000);
+  await page.locator('.search-result').nth(40).evaluate((el) => el.click()); // sem o Playwright rolar a lista até o item
+  await expect(page.getByRole('button', { name: 'Voltar à busca' })).toBeVisible();
+  pedidos.length = 0;
+  await page.getByRole('button', { name: 'Voltar à busca' }).click();
+  await expect(page.getByRole('searchbox')).toHaveValue('Deus');
+  await expect(page.locator('.search-result')).toHaveCount(100); // os 100 que estavam carregados, e não só os 50 da primeira página
+  expect(pedidos).toEqual([{ offset: 0, limit: '100', testament: null }]); // repostos num pedido só
+  await expect.poll(() => corpo.evaluate((el) => el.scrollTop)).toBe(antes);
+});
+
 // ---- Posição de leitura guardada no servidor ----
 test('continuar a leitura: a posição do servidor vale em outro aparelho (sem nada guardado no navegador); sem posição, "Começar a leitura"', async ({ page }) => {
   await entrarComo(page);
