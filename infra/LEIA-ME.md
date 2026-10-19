@@ -46,3 +46,9 @@ Nenhum segredo está no repositório. Local: `.env.local` (fora do Git). No GitH
 ## O que nenhum código faz
 Registrar o domínio, ligar a verificação em duas etapas nas contas (Cloudflare, Render, Neon, GitHub, Resend) e
 guardar os códigos de recuperação.
+
+## Keep-alive da API
+A Render (plano gratuito) põe a API para dormir após 15 min sem pedidos, e a primeira visita seguinte leva ~50 s. O Worker `nossabiblia-keepalive`
+(`infra/keepalive/`, gatilho agendado a cada 10 min, grátis na Cloudflare) chama `https://api.nossabiblia.party/healthz`, que **não consulta o banco**
+(não gasta a cota da Neon). Com a API ligada o mês todo ela usa ~744 das 750 horas gratuitas da Render: não crie outro serviço gratuito no mesmo
+espaço da Render. Para desligar: apagar o Worker (`DELETE /accounts/<id>/workers/scripts/nossabiblia-keepalive`) ou tirar o `crons`.

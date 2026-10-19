@@ -1,0 +1,10 @@
+// Worker do keep-alive da API (ver worker.js). Publicado na conta Cloudflare da Nagatosolutions: `npx wrangler deploy` nesta pasta.
+{
+  "$schema": "../../client/node_modules/wrangler/config-schema.json",
+  "name": "nossabiblia-keepalive",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": ["*/10 * * * *"] }
+}
