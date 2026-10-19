@@ -11,7 +11,7 @@ const number = new Intl.NumberFormat('pt-BR');
 const readDays = ({ read, opened_on: openedOn }) => new Set([...read, ...(openedOn ? [openedOn] : [])]).size;
 const plural = (n, one, many) => `${number.format(n)} ${n === 1 ? one : many}`;
 
-// Excluir a conta (regras 33 e 34). Uma tela só: diz o que será apagado (com os números reais da pessoa), pede a senha e tem um botão
+// Excluir a conta (regras 28 e 29). Uma tela só: diz o que será apagado (com os números reais da pessoa), pede a senha e tem um botão
 // vermelho. O servidor confere a senha; aqui só se mostra o resultado. Vale também para conta não verificada (que não tem nada a perder
 // além dos dados de acesso e não gera bloqueio de e-mail).
 export default function DeleteAccountPage(props) {

@@ -10,8 +10,9 @@ Rotas de leitura e busca: `/api/books`, `/api/books/:book/chapters/:chapter` e `
 - **Status:** 200/201/204 sucesso; 400 dado inválido (com `fields` quando for de formulário); 401 sem sessão; 403 sem permissão
   (por exemplo conta não verificada, `code: "conta_nao_verificada"`); 404; 409 conflito; 429 limite de tentativas.
 - **Sessão:** cookie opaco `__Host-nb_session` (`HttpOnly; Secure; SameSite=Lax; Path=/`, sem `Domain`), emitido pela API em
-  `api.nossabiblia.party`. O navegador guarda só um código aleatório; o banco guarda o hash (`sessions.token_hash`). Validade
-  deslizante (renova no uso). Nada de token em `localStorage`.
+  `api.nossabiblia.party`. O navegador guarda só um código aleatório; o banco guarda o hash (`sessions.token_hash`). O cookie
+  vale 30 dias a partir do login (o banco renova a sessão no uso, no máximo uma vez por hora, mas o cookie não é reemitido: depois de 30 dias
+  a pessoa entra de novo). Nada de token em `localStorage`.
 - **CSRF:** `SameSite=Lax` mais conferência do cabeçalho `Origin` em toda requisição que altera dados (`POST`, `PUT`, `PATCH`,
   `DELETE`): precisa estar na lista `ALLOWED_ORIGINS`.
 - **Limites de tentativa** (429), por IP e por e-mail: cadastro, login, reenvio, recuperação de senha. Turnstile no cadastro e
@@ -22,21 +23,21 @@ Rotas de leitura e busca: `/api/books`, `/api/books/:book/chapters/:chapter` e `
   (`"Se esse e-mail estiver cadastrado, enviaremos as instruções"`). No cadastro vale a decisão do usuário:
   `"Este e-mail já foi cadastrado"`, protegido por limite de tentativas e Turnstile.
 
-## Conta (itens 27 a 34)
+## Conta (itens 22 a 29)
 
 | Rota | Corpo / resposta | Observações |
 |---|---|---|
-| `POST /api/auth/register` | `first_name, last_name, email, email_confirm, password, password_confirm, turnstile` → `201` | Valida no servidor (nomes não vazios nem só números; e-mails e senhas iguais). `409 email_em_uso`; `403 email_bloqueado` se estiver no bloqueio de 30 dias (34). Envia o e-mail de confirmação. |
-| `POST /api/auth/verify` | `token` → `200`, abre a sessão | Grava `verified_at` (data de abertura, 31). Token de uso único. |
-| `POST /api/auth/resend-verification` | → `204` | Exige sessão (o destinatário é sempre o e-mail da conta). O 1º reenvio é imediato; depois só 12 h depois do último envio (29): `429 reenvio_bloqueado` com `retry_after` e cabeçalho `Retry-After`. O link anterior deixa de valer. `409 conta_ja_verificada`. Estado em `users.verification_resends` (migração 004). Se o envio falhar (`502 email_nao_enviado`), o estado anterior é restaurado: o reenvio não é gasto e o link antigo continua valendo. **Implementada.** |
-| `POST /api/auth/login` | `email, password` → `200`, cookie | `401` genérico. Conta não verificada entra, com recursos bloqueados (28). |
+| `POST /api/auth/register` | `first_name, last_name, email, email_confirm, password, password_confirm, turnstile` → `201` | Valida no servidor (nomes não vazios nem só números; e-mails e senhas iguais). `409 email_em_uso`; `403 email_bloqueado` se estiver no bloqueio de 30 dias (29). Envia o e-mail de confirmação. |
+| `POST /api/auth/verify` | `token` → `200`, abre a sessão | Grava `verified_at` (data de abertura, 26). Token de uso único. |
+| `POST /api/auth/resend-verification` | → `204` | Exige sessão (o destinatário é sempre o e-mail da conta). O 1º reenvio é imediato; depois só 12 h depois do último envio (24): `429 reenvio_bloqueado` com `retry_after` e cabeçalho `Retry-After`. O link anterior deixa de valer. `409 conta_ja_verificada`. Estado em `users.verification_resends` (migração 004). Se o envio falhar (`502 email_nao_enviado`), o estado anterior é restaurado: o reenvio não é gasto e o link antigo continua valendo. **Implementada.** |
+| `POST /api/auth/login` | `email, password` → `200`, cookie | `401` genérico. Conta não verificada entra, com recursos bloqueados (23). |
 | `POST /api/auth/logout` | → `204` | Encerra esta sessão. |
-| `POST /api/auth/forgot-password` | `email, turnstile` → `202` genérico | Sempre 202 com a mesma mensagem, exista a conta ou não (32): um único UPDATE roda nos dois casos e o e-mail sai em segundo plano, então nem a resposta nem o tempo revelam o cadastro. Uma conta recebe no máximo 1 e-mail a cada 15 min; o link vale 1 h e substitui o anterior. Se o envio falhar, o link é descartado e a conta pode tentar de novo na hora. **Implementada.** |
+| `POST /api/auth/forgot-password` | `email, turnstile` → `202` genérico | Sempre 202 com a mesma mensagem, exista a conta ou não (27): um único UPDATE roda nos dois casos e o e-mail sai em segundo plano, então nem a resposta nem o tempo revelam o cadastro. Uma conta recebe no máximo 1 e-mail a cada 15 min; o link vale 1 h e substitui o anterior. Se o envio falhar, o link é descartado e a conta pode tentar de novo na hora. **Implementada.** |
 | `POST /api/auth/reset-password` | `token, password, password_confirm` → `204` | Uso único; a senha é conferida antes de gastar o link (erro de digitação não o queima), recusa senha vazada, **encerra todas as sessões** da conta e limpa o cookie. `400 token_invalido`. **Implementada.** |
-| `GET /api/me` | → `{ first_name, last_name, email, is_verified, verified_at }` | Para o aviso fixo de conta não verificada (28). |
-| `DELETE /api/me` | `{ password }` → `204`, apaga o cookie | Exclui a conta da sessão (33): confere a senha, apaga o usuário (cascata: sessões, marcações, progresso e posição de leitura) e, se a conta era **verificada**, grava o bloqueio do e-mail (HMAC, só o hash) por 30 dias (34); conta não verificada não gera bloqueio. Bloqueio e exclusão saem num único comando. Erros: `401 sem_sessao`, `400 dados_invalidos` (senha ausente, vazia, não texto ou com mais de 128), `403 senha_incorreta`, `429 muitas_tentativas` (5 tentativas erradas por conta a cada 15 min, com `Retry-After`; o limite por IP é `DELETE_RATE_MAX`, padrão 10 por hora). Repetir a exclusão dá `401`. |
+| `GET /api/me` | → `{ first_name, last_name, email, is_verified, verified_at }` | Para o aviso fixo de conta não verificada (23). |
+| `DELETE /api/me` | `{ password }` → `204`, apaga o cookie | Exclui a conta da sessão (28): confere a senha, apaga o usuário (cascata: sessões, marcações, progresso e posição de leitura) e, se a conta era **verificada**, grava o bloqueio do e-mail (HMAC, só o hash) por 30 dias (29); conta não verificada não gera bloqueio. Bloqueio e exclusão saem num único comando. Erros: `401 sem_sessao`, `400 dados_invalidos` (senha ausente, vazia, não texto ou com mais de 128), `403 senha_incorreta`, `429 muitas_tentativas` (5 tentativas erradas por conta a cada 15 min, com `Retry-After`; o limite por IP é `DELETE_RATE_MAX`, padrão 10 por hora). Repetir a exclusão dá `401`. |
 
-Faxina (rotina, não rota): contas não verificadas com mais de 7 dias são apagadas (30); bloqueios de e-mail e sessões vencidos
+Faxina (rotina, não rota): contas não verificadas com mais de 7 dias são apagadas (25); bloqueios de e-mail e sessões vencidos
 são removidos.
 
 ## Marcações (itens 7 e 8) — só conta verificada, **por versículo**
@@ -52,15 +53,15 @@ onde foi criada. Cores: `amarelo`, `verde`, `azul`, `rosa`.
 | `GET /api/bookmarks/index` | → `{ marks: [[livro, capítulo, versículo, cor], ...] }` | Todas as marcações da conta, em ordem canônica, no formato mais compacto possível (no máximo 1.000, uns 20 KB). A busca pede uma vez ao abrir para pôr a bolinha da cor nos versículos já marcados, sem uma ida ao servidor por resultado. `Cache-Control: private, no-store`. **Implementada.** |
 | `GET /api/books/:book/chapters/:chapter/marks` | → `{ bookmarks: [...] }` | O que a tela do leitor precisa para pintar o capítulo; uma chamada só. `Cache-Control: private, no-store`. **Implementada.** |
 
-## Progresso de leitura (itens 22 a 26) — só conta verificada, **implementado**
+## Progresso de leitura (itens 17 a 21) — só conta verificada, **implementado**
 
 O dia é sempre o de São Paulo, contado pelo banco. Datas saem como texto `AAAA-MM-DD`. Todas as respostas levam `Cache-Control: private, no-store`.
 
 | Rota | Resposta | Observações |
 |---|---|---|
 | `POST /api/progress/today` | `{ date, created }` | Idempotente: grava o positivo do dia de São Paulo se ainda não houver (`ON CONFLICT DO NOTHING`); `created` diz se foi este pedido que gravou. O cliente chama no máximo uma vez por dia, quando uma tela com texto bíblico carrega (leitor, marcações, resultados da busca; a tela inicial não tem texto e não conta). Limite por IP: `PROGRESS_RATE_MAX` (padrão 60 por minuto). |
-| `GET /api/progress?days=7` | `{ today, opened_on, days: [{ date, state }] }` | A linha dos últimos dias (25): `state` é `check` (leu), `x` (dia passado sem leitura) ou `empty` (hoje, ainda sem leitura). `days` vai de 1 a 7 (padrão 7; passar disso é o teto, valor inválido ou repetido vale o padrão). **Só entram os dias desde a abertura da conta** (uma conta de 3 dias devolve 4 dias, e a de hoje devolve 1); dias futuros nunca entram. |
-| `GET /api/progress/year` | `{ today, opened_on, read: [datas] }` | O quadro anual (26): o dia de abertura (o da confirmação do e-mail, em São Paulo), hoje e todas as datas com positivo desde a abertura, em ordem. A tela desenha o calendário (um mês por vez) com isso. O dia de abertura conta como lido. |
+| `GET /api/progress?days=7` | `{ today, opened_on, days: [{ date, state }] }` | A linha dos últimos dias (20): `state` é `check` (leu), `x` (dia passado sem leitura) ou `empty` (hoje, ainda sem leitura). `days` vai de 1 a 7 (padrão 7; passar disso é o teto, valor inválido ou repetido vale o padrão). **Só entram os dias desde a abertura da conta** (uma conta de 3 dias devolve 4 dias, e a de hoje devolve 1); dias futuros nunca entram. |
+| `GET /api/progress/year` | `{ today, opened_on, read: [datas] }` | O quadro anual (21): o dia de abertura (o da confirmação do e-mail, em São Paulo), hoje e todas as datas com positivo desde a abertura, em ordem. A tela desenha o calendário (um mês por vez) com isso. O dia de abertura conta como lido. |
 
 Erros: `401 sem_sessao`, `403 conta_nao_verificada`, `429` (limite).
 

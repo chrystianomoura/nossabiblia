@@ -11,7 +11,7 @@ export function newToken() {
   return { token, hash: hashToken(token) };
 }
 
-// Bloqueio de 30 dias de e-mail apagado (regra 34): HMAC com chave secreta do servidor. SHA-256 puro de um e-mail se descobre
+// Bloqueio de 30 dias de e-mail apagado (regra 29): HMAC com chave secreta do servidor. SHA-256 puro de um e-mail se descobre
 // por tentativa (a lista de e-mails possíveis é pequena); sem a chave, o hash não revela quem foi bloqueado.
 export function emailBlockHash(email, key = process.env.EMAIL_BLOCK_KEY) {
   if (!key || key.length < 32) throw new Error('EMAIL_BLOCK_KEY ausente ou curta (mínimo 32 caracteres).');

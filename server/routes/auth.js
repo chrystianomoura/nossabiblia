@@ -113,7 +113,7 @@ export default async function authRoutes(fastify) {
     }
   });
 
-  // Exclusão da conta (regras 33 e 34): sessão + senha. Limite por IP e, contra quem tem a sessão mas não a senha, 5 tentativas por conta a
+  // Exclusão da conta (regras 28 e 29): sessão + senha. Limite por IP e, contra quem tem a sessão mas não a senha, 5 tentativas por conta a
   // cada 15 min (acerto zera). Vale também para conta não verificada. A resposta apaga o cookie.
   const deleteLimit = { rateLimit: { max: Number(process.env.DELETE_RATE_MAX || 10), timeWindow: '1 hour' } };
   const deleteAttempts = createAttemptLimiter({ max: 5, windowMs: 15 * 60 * 1000 });
@@ -152,7 +152,7 @@ export default async function authRoutes(fastify) {
     }
   });
 
-  // "Esqueci minha senha": sempre 202 com a mesma mensagem, exista a conta ou não (regra 32). Turnstile e limite por IP; o e-mail sai em
+  // "Esqueci minha senha": sempre 202 com a mesma mensagem, exista a conta ou não (regra 27). Turnstile e limite por IP; o e-mail sai em
   // segundo plano, e uma conta recebe no máximo um a cada 15 min.
   fastify.post('/auth/forgot-password', { config: forgotLimit, bodyLimit: BODY_LIMIT }, async (request, reply) => {
     const parsed = validateForgot(request.body);

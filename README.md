@@ -3,6 +3,19 @@
 [![CI](https://github.com/chrystianomoura/nossabiblia/actions/workflows/ci.yml/badge.svg)](https://github.com/chrystianomoura/nossabiblia/actions/workflows/ci.yml)
 [![Rotinas](https://github.com/chrystianomoura/nossabiblia/actions/workflows/rotinas.yml/badge.svg)](https://github.com/chrystianomoura/nossabiblia/actions/workflows/rotinas.yml)
 
+[![Node.js](https://img.shields.io/badge/Node.js-24-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![Fastify](https://img.shields.io/badge/Fastify-5-000000?logo=fastify&logoColor=white)](https://fastify.dev)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Neon](https://img.shields.io/badge/Neon-serverless_Postgres-00E599?logo=neon&logoColor=black)](https://neon.tech)
+[![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers_·_R2_·_DNS-F38020?logo=cloudflare&logoColor=white)](https://www.cloudflare.com)
+[![Render](https://img.shields.io/badge/Render-API-46E3B7?logo=render&logoColor=black)](https://render.com)
+[![Resend](https://img.shields.io/badge/Resend-e--mail-000000?logo=resend&logoColor=white)](https://resend.com)
+[![Playwright](https://img.shields.io/badge/Playwright-testes_de_tela-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev)
+[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI-2088FF?logo=githubactions&logoColor=white)](https://github.com/features/actions)
+[![Dependabot](https://img.shields.io/badge/Dependabot-ativo-025E8C?logo=dependabot&logoColor=white)](https://docs.github.com/code-security/dependabot)
+
 **No ar: [nossabiblia.party](https://nossabiblia.party)** · projeto de portfólio full stack (do navegador ao banco), publicado com custo zero.
 
 Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, com foco em simplicidade, busca instantânea de alta fidelidade e experiência devocional profunda.
@@ -13,7 +26,7 @@ Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, c
 
 - **Traduções:** Nova Almeida Atualizada (**NAA**) e Nova Versão Transformadora (**NVT**).
 - **Ordem dos Livros:** 100% canônica (Gênesis a Apocalipse).
-- **Leitura Pública & Acessível:** Livre de autenticação para leitura de capítulos, comparação e buscas textuais.
+- **Leitura Pública & Acessível:** Livre de autenticação para leitura de capítulos e buscas textuais.
 - **Área Pessoal:** marcações coloridas, progresso de leitura (7 dias e calendário do ano), o lugar onde parou de ler em qualquer aparelho e exclusão da conta, mediante cadastro verificado por e-mail.
 - **Privacidade & Foco:** Sem rede social, sem `@arrobas`, sem algoritmos de engajamento forçado ou notificações invasivas.
 - **Design Devocional:** Tipografia editorial (Newsreader na leitura e nos títulos, Plus Jakarta Sans na interface e Archivo na marca), fundo de iluminação natural acolhedor e tema claro e escuro, que respeita a preferência do sistema e fica salvo no navegador.
@@ -26,6 +39,25 @@ Aplicação web pessoal para leitura, estudo e meditação da Bíblia Sagrada, c
 | ✅ **Pronto e no ar** | Leitura (NAA e NVT), busca exata de palavra e por referência, filtros, layout para celular, tablet e desktop, tema claro e escuro |
 | ✅ **Infraestrutura** | Site, API, banco, backup e e-mail publicados em domínio próprio, com CI, rotinas diárias e custo zero |
 | ✅ **Conta e área pessoal** | Cadastro com confirmação por e-mail, login, recuperação de senha, marcações por cor, progresso de leitura, posição de leitura guardada no servidor e exclusão de conta (contrato em `API.md`, esquema em `server/migrations/`) |
+
+
+### Telas
+
+Capturas do site, nos temas claro e escuro.
+
+| | |
+|:--:|:--:|
+| <img src="docs/screenshots/inicio-claro.png" alt="Página inicial para visitantes, tema claro: manifesto, benefícios e a Bíblia de amostra" width="480"><br><sub>**Início** (claro): a leitura é pública, sem login</sub> | <img src="docs/screenshots/inicio-escuro.png" alt="Página inicial para visitantes, tema escuro" width="480"><br><sub>**Início** (escuro): o tema respeita a preferência do sistema</sub> |
+| <img src="docs/screenshots/leitor-marcacoes-claro.png" alt="Leitor em cartão com o Salmos 23 e versículos marcados em quatro cores" width="480"><br><sub>**Leitor** em cartão, com as marcações em 4 cores</sub> | <img src="docs/screenshots/leitor-paleta-escuro.png" alt="Leitor no tema escuro com a paleta de cores aberta sobre um versículo" width="480"><br><sub>**Marcar** é tocar no versículo e escolher a cor</sub> |
+| <img src="docs/screenshots/busca-palavra-escuro.png" alt="Busca por 'Deus' com a contagem exata: 4.664 ocorrências em 4.085 versículos" width="480"><br><sub>**Busca exata**: contagem em ocorrências, palavra inteira e destacada</sub> | <img src="docs/screenshots/busca-referencia-claro.png" alt="Busca por referência: João 3:16-18 mostra os três versículos" width="480"><br><sub>**Busca por referência**: `joão 3:16-18` mostra o trecho</sub> |
+| <img src="docs/screenshots/inicio-logado-escuro.png" alt="Página inicial de quem está logado: saudação, progresso da semana e atalhos" width="480"><br><sub>**Início logado** (escuro): progresso da semana e atalhos</sub> | <img src="docs/screenshots/inicio-logado-claro.png" alt="Página inicial de quem está logado, tema claro" width="480"><br><sub>**Início logado** (claro)</sub> |
+| <img src="docs/screenshots/calendario-ano-escuro.png" alt="Calendário do ano de leitura, um mês por vez, com os dias lidos em verde e os não lidos em vermelho" width="480"><br><sub>**Seu ano de leitura**: um mês por vez</sub> | <img src="docs/screenshots/marcacoes-claro.png" alt="Tela Minhas marcações com a lista de versículos marcados" width="480"><br><sub>**Minhas marcações**: por data, ordem canônica ou cor</sub> |
+
+No celular, a mesma interface em coluna única:
+
+| | | |
+|:--:|:--:|:--:|
+| <img src="docs/screenshots/celular-1-inicio.png" alt="Início no celular" width="230"><br><sub>Início</sub> | <img src="docs/screenshots/celular-2-leitor.png" alt="Leitor no celular, tema escuro" width="230"><br><sub>Leitor</sub> | <img src="docs/screenshots/celular-3-busca.png" alt="Busca no celular, tema escuro" width="230"><br><sub>Busca</sub> |
 
 ---
 
@@ -77,14 +109,13 @@ O único custo recorrente é a renovação do domínio.
 - **Menor privilégio no banco.** O servidor conecta como `nb_app` (lê o conteúdo, lê e grava dados de usuário; não cria nem apaga tabelas). O backup usa um papel só de leitura e a faxina, outro que só apaga em três tabelas. O dono do banco fica só para as migrações.
 - **Migrações versionadas, com ensaio.** Cada migração roda primeiro em modo de teste (transação desfeita no fim) e em uma *branch* separada da Neon; só então é aplicada na produção, com uma guarda que recusa rodar se houver dados que ela trocaria.
 - **Tudo gratuito, com os limites à vista.** A API gratuita dormiria depois de 15 minutos sem uso, então um Worker agendado da Cloudflare a chama a cada 10 minutos (no `/healthz`, que não toca no banco); se mesmo assim ela estiver acordando, a tela avisa ("Acordando o servidor") em vez de parecer travada. O keep-alive do **banco** vem desligado porque estouraria as 100 CU-horas mensais da Neon.
-- **Segurança em camadas.** CORS com lista fixa, cabeçalhos de segurança (helmet e CSP no site, HSTS que sobe aos poucos: 1 dia agora, meses depois de uma semana sem problema), DNS com CAA (só quatro autoridades podem emitir certificado) e DMARC em quarentena (provado com SPF, DKIM e DMARC = PASS no Gmail), limite de requisições por IP, certificado do banco verificado, consultas parametrizadas e entradas hostis cobertas por testes.
+- **Segurança em camadas.** CORS com lista fixa, cabeçalhos de segurança (helmet e CSP no site, HSTS de 6 meses), DNS com CAA (só quatro autoridades podem emitir certificado) e DMARC em quarentena (provado com SPF, DKIM e DMARC = PASS no Gmail), limite de requisições por IP, certificado do banco verificado, consultas parametrizadas e entradas hostis cobertas por testes.
 - **Cache pensado na cota gratuita.** O texto bíblico não muda, então a API guarda em memória livros, capítulos e buscas já feitas (com limite de entradas) e manda `Cache-Control` ao navegador: só a primeira leitura de cada coisa acorda o banco da Neon, cuja cota gratuita (100 CU-horas por mês) é o ponto mais frágil de um desenho 100% gratuito.
 - **Um backup só vale se for restaurado.** `restore.mjs` restaura num banco vazio, ensaia antes (transação desfeita), recusa banco com dados e confere contagens. Ele foi ensaiado de ponta a ponta numa branch da Neon, comparando um hash do conteúdo de cada tabela antes e depois, e esse ensaio achou três defeitos que "arquivo enviado e hash conferido" nunca mostraria (ordem das chaves estrangeiras, horários truncados em milissegundos e datas trocadas por fuso).
 - **Limite de requisições que não se burla.** Atrás de proxies o IP vem em `X-Forwarded-For`, que o cliente pode forjar; `TRUST_PROXY` é o número de proxies na frente do servidor, não "confie em tudo".
 - **Cadeia de suprimentos e infraestrutura como código.** O CI barra vulnerabilidade alta ou crítica, o Dependabot atualiza toda semana (e as de segurança na hora), as ações do GitHub e as dependências sem uso saíram, e a API, o DNS e o mapa da infraestrutura estão no repositório (`render.yaml`, `infra/`), não só em painéis.
 - **Privacidade por padrão.** As fontes são servidas pelo próprio site (nenhuma visita entrega o IP ao Google) e a política de conteúdo só aceita o próprio site e a API.
 - **Servidor em camadas.** Rotas só lêem e respondem; a validação e o acesso ao banco têm lugar próprio; a conta, as marcações e o progresso seguem o mesmo molde.
-- **Honestidade sobre o que não está feito.** A área pessoal (cadastro, marcações, progresso) está **desenhada e com o banco pronto** (`API.md`, migrações 001 a 003), mas ainda sem código de aplicação.
 
 ## 🔁 Integração contínua e rotinas
 
@@ -183,10 +214,11 @@ O script é idempotente (rodar de novo não encontra mais nada) e atualiza o ín
 
 | Comando | O que faz | Tempo |
 |---|---|---|
-| `npm test` | **255 testes**: regras da busca, referências, validação, cache, configuração de proxy, criptografia do backup e, contra o banco, o contrato da busca, dos filtros e do cache (só leitura) e a conta (abuso por HTTP, só na branch de teste). O CI roda os que não dependem do banco; o resto é pulado sem `DATABASE_URL` e `DATABASE_URL_TEST` | ~15 min completo |
-| `npm --prefix client run test:e2e` | **Teste de fumaça da tela** (Playwright): o site compilado, servido com os cabeçalhos reais, num navegador de verdade e com a API simulada com os textos do `NAA.json`: 68 cenários em desktop e celular (leitura, busca, conta, marcações, progresso, posição de leitura, "Voltar", exclusão de conta, tema escuro, rolagem lateral e a política de conteúdo, inclusive que ela **bloqueia** script injetado). Roda no CI | ~25 s |
-| `npm run test:accuracy` | **Bateria de precisão**: 15 camadas, cerca de 104 mil conferências contra um gabarito independente (inclui os filtros) | ~18 min |
-| `ACCURACY_SCALE=0.2 npm run test:accuracy` | A mesma bateria em escala pequena, para uma rodada rápida | ~3 min |
+| `npm test` | **257 testes**: regras da busca, referências, validação, cache, configuração de proxy, criptografia do backup e, contra o banco, o contrato da busca, dos filtros e do cache (só leitura) e a conta (abuso por HTTP, só na branch de teste). O CI roda os que não dependem do banco; o resto é pulado sem `DATABASE_URL` e `DATABASE_URL_TEST` | ~15 min completo |
+| `npm --prefix client run test:e2e` | **Teste de fumaça da tela** (Playwright): o site compilado, servido com os cabeçalhos reais, num navegador de verdade e com a API simulada com os textos do `NAA.json`: 76 cenários em desktop e celular (leitura, busca, conta, marcações, progresso, posição de leitura, "Voltar", exclusão de conta, tema escuro, rolagem lateral e a política de conteúdo, inclusive que ela **bloqueia** script injetado). Roda no CI | ~25 s |
+| `npm run test:accuracy` | **Bateria de precisão da busca**: 15 camadas, cerca de 104 mil conferências contra um gabarito independente (inclui os filtros); só leitura | ~18 min |
+| `npm run test:accuracy:marks` | **Bateria de precisão das marcações**: 9 camadas (cobertura dos 31.115 versículos, releitura, lista, filtro por cor, trocas, entradas inválidas, isolamento entre contas, limite de 1.000 e pedidos simultâneos); escreve só na branch de teste da Neon (`DATABASE_URL_TEST`) e apaga o que criou. `MARKS_SCALE=0.05` roda uma amostra em ~10 min | ~1 h |
+| `ACCURACY_SCALE=0.2 npm run test:accuracy` | A bateria da busca em escala pequena, para uma rodada rápida | ~3 min |
 | `playwright-cli ... run-code --filename=client/scripts/ui-checks/<arquivo>.js` | **Verificações da tela** no navegador (comportamento e visual); ver abaixo | 1 a 5 min cada |
 | `npm --prefix client run lint` | Lint do frontend (oxlint); deve ficar com 0 avisos | segundos |
 
@@ -232,7 +264,7 @@ playwright-cli close
 | `leitor-livro.js` | O leitor em cartão: rolagem por dentro (a página não rola), troca de capítulo por seta e teclado, fim de livro, `?v=`, F5 na mesma posição, três tamanhos de letra e a troca de letra sem perder o lugar, seletor (centro da lista, rolagem que não pula ao escolher), Lamentações e 7 tamanhos de tela (setas nos lados ou embaixo, seletor cabendo) |
 | `filtros-traducao.js` | Escolher Salmos digitando, trocar NAA/NVT mantendo o filtro e digitar rápido |
 
-**Segurança:** só rodam contra `localhost` (recusam outra página e abortam qualquer requisição para fora dele, exceto o próprio site) e só leem (GET). Os textos de ataque que usam (XSS, injeção de SQL, emoji, caracteres de controle) são dados de teste, não um incidente. Credenciais nunca entram nesses arquivos: na Fase 4, use variável de ambiente ou um arquivo ignorado pelo git. O lint do cliente os aceita (a pasta é tratada à parte, porque cada arquivo é uma função solta para o `run-code`).
+**Segurança:** só rodam contra `localhost` (recusam outra página e abortam qualquer requisição para fora dele, exceto o próprio site) e só leem (GET). Os textos de ataque que usam (XSS, injeção de SQL, emoji, caracteres de controle) são dados de teste, não um incidente. Credenciais nunca entram nesses arquivos: quem precisar entrar numa conta de teste entra à mão antes de rodar o script (como o `marcacoes.js`, que só aceita contas `@exemplo.test`). O lint do cliente os aceita (a pasta é tratada à parte, porque cada arquivo é uma função solta para o `run-code`).
 
 Cobrem o que dá para automatizar; **não** cobrem leitor de tela de verdade, Safari/Firefox, carga no banco nem o julgamento de se uma regra é a certa.
 
@@ -248,6 +280,9 @@ O estado da leitura vive na URL, então há link direto, o botão voltar funcion
 | `/ler/joao/3` | Leitor no capítulo (o livro vai como *slug* do nome, ex.: `1-corintios`) |
 | `/ler/joao/3?t=NVT&v=16` | Mesmo capítulo na NVT, com o versículo 16 destacado |
 | `/ler/joao/3?v=16-18` | Destaca um intervalo de versículos |
+| `/marcacoes` | Lista das marcações da conta (ordem, cor e tradução no endereço: `?t=NVT`) |
+| `/entrar`, `/cadastrar`, `/confirmar`, `/esqueci-senha`, `/redefinir-senha` | Telas da conta |
+| `/conta/excluir` | Excluir a conta |
 
 **O leitor** é um cartão só, para todos os aparelhos: o texto do capítulo (um parágrafo por versículo, com o número na margem) rola **dentro** do cartão e a página em volta fica parada. No desktop e no tablet deitado as setas de capítulo ficam nos lados; em telas de até 800 px elas descem para baixo do cartão. O versículo começa na linha da borda esquerda da pílula do livro (sem recuo; o número é um sobrescrito dourado) e o cartão é estreito, com um pequeno respiro nas laterais. Há três tamanhos de letra (19, 21 e 23 px; o padrão é 21) e **trocar a letra não faz perder o lugar** (o versículo do topo continua no topo); o seletor de livro e capítulo (busca por nome, sem exigir acento, que só ganha o cursor depois do clique; a lista de livros volta à rolagem em que ficou ao reabrir) e a troca NAA/NVT. Ao trocar de capítulo o texto anterior fica na tela até o novo chegar (nada pisca em branco), e o capítulo vizinho e a outra tradução são carregados de antemão. A posição de leitura é lembrada no histórico do navegador (F5, Voltar e Avançar voltam ao mesmo ponto; a URL não muda) e a última leitura fica guardada em `nb-last-read` (ainda sem uso na tela). "Lamentações de Jeremias" aparece como "Lamentações" na tela; o banco e a URL continuam com o nome completo.
 
@@ -273,6 +308,8 @@ nossabiblia/
 ├── client/                     # Frontend SPA (Vite + React)
 │   ├── public/
 │   │   ├── favicon.svg             # Selo NB (SVG com os contornos das letras)
+│   │   ├── favicon.ico, favicon-32.png, apple-touch-icon.png, icon-192.png, icon-512.png, icon-maskable-512.png  # Ícones gerados do selo (npm run icons)
+│   │   ├── manifest.webmanifest    # Nome, cores e ícones para instalar o site no celular (modo standalone)
 │   │   ├── fonts/                  # Newsreader, Plus Jakarta Sans e Archivo (só o subconjunto latin, hospedadas aqui)
 │   │   ├── og.png                  # Imagem de prévia ao compartilhar o link (1200x630)
 │   │   └── robots.txt              # Libera a indexação e aponta o sitemap (o sitemap.xml é gerado no build)
@@ -280,6 +317,7 @@ nossabiblia/
 │   │   ├── write-headers.mjs          # Gera dist/_headers (CSP, HSTS, cabeçalhos de segurança e de cache) após o build
 │   │   ├── write-seo.mjs              # Gera dist/sitemap.xml: a home e os 1.189 capítulos
 │   │   ├── generate-hero-sample.mjs   # Gera o trecho de Gênesis 1 da home a partir de NAA.json/NVT.json
+│   │   ├── generate-icons.mjs         # Gera os ícones (PNG e .ico) a partir do selo NB, com o Chromium do Playwright
 │   │   └── ui-checks/                 # Verificações da tela (playwright-cli run-code): comportamento, visual, filtros
 │   ├── src/
 │   │   ├── components/
@@ -373,7 +411,9 @@ nossabiblia/
 │   ├── ensaio-restauracao/     # Roteiro repetível que prova o backup: dados falsos, comparação por hash e passo a passo
 │   ├── accuracy/
 │   │   ├── oracle.js           # Gabarito independente da busca (lê NAA.json e NVT.json)
-│   │   └── search.accuracy.js  # Bateria de precisão: 15 camadas, incluindo filtros (npm run test:accuracy)
+│   │   ├── search.accuracy.js  # Bateria de precisão da busca: 15 camadas, incluindo filtros (npm run test:accuracy)
+│   │   └── marks.accuracy.js   # Bateria de precisão das marcações: 9 camadas, só na branch de teste (npm run test:accuracy:marks)
+│   ├── testing/                # Harness dos testes de abuso por HTTP e o servidor de desenvolvimento contra a branch de teste
 │   ├── index.js                # Servidor Fastify: CORS, helmet, limite de requisições, /healthz e rotas
 │   ├── search.js               # Regras da busca exata (palavra, acento, frase, hífen, ocorrências)
 │   ├── memo.js                 # Cache em memória com limite de entradas (só guarda sucesso)
@@ -395,6 +435,7 @@ nossabiblia/
 │       ├── ci.yml              # Auditoria, lint, testes sem banco, build e teste de fumaça a cada push e pull request
 │       └── rotinas.yml         # 03:30 (São Paulo): backup para o R2 e, depois, a faxina
 │
+├── docs/screenshots/           # As capturas de tela usadas neste README
 ├── API.md                      # Contrato da API: conta, marcações, progresso e posição de leitura
 ├── render.yaml                 # A API na Render descrita como código (Blueprint)
 ├── infra/                      # Mapa da infraestrutura (LEIA-ME.md) e os registros DNS (dns.md)
@@ -482,14 +523,15 @@ Outros comandos úteis:
 ```bash
 npm run build:client          # Build de produção do frontend (client/dist)
 npm run clean:text            # Mostra o que a limpeza dos textos mudaria (com `-- --apply` grava; rode após qualquer seed)
-npm test                      # 255 testes (os que dependem do banco rodam só com DATABASE_URL e DATABASE_URL_TEST; o CI roda os que não dependem)
+npm test                      # 257 testes (os que dependem do banco rodam só com DATABASE_URL e DATABASE_URL_TEST; o CI roda os que não dependem)
 npm --prefix client run test:e2e   # teste de fumaça da tela (precisa do build antes: npm --prefix client run build)
 node server/scripts/migrate.mjs         # ensaia as migrações pendentes (tudo desfeito no fim); com --apply grava
 node server/scripts/cleanup.mjs         # mostra o que a faxina apagaria (com --apply apaga)
 node server/scripts/backup.mjs          # exporta os dados dos usuários, criptografa, envia ao R2 e confere
 node server/scripts/restore.mjs r2:latest  # ensaia a restauração do último backup (DATABASE_URL_RESTORE obrigatória)
-npm run test:accuracy         # Bateria de precisão: ~104 mil conferências contra um gabarito independente (~18 min, só leitura)
+npm run test:accuracy         # Precisão da busca: ~104 mil conferências contra um gabarito independente (~18 min, só leitura)
 ACCURACY_SCALE=0.2 npm run test:accuracy   # a mesma bateria em escala pequena (~3 min)
+npm run test:accuracy:marks   # Precisão das marcações (~1 h; escreve só na branch de teste; MARKS_SCALE=0.05 roda uma amostra)
 npm --prefix client run lint  # Lint do frontend (oxlint)
 npm --prefix client run sample # Regenera o trecho de Gênesis 1 da home (se NAA.json/NVT.json mudarem)
 npm --prefix client run sample:check # Confere se o trecho está em dia (o build já faz isso sozinho)
@@ -500,11 +542,11 @@ npm --prefix client run sample:check # Confere se o trecho está em dia (o build
 ## 🚢 Como é publicado
 
 - **Site:** o Cloudflare constrói a cada push no `main` (`npm ci && npm run build`, raiz `client`, variáveis `NODE_VERSION=24` e `VITE_API_URL`) e publica `dist/` como arquivos estáticos (`client/wrangler.jsonc`). O build gera `dist/_headers` (CSP com o hash do script do tema, `nosniff`, `frame DENY`, cache de um ano só para arquivos com hash no nome).
-- **API:** a Render constrói a partir do `main` e só implanta depois que o CI passa (`npm ci`, `npm run start`, verificação de saúde em `/healthz`, que não toca no banco). Variáveis: `NODE_ENV`, `NODE_VERSION`, `TRUST_PROXY`, `ALLOWED_ORIGINS`, `DATABASE_URL_APP`.
+- **API:** a Render constrói a partir do `main` e só implanta depois que o CI passa (`npm ci`, `npm run start`, verificação de saúde em `/healthz`, que não toca no banco). Variáveis (`render.yaml`): `NODE_ENV`, `NODE_VERSION`, `TRUST_PROXY`, `ALLOWED_ORIGINS`, `APP_URL`, e, como segredos no painel, `DATABASE_URL_APP`, `EMAIL_BLOCK_KEY`, `RESEND_API_KEY` e `TURNSTILE_SECRET`.
 - **Banco:** migrações aplicadas com `migrate.mjs`, sempre depois de um ensaio em modo de teste e, para mudanças estruturais, numa *branch* separada da Neon.
 - **Plano gratuito, com os limites à vista:** a API é mantida acordada por um Worker agendado (e a tela avisa se acordar), a Neon dá 100 CU-horas por mês (por isso o cache em memória e o keep-alive desligado) e o R2 tem retenção de 90 dias.
 
 ---
 
 ## 📄 Especificação Detalhada
-Para ler as 34 regras de negócio, diretrizes de conta, progresso e detalhes de produto, consulte o documento [PROJETO.md](PROJETO.md).
+Para ler as 29 regras de negócio, diretrizes de conta, progresso e detalhes de produto, consulte o documento [PROJETO.md](PROJETO.md).

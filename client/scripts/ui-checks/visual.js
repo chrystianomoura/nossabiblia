@@ -9,7 +9,7 @@
 // ATENÇÃO: os textos de ataque usados aqui (XSS como "<img onerror=...>", injeção de SQL como "' OR 1=1 --", emoji, caracteres
 // de controle) são DADOS DE TESTE da própria aplicação, não um incidente: servem para provar que a tela e a API aguentam.
 // Segurança: só rodam contra localhost (trava no começo do script) e só leem (GET). Nunca coloque credenciais nestes
-// arquivos: quando houver login (Fase 4), use variável de ambiente ou um arquivo ignorado pelo git.
+// arquivos: quem precisar entrar numa conta de teste entra à mão antes de rodar (como no marcacoes.js).
 async page => {
   // TRAVA DE SEGURANÇA: estas verificações fazem entradas hostis e centenas de ações seguidas. Só rodam contra o
   // ambiente local: recusam outra página e, enquanto rodam, abortam qualquer requisição para fora de localhost

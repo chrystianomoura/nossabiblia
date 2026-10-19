@@ -630,7 +630,7 @@ describe('senha vazada (Pwned Passwords)', opts, () => {
 });
 
 // ------------------------------------------------------------------------------------------------------------------------------
-describe('reenvio da confirmação (regra 29: 1º imediato, depois 12 h)', opts, () => {
+describe('reenvio da confirmação (regra 24: 1º imediato, depois 12 h)', opts, () => {
   let srv; let http;
   before(async () => { srv = await startServer(fake, { REGISTER_RATE_MAX: '1000', LOGIN_RATE_MAX: '1000', VERIFY_RATE_MAX: '1000', RESEND_RATE_MAX: '1000' }); http = client(srv.base); });
   after(async () => { await srv.stop(); });

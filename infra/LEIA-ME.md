@@ -20,7 +20,7 @@ desligados. Domínios: `nossabiblia.party` e `www` (esse com redirecionamento 30
 `workers.dev` está desligado em `wrangler.jsonc`.
 
 ## API (Render)
-`render.yaml`. Depois de criar o serviço, **cole `DATABASE_URL_APP` no painel** (é segredo). **Mudar uma variável só vale depois de um deploy de
+`render.yaml`. Depois de criar o serviço, **cole no painel os segredos** `DATABASE_URL_APP`, `EMAIL_BLOCK_KEY`, `RESEND_API_KEY` e `TURNSTILE_SECRET` (o `render.yaml` os declara com `sync: false`). **Mudar uma variável só vale depois de um deploy de
 verdade** (Manual Deploy → Deploy latest commit); "Restart service" não relê as variáveis. A API dorme após 15 minutos sem uso (o Worker de keep-alive, abaixo, evita isso).
 
 ## Banco (Neon)
@@ -41,7 +41,7 @@ Domínio `nossabiblia.party` adicionado na região São Paulo, com o rastreament
 
 ## Segredos
 Nenhum segredo está no repositório. Local: `.env.local` (fora do Git). No GitHub (Settings → Secrets → Actions): `DATABASE_URL_BACKUP`,
-`DATABASE_URL_MAINT`, `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `BACKUP_ENCRYPTION_KEY`. Na Render: `DATABASE_URL_APP`.
+`DATABASE_URL_MAINT`, `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `BACKUP_ENCRYPTION_KEY`. Na Render: `DATABASE_URL_APP`, `EMAIL_BLOCK_KEY`, `RESEND_API_KEY` e `TURNSTILE_SECRET`.
 
 ## O que nenhum código faz
 Registrar o domínio, ligar a verificação em duas etapas nas contas (Cloudflare, Render, Neon, GitHub, Resend) e

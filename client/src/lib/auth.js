@@ -104,7 +104,7 @@ export async function logout() {
   await authRequest('POST', '/api/auth/logout');
 }
 
-// Excluir a conta (regras 33 e 34): senha da própria conta. Dando certo, o servidor já apagou tudo e o cookie; aqui sai a sessão e o que o
+// Excluir a conta (regras 28 e 29): senha da própria conta. Dando certo, o servidor já apagou tudo e o cookie; aqui sai a sessão e o que o
 // navegador guardava dessa pessoa (onde parou de ler, o dia já avisado ao progresso).
 export async function deleteAccount(password) {
   const r = await authRequest('DELETE', '/api/me', { password });

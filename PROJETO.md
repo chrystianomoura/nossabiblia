@@ -8,7 +8,6 @@ Este documento descreve a especificação funcional e as decisões técnicas da 
 
 - **Nome oficial:** Nossa Bíblia (escrito separado em qualquer texto; nos identificadores técnicos, como o repositório, o pacote e o projeto no Neon, é `nossabiblia`)
 - **Tipo:** aplicação web (funciona no navegador do computador e do celular).
-- **Uso:** pessoal. O app é feito para o próprio autor. Se um dia for público, questões de licença das traduções precisam ser revistas.
 - **Traduções:** NAA e NVT.
 - **Ordem dos livros:** sempre canônica (Gênesis a Apocalipse).
 - **Regra central:** a leitura é pública, sem login. Qualquer ação que salve algo exige conta com e-mail verificado.
@@ -35,7 +34,7 @@ Este documento descreve a especificação funcional e as decisões técnicas da 
     - **Mais de um livro serve:** aparecem sempre em ordem canônica, o mais antigo primeiro (`jo 3:16` mostra Jó e depois João; `tim` mostra 1 e 2 Timóteo).
     - **Acento:** a mesma regra da busca de palavra, inclusive nos nomes de livros (`joaõ 3:16` não encontra nada).
     - **Sem exceção para livros de um capítulo só:** `judas 5` é o capítulo 5 e a tela diz "Judas tem 1 capítulo" (sem ponto final); `judas 1` abre o capítulo e `judas 1:5`, o versículo.
-    - **Validação na tradução escolhida:** NAA e NVT numeram alguns versículos de forma diferente (2 Coríntios 13:14 só existe na NVT). Fora dos limites, a tela informa o que existe ("Salmos tem 150 capítulos", "Salmos 23 tem 6 versículos na NAA", "Esse intervalo de versículos não é válido"), todas **sem ponto final**, como a mensagem "Nenhum resultado para: “…”" (decisão do usuário). Havendo alguma referência válida entre os candidatos (`fil 2`, `jo 3:30`), as inválidas não aparecem.
+    - **Validação na tradução escolhida:** NAA e NVT numeram alguns versículos de forma diferente (2 Coríntios 13:14 só existe na NVT). Fora dos limites (um versículo que não existe, ou um intervalo cujo fim passa do último versículo: `joão 3:16-1587`), a tela informa o que existe, em vez de encurtar o pedido ("Salmos tem 150 capítulos", "Salmos 23 tem 6 versículos na NAA", "Esse intervalo de versículos não é válido"), todas **sem ponto final**, como a mensagem "Nenhum resultado para: “…”" (decisão do usuário). Havendo alguma referência válida entre os candidatos (`fil 2`, `jo 3:30`), as inválidas não aparecem.
     - **Referência e palavra:** uma referência com número não dispara busca de palavra. Um livro sem número (`mar`) mostra o livro e, em grupo separado, as ocorrências da palavra.
 
 ## Marcações (exige conta verificada)
@@ -56,19 +55,9 @@ Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **imple
 - **Releitura ao voltar para a aba:** depois de mais de 45 s fora da aba ou da janela, o leitor relê as marcações do capítulo aberto e dos vizinhos (só conta verificada; nada acontece enquanto uma marcação sua ainda está sendo salva; só repinta se algo mudou), e a tela "Marcações" relê tudo o que já estava carregado (até 200 itens), em silêncio: se falhar, a lista continua como estava. Ausência curta não pede nada.
 - **Barra:** o nome das pílulas "Conta" e "Entrar" sobe 1 px (centro óptico: são quase só letras minúsculas), em todas as larguras; a altura da pílula não muda.
 
-## Compartilhamento (público)
-
-9. **Compartilhar texto:** o usuário compartilha um versículo ou um capítulo como texto, com a referência e a tradução embaixo. Exemplo: "Salmos 23:1 (NVT)".
-
-## Comparação de traduções (pública)
-
-10. **Lado a lado:** NAA e NVT em colunas.
-11. **Modo por versículo:** cada versículo mostra logo abaixo o correspondente na outra tradução.
-12. **Versículos ausentes:** quando uma passagem tem numeração diferente nas duas traduções, cada uma mostra só o que existe nela.
-
 ## Busca de palavra (pública)
 
-13. **Busca exata:** procura uma palavra (ou frase) dentro da tradução escolhida. As regras estão implementadas em `server/search.js` e cobertas por testes e pela bateria de precisão:
+9. **Busca exata:** procura uma palavra (ou frase) dentro da tradução escolhida. As regras estão implementadas em `server/search.js` e cobertas por testes e pela bateria de precisão:
     - **Palavra inteira, sem stemming:** "sol" nunca encontra "solo" nem "solos".
     - **Maiúsculas e minúsculas são iguais:** `Sol`, `SOL` e `sOl` valem o mesmo.
     - **Acento, palavra por palavra:** sem acento vale qualquer forma (`joao` encontra "João"); com acento, ele precisa estar certo e completo. `joaõ` (til na letra errada) não encontra nada, e `orfã` não encontra "órfã", porque falta o acento do "ó". Não há tentativa automática de "corrigir" o acento.
@@ -77,9 +66,9 @@ Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **imple
     - **Número com ponto ou vírgula entre dígitos é uma palavra só** (só a NVT tem algarismos): `3.700` encontra "3.700" (1 Crônicas 12:27), mas `700` não encontra dentro de "3.700" e `273` não encontra dentro de "22.273". Quem procura o número digita como está escrito.
     - **Tamanho:** até 600 caracteres e 100 termos, o que cobre o maior versículo (NAA Ester 8:9: 508 caracteres e 95 termos; NVT Josué 8:33: 483 e 86). Dá para colar um versículo inteiro. Uma busca maior que qualquer versículo não casa com nada e responde "nenhum resultado" (não é erro).
     - **Sem resultado:** a tela mostra apenas "Nenhum resultado para: “…”", com o que foi digitado em negrito. Não há sugestão nem correção automática.
-14. **Ordem:** resultados sempre na ordem canônica. Não há ordenação cronológica. A lista é paginada, de 50 em 50 versículos ("Mostrar mais").
-15. **Contagem:** número exato de **ocorrências** da palavra (ou da frase) na tradução escolhida, isto é, cada vez que ela aparece inteira, sem hífen colado. É mostrado com o total de versículos ("4.664 ocorrências em 4.085 versículos"), e cada versículo com a palavra repetida indica a quantidade ("2×") e tem todas as repetições destacadas.
-16. **Filtros:** restrição ao Antigo ou ao Novo Testamento, ou a um livro específico. Implementados (API e tela). O filtro só **recorta** a busca de palavra: não muda as regras (itens 13 e 15), o destaque nem a contagem, que passa a ser a do recorte ("1.405 ocorrências em 1.226 versículos" dentro do Novo Testamento).
+10. **Ordem:** resultados sempre na ordem canônica. Não há ordenação cronológica. A lista é paginada, de 50 em 50 versículos ("Mostrar mais").
+11. **Contagem:** número exato de **ocorrências** da palavra (ou da frase) na tradução escolhida, isto é, cada vez que ela aparece inteira, sem hífen colado. É mostrado com o total de versículos ("4.664 ocorrências em 4.085 versículos"), e cada versículo com a palavra repetida indica a quantidade ("2×") e tem todas as repetições destacadas.
+12. **Filtros:** restrição ao Antigo ou ao Novo Testamento, ou a um livro específico. Implementados (API e tela). O filtro só **recorta** a busca de palavra: não muda as regras (itens 9 e 11), o destaque nem a contagem, que passa a ser a do recorte ("1.405 ocorrências em 1.226 versículos" dentro do Novo Testamento).
     - **Onde:** um botão com o ícone de funil, ao lado do botão NAA/NVT da busca, abre um painel dentro do modal.
     - **Padrão:** Toda a Bíblia. Sem tocar em nada o comportamento é idêntico ao de antes (o filtro é opt-in) e ele **zera ao fechar o modal**, para ninguém achar que uma palavra "não existe" por ter esquecido o filtro ligado.
     - **Seletor** "Toda a Bíblia | Antigo | Novo": uma pílula única desliza até a opção marcada (0,25 s; sem animação se o sistema pede movimento reduzido). Ao escolher um livro, nenhuma opção fica marcada e a pílula some.
@@ -88,7 +77,7 @@ Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **imple
     - **Lembrete de que há filtro:** uma etiqueta sob a barra ("Novo Testamento ✕", "Salmos ✕", que ao clicar tira o filtro) e o botão do funil pintado (escuro no tema claro e claro no escuro; **não há bolinha**). Os dois valem com o painel aberto ou fechado.
     - **Só busca de palavra:** referências (`salmos 23`, `joão 3:16`) e cartões de livro **ignoram** o filtro; são endereços, não buscas.
     - **Acompanham o recorte:** a contagem, o "Mostrar mais" (que traz só itens do recorte; trocar o filtro reinicia a lista) e a troca NAA/NVT (mantém o filtro). Os ids dos livros são os mesmos nas duas traduções.
-    - **Sem resultado dentro de um filtro:** `Nenhum resultado para: “sol” em Salmos` (o recorte entra na mensagem, com o mesmo formato do item 13).
+    - **Sem resultado dentro de um filtro:** `Nenhum resultado para: “sol” em Salmos` (o recorte entra na mensagem, com o mesmo formato do item 9).
     - **Teclado:** Esc fecha em camadas (lista de livros, painel, modal); Tab nunca sai do diálogo; o anel de foco do campo de livro só aparece para quem navega por teclado.
     - **API:** `GET /api/search?q=...&testament=AT|NT&book_id=1..66`. Testamento e livro em conflito dão zero resultados; testamento aceita qualquer caixa; filtros vazios são ignorados. Valores inválidos dão **400**, nunca 500 nem filtro ignorado em silêncio: `book_id` só aceita dígitos (recusa `abc`, `1.5`, `-1`, `1e1`, `0x10`, ` 5`, `1,2`; `007` vale 7) e vai de 1 a 66; `testament` só `AT` ou `NT`.
 
@@ -96,41 +85,37 @@ Tela "Marcações" (`/marcacoes`; decidida com o usuário em 16/10/2026, **imple
 
 Quem **não** está logado vê a apresentação (título, subtítulo, os cartões de benefícios e a Bíblia de amostra). Quem está logado vê a **tela pessoal** abaixo (decidida com o usuário em 16/10/2026; a Bíblia de amostra, o título e o subtítulo não aparecem):
 
-17. **Botão principal "Continuar a leitura"** (ou "Começar a leitura" se a pessoa nunca leu): abre a Bíblia no último texto lido, e mostra embaixo onde parou ("Salmos 23 · NAA").
-18. **Linha de progresso dos últimos 7 dias** (ver "Progresso").
+13. **Botão principal "Continuar a leitura"** (ou "Começar a leitura" se a pessoa nunca leu): abre a Bíblia no último texto lido.
+14. **Linha de progresso dos últimos 7 dias** (ver "Progresso").
 
 Composição, de cima para baixo, **no meio da tela**: a **saudação** ("Bom dia", "Boa tarde" ou "Boa noite", vírgula e o primeiro nome), um **cartão único** com o progresso (a semana; tocar abre o quadro do ano), o botão de **leitura** e, por último, **"Marcações"**. A saudação segue a hora do aparelho; **não existe norma oficial** (nem da Academia Brasileira de Letras, nem do Manual de Redação da Presidência: é costume): "bom dia" das 5 h até 11:59, "boa tarde" das 12 h até 17:59 e "boa noite" das 18 h até 4:59 (a madrugada segue "boa noite"). Conta não verificada vê "Confirme seu e-mail para acompanhar seu progresso." no lugar da semana.
 
 ## Atalho para a Bíblia
 
-19. O botão principal abre a Bíblia no último texto lido.
-20. Se o usuário chegar à leitura pela busca, abre o texto pesquisado.
-
-## Navegação entre abas
-
-21. A aba "Marcações" fica sempre visível, com nomes curtos, ícones e cores próprias, para serem identificadas à primeira vista.
+15. O botão principal abre a Bíblia no último texto lido.
+16. Se o usuário chegar à leitura pela busca, abre o texto pesquisado.
 
 ## Progresso (exige conta verificada)
 
-22. **Positivo:** um por dia, ganho na primeira vez que uma tela com texto da Bíblia carrega para o usuário: leitura, marcações, resultados da busca (e comparação, quando existir). **A tela inicial não conta**, porque não mostra texto bíblico (decisão de 16/10/2026).
-23. **Sem exigência:** basta a tela carregar. Não há tempo mínimo de leitura nem necessidade de avançar.
-24. **Reset:** o dia é contado pelo horário de São Paulo, com reset à meia-noite, independentemente do fuso do usuário.
-25. **Linha de 7 dias** (a semana é um cartão que se ajusta ao número de dias, de 1 a 7; o título "Progresso diário" define a largura mínima): um círculo por dia, com 42 px (36 px no celular) e 14 px entre eles. Todos os rótulos ficam em negrito, na cor principal do texto. **Verde** com ✓ para dia com positivo, **vermelho** com X para dia passado sem positivo, círculo tracejado para o dia atual sem positivo ainda. **No dia de hoje o rótulo é "Hoje"** (e não o dia da semana), sem borda no círculo. **O dia de abertura da conta conta como lido** (verde com ✓, mesmo sem leitura; a data da abertura aparece como referência no calendário). Dias futuros não aparecem, **nem os anteriores à abertura da conta** (uma conta de 3 dias mostra 4 círculos). Sem número de dias seguidos. Embaixo, centralizado, o texto "ver o ano" (branco e sublinhado, sem seta) abre o quadro anual; o cartão é centralizado e sem anel de foco amarelo. A semana começa a carregar junto com a sessão (sem esperar o `/api/me`) e o servidor a calcula em uma consulta só.
-26. **Quadro anual: calendário de um mês por vez** (decisão do usuário em 16/10/2026, depois de testar o círculo, o gráfico estilo GitHub e outras propostas). Ao tocar no progresso abre uma janela com **o calendário comum no meio**: título "Seu ano de leitura" e "Conta aberta em ..." centralizados, setas para os meses anteriores e seguintes (de hoje para trás, até o mês da abertura; não há mês depois de hoje), os dias da semana (D S T Q Q S S) e **todos os dias do mês**. A divisão entre os dias é uma linha de 2 px **na cor do fundo do cartão** (separa qualquer cor de dia, nos dois temas; uma linha cinza translúcida sumia sobre o verde e o vermelho). **Cada quadrado é inteiro de uma cor só**, sem borda nem anel: **verde** se a pessoa leu (o dia da abertura sempre é verde) e **vermelho** se não leu. Todos os números têm a mesma letra (sem negrito para hoje). Os dias antes da abertura e depois de hoje aparecem **sem cor de leitura, só com o número**, grande e legível, num fundo suave. Legenda de dois itens (leu, não leu), com o texto na cor principal, e nenhum número de contagem. Fecha com o X, o Esc ou um toque fora (fundo da página desfocado); o foco entra no X e volta ao cartão. Cada dia é uma célula de uma grade para leitor de tela ("16 de outubro: você leu"). Cores: `--day-read`, `--day-miss` e `--day-on-read` (texto sobre o verde: branco no claro, escuro no escuro, por contraste).
+17. **Positivo:** um por dia, ganho na primeira vez que uma tela com texto da Bíblia carrega para o usuário: leitura, marcações, resultados da busca. **A tela inicial não conta**, porque não mostra texto bíblico (decisão de 16/10/2026).
+18. **Sem exigência:** basta a tela carregar. Não há tempo mínimo de leitura nem necessidade de avançar.
+19. **Reset:** o dia é contado pelo horário de São Paulo, com reset à meia-noite, independentemente do fuso do usuário.
+20. **Linha de 7 dias** (a semana é um cartão que se ajusta ao número de dias, de 1 a 7; o título "Progresso diário" define a largura mínima): um círculo por dia, com 42 px (36 px no celular) e 14 px entre eles. Todos os rótulos ficam em negrito, na cor principal do texto. **Verde** com ✓ para dia com positivo, **vermelho** com X para dia passado sem positivo, círculo tracejado para o dia atual sem positivo ainda. **No dia de hoje o rótulo é "Hoje"** (e não o dia da semana), sem borda no círculo. **O dia de abertura da conta conta como lido** (verde com ✓, mesmo sem leitura; a data da abertura aparece como referência no calendário). Dias futuros não aparecem, **nem os anteriores à abertura da conta** (uma conta de 3 dias mostra 4 círculos). Sem número de dias seguidos. Embaixo, centralizado, o texto "ver o ano" (branco e sublinhado, sem seta) abre o quadro anual; o cartão é centralizado e sem anel de foco amarelo. A semana começa a carregar junto com a sessão (sem esperar o `/api/me`) e o servidor a calcula em uma consulta só.
+21. **Quadro anual: calendário de um mês por vez** (decisão do usuário em 16/10/2026, depois de testar o círculo, o gráfico estilo GitHub e outras propostas). Ao tocar no progresso abre uma janela com **o calendário comum no meio**: título "Seu ano de leitura" e "Conta aberta em ..." centralizados, setas para os meses anteriores e seguintes (de hoje para trás, até o mês da abertura; não há mês depois de hoje), os dias da semana (D S T Q Q S S) e **todos os dias do mês**. A divisão entre os dias é uma linha de 2 px **na cor do fundo do cartão** (separa qualquer cor de dia, nos dois temas; uma linha cinza translúcida sumia sobre o verde e o vermelho). **Cada quadrado é inteiro de uma cor só**, sem borda nem anel: **verde** se a pessoa leu (o dia da abertura sempre é verde) e **vermelho** se não leu. Todos os números têm a mesma letra (sem negrito para hoje). Os dias antes da abertura e depois de hoje aparecem **sem cor de leitura, só com o número**, grande e legível, num fundo suave. Legenda de dois itens (leu, não leu), com o texto na cor principal, e nenhum número de contagem. Fecha com o X, o Esc ou um toque fora (fundo da página desfocado); o foco entra no X e volta ao cartão. Cada dia é uma célula de uma grade para leitor de tela ("16 de outubro: você leu"). Cores: `--day-read`, `--day-miss` e `--day-on-read` (texto sobre o verde: branco no claro, escuro no escuro, por contraste).
 
 ## Conta
 
-27. **Cadastro:** nome, sobrenome, e-mail digitado duas vezes e senha digitada duas vezes.
+22. **Cadastro:** nome, sobrenome, e-mail digitado duas vezes e senha digitada duas vezes.
     - **Identificação humana:** o sistema não utiliza arrobas (`@usuario`) nem redes sociais; apenas o nome e sobrenome do usuário.
     - **Nomes compostos:** a divisão em dois campos explícitos (*Nome* e *Sobrenome*) permite que pessoas com nomes compostos (ex.: *Maria Laura*, *João Pedro*) preencham o primeiro campo livremente, garantindo que o app e os e-mails usem a saudação correta (*"Olá, Maria Laura"*).
     - **Validação de veracidade:** validação dupla (no front-end para feedback instantâneo ao usuário e no back-end para garantia de segurança e integridade). Textos vazios, espaços excessivos ou nomes puramente numéricos são rejeitados.
-28. **Conta não verificada:** fica nesse estado até o e-mail ser confirmado. Um aviso fixo e chamativo pede a confirmação em qualquer tela logada. Marcações e progresso ficam bloqueados. Leitura, busca, comparação e compartilhamento continuam livres.
-29. **Reenvio da confirmação:** uma vez. Depois, bloqueado por 12 horas, contadas a partir do último envio.
-30. **Prazo de 7 dias:** conta não verificada que não for confirmada em 7 dias é apagada, com tudo relacionado a ela. Sem aviso prévio e sem bloqueio do e-mail, que pode se cadastrar de novo.
-31. **Data de abertura:** dia da confirmação do e-mail. Fica registrada para sempre, salvo exclusão da conta.
-32. **Recuperação de senha:** por e-mail.
-33. **Exclusão:** apaga a conta e todos os dados. Irreversível. Vale também para conta não verificada.
-34. **Bloqueio de e-mail:** após a exclusão de conta verificada, o endereço fica bloqueado por 30 dias. Só o hash do e-mail é guardado para isso. Depois desse prazo, um novo cadastro gera nova data de abertura.
+23. **Conta não verificada:** fica nesse estado até o e-mail ser confirmado. Um aviso discreto aparece quando a pessoa tenta uma ação que exige conta verificada (marcar, por exemplo). Marcações, progresso e posição de leitura guardada no servidor ficam bloqueados. Leitura e busca continuam livres.
+24. **Reenvio da confirmação:** uma vez. Depois, bloqueado por 12 horas, contadas a partir do último envio.
+25. **Prazo de 7 dias:** conta não verificada que não for confirmada em 7 dias é apagada, com tudo relacionado a ela. Sem aviso prévio e sem bloqueio do e-mail, que pode se cadastrar de novo.
+26. **Data de abertura:** dia da confirmação do e-mail. Fica registrada para sempre, salvo exclusão da conta.
+27. **Recuperação de senha:** por e-mail.
+28. **Exclusão:** apaga a conta e todos os dados. Irreversível. Vale também para conta não verificada.
+29. **Bloqueio de e-mail:** após a exclusão de conta verificada, o endereço fica bloqueado por 30 dias. Só o hash do e-mail é guardado para isso. Depois desse prazo, um novo cadastro gera nova data de abertura.
 
 ## Interface da busca (decisões de tela)
 
@@ -181,19 +166,6 @@ Decididas com o usuário, vendo o resultado na tela:
 - **Sem notificações:** o app não envia lembretes. Os únicos e-mails são os de cadastro, confirmação, recuperação de senha e reenvio.
 - **Sem sincronização sem conta:** dados locais (preferências de letra e tema, último capítulo lido) ficam no navegador e não se sincronizam entre dispositivos sem conta.
 
-## Fora de escopo
-
-Estes itens não entram no projeto, nem agora nem no futuro previsto:
-
-- Busca em ordem cronológica.
-- Tags nas marcações.
-- Lembretes e notificações.
-- Recursos de inteligência artificial.
-- Imagens de card para compartilhamento.
-- Comentários públicos, perfis ou rede social.
-
----
-
 ## Decisões técnicas
 
 > Esta seção registra as decisões de arquitetura e infraestrutura tomadas após o fechamento da especificação funcional.
@@ -219,13 +191,13 @@ Os arquivos `NAA.json` e `NVT.json` foram inspecionados e validados:
 ### Banco de dados
 
 - **Sistema:** PostgreSQL 18 (Neon, locale `C.UTF-8`)
-- **Motivo:** banco relacional mais completo do mercado open-source. Suporte nativo a busca de texto com `tsvector` e índice `GIN` (dicionário `simple`, sem stemming, porque a busca é exata: ver item 13). Transações, constraints e tipos de dado precisos para as regras de negócio do projeto. Amplamente usado em produção, o aprendizado tem valor duradouro.
+- **Motivo:** banco relacional mais completo do mercado open-source. Suporte nativo a busca de texto com `tsvector` e índice `GIN` (dicionário `simple`, sem stemming, porque a busca é exata: ver item 9). Transações, constraints e tipos de dado precisos para as regras de negócio do projeto. Amplamente usado em produção, o aprendizado tem valor duradouro.
 - **Autenticação:** implementada do zero no backend, sem uso de serviços gerenciados de auth. Decisão consciente com o objetivo de aprender o ciclo completo de autenticação, mesmo que implique mais tempo de desenvolvimento.
 - **Campos de perfil do usuário:** colunas `first_name` (VARCHAR(100)) e `last_name` (VARCHAR(100)) na tabela `users`. Saudações na interface e e-mails utilizam `first_name`. Validação e sanitização (trim, rejeição de números puros) aplicadas no backend antes da inserção.
 
 ### Busca exata
 
-- **Dois estágios.** O índice GIN (`to_tsvector('simple', immutable_unaccent(text))`, coluna gerada `search_vector`) só escolhe **candidatos**: ignora acento e quebra palavra com hífen em partes, então nunca deixa um acerto de fora. Quem decide é uma conferência no texto (`regexp_count(lower(texto), padrão)`), que aplica as regras do item 13 e conta as ocorrências. Assim, lista e contagem nunca divergem.
+- **Dois estágios.** O índice GIN (`to_tsvector('simple', immutable_unaccent(text))`, coluna gerada `search_vector`) só escolhe **candidatos**: ignora acento e quebra palavra com hífen em partes, então nunca deixa um acerto de fora. Quem decide é uma conferência no texto (`regexp_count(lower(texto), padrão)`), que aplica as regras do item 9 e conta as ocorrências. Assim, lista e contagem nunca divergem.
 - **Sem stemming, de propósito.** O dicionário `portuguese` do PostgreSQL reduz "solo" a "sol": medido, a busca por "solo" devolveria os mesmos 186 versículos de "sol", contra 12 da busca exata. A busca exata exige o dicionário `simple`.
 - **Uma só definição das regras.** `server/search.js` gera o mesmo padrão para o PostgreSQL e para o JavaScript; o servidor devolve a posição de cada destaque e a tela só pinta. A lista de formas acentuadas aceitas (`ACCENT_FORMS`) é a que existe nos textos (ã á é ç ê í ó à õ ú ô â).
 - **Números fora do índice.** O tokenizador do PostgreSQL trata "3.700" como um termo só, e a busca separava em "3" e "700": versículos com número ficavam impossíveis de achar. Palavras com número agora não entram no filtro de candidatos; uma busca só de números confere todos os versículos da tradução (300 a 400 ms).
@@ -247,10 +219,10 @@ A busca exata exige texto limpo. Os arquivos de origem da NVT trouxeram **hífen
 
 ### Testes e precisão
 
-- `npm test`: **255 testes**: regras da busca (puros), analisador de referências, e o contrato contra o banco (só leitura), que inclui os filtros (Antigo + Novo = total; a soma dos 66 livros = total; recortes sem vazar livros de fora; conflito dá zero; parâmetros inválidos dão 400; `offset` gigante e parâmetro repetido não dão erro 500). Os números dos testes de banco são o contrato.
+- `npm test`: **257 testes**: regras da busca (puros), analisador de referências, e o contrato contra o banco (só leitura), que inclui os filtros (Antigo + Novo = total; a soma dos 66 livros = total; recortes sem vazar livros de fora; conflito dá zero; parâmetros inválidos dão 400; `offset` gigante e parâmetro repetido não dão erro 500). Os números dos testes de banco são o contrato.
 - `npm run test:accuracy`: bateria de precisão, **15 camadas e cerca de 104 mil conferências** contra um gabarito independente (`server/accuracy/oracle.js`), que lê `NAA.json` e `NVT.json` por força bruta e de outro jeito que a busca; também confere os 62.207 versículos do banco contra os arquivos e todos os 1.189 capítulos em várias grafias de referência. Camadas dos filtros: (10) Antigo, Novo e cada livro contra o gabarito, Antigo + Novo = total e, em parte das buscas, a soma dos 66 livros = total; (11) listas completas dentro do recorte; (12) as combinações testamento + livro para todos os 66 livros; (13) parâmetros hostis. Leva uns 18 minutos no tamanho padrão; `ACCURACY_SCALE=0.2` dá uma rodada rápida.
 - **Verificações da tela** (`client/scripts/ui-checks/`, skill `playwright-cli`): comportamento (incluindo 150 ações aleatórias conferidas com a API), visual (6 tamanhos de tela, claro e escuro, contraste, corte, sobreposição) e conferências específicas da pílula, do botão do funil, da nova tentativa e do espaçamento. Detalhes no README.
-- **Segurança dos scripts da tela:** só rodam contra `localhost` (recusam outra página e abortam, enquanto rodam, qualquer requisição para fora dele, exceto as fontes do Google), só leem (GET), e nunca guardam credenciais; textos de ataque neles (XSS, SQL) são dados de teste. A bateria de precisão lê o banco de **produção** (só leitura, ~104 mil consultas): quando a Fase 4 trouxer escrita, os testes devem rodar numa **branch separada da Neon**.
+- **Segurança dos scripts da tela:** só rodam contra `localhost` (recusam outra página e abortam, enquanto rodam, qualquer requisição para fora dele), quase todos só leem (GET) e nunca guardam credenciais; textos de ataque neles (XSS, SQL) são dados de teste. A bateria de precisão da busca só lê o banco (~104 mil consultas). Tudo o que **escreve** (a bateria de precisão das marcações, os testes de abuso da conta e a verificação de tela `marcacoes.js`) roda só numa **branch separada da Neon** e recusa a URL de produção.
 - **Defeitos que a bateria já revelou:** números com ponto ("3.700") não eram achados; `offset` gigante, parâmetro `translation` repetido e `book_id=1e1` davam erro 500 ou filtro errado; o Tab saía do diálogo pela lista de livros. Todos corrigidos.
 - Não prova que as regras estão certas (o gabarito segue as decisões deste documento), só que o código as cumpre. Não cobre leitor de tela de verdade, Safari/Firefox nem carga no banco.
 
@@ -265,16 +237,9 @@ A busca exata exige texto limpo. Os arquivos de origem da NVT trouxeram **hífen
 
 - **Serviço:** [Neon](https://neon.tech) — PostgreSQL serverless gerenciado.
 - **Plano:** gratuito (0,5 GB de armazenamento).
-- **Capacidade:** suficiente para o texto completo das duas traduções (~6 MB de texto + índices ~15 MB) e dados de usuário para uso pessoal e compartilhamento com amigos e família.
+- **Capacidade:** suficiente para o texto completo das duas traduções (~6 MB de texto + índices ~15 MB) e os dados dos usuários de um grupo pequeno (família e amigos).
 - **Limitação:** o banco suspende após 5 minutos de inatividade no plano gratuito, causando um cold start de 1–3 segundos na primeira requisição após inatividade.
-- **Mitigação:** cron job no backend enviando `SELECT 1` a cada 4 minutos, ativo apenas das 6h às 23h no horário de São Paulo, evitando cold start no período de uso e poupando horas de computação do plano gratuito durante a madrugada.
-
-```javascript
-// Mantém o banco acordado das 6h às 23h (horário de Brasília)
-cron.schedule('*/4 6-23 * * *', async () => {
-  await pool.query('SELECT 1');
-});
-```
+- **Mitigação:** o servidor tem um ping opcional (`server/keepalive.js`: `SELECT 1` a cada 4 minutos, das 6h às 23h no horário de São Paulo), mas ele vem **desligado** (`KEEPALIVE=on` o liga), porque gastaria cerca de 128 das 100 CU-horas mensais gratuitas. Em vez dele, a API guarda a leitura em memória (livros, capítulos e buscas já feitas) e só consulta o banco quando precisa.
 
 #### Stack de produção (em uso desde 14/10/2026, tudo gratuito)
 
@@ -303,26 +268,26 @@ A decisão original previa a Railway para a API; o plano dela deixou de ser grat
    - `GET /health`: Monitoramento de status da API e banco de dados.
    - `GET /api/books`: Retorna os 66 livros da Bíblia na ordem canônica (divididos em AT e NT).
    - `GET /api/books/:book/chapters/:chapter?translation=NAA`: Leitura completa de capítulos em NAA ou NVT.
-   - `GET /api/search?q=palavra&translation=NAA&testament=AT&book_id=19&limit=50&offset=0`: Busca exata (itens 13 a 16). O índice GIN acha os versículos candidatos e uma conferência no texto confirma a palavra e conta as ocorrências. Responde `total_occurrences`, `total_verses`, `has_more` e, por versículo, `occurrences` e `matches` (posições para o destaque). `testament` e `book_id` recortam o resultado (item 16). Parâmetros inválidos dão 400: tradução, testamento, `book_id` e também parâmetros repetidos (`?translation=NAA&translation=NVT`). `limit` vai de 1 a 200 e `offset` tem teto de 100.000 (a Bíblia tem 31 mil versículos; um número gigante estourava o inteiro do banco e dava erro 500). Além do fim da lista, a resposta vem com a lista e os totais zerados.
+   - `GET /api/search?q=palavra&translation=NAA&testament=AT&book_id=19&limit=50&offset=0`: Busca exata (itens 9 a 12). O índice GIN acha os versículos candidatos e uma conferência no texto confirma a palavra e conta as ocorrências. Responde `total_occurrences`, `total_verses`, `has_more` e, por versículo, `occurrences` e `matches` (posições para o destaque). `testament` e `book_id` recortam o resultado (item 16). Parâmetros inválidos dão 400: tradução, testamento, `book_id` e também parâmetros repetidos (`?translation=NAA&translation=NVT`). `limit` vai de 1 a 200 e `offset` tem teto de 100.000 (a Bíblia tem 31 mil versículos; um número gigante estourava o inteiro do banco e dava erro 500). Além do fim da lista, a resposta vem com a lista e os totais zerados.
 9. ✅ Frontend SPA (Vite + React 19 + CSS puro com tokens + Lucide Icons) estruturado, compilado e rodando:
    - Home em tela dividida: manifesto, benefícios e o livro aberto de Gênesis 1 em NAA/NVT, embutido no código (aparece sem esperar a API).
    - Leitor em cartão vertical com rotas por URL (`/ler/joao/3?t=NVT&v=16-18`), três tamanhos de letra, seletor de livro e capítulo, navegação por setas e gestos, posição lembrada, tema claro e escuro (ver "Interface do leitor").
    - Marca NB, acessibilidade (teclado, foco, leitor de tela) e layout responsivo para celular, tablet e desktop.
-10. ✅ Busca exata (itens 13 a 16): palavra inteira, caixa, acento, frase, hífen, números, contagem em ocorrências, paginação e colagem de versículo inteiro.
+10. ✅ Busca exata (itens 9 a 12): palavra inteira, caixa, acento, frase, hífen, números, contagem em ocorrências, paginação e colagem de versículo inteiro.
 11. ✅ Busca por referência (item 6): `salmos 23`, `joão 3:16-18`, `I João 4:8`, `mat`.
 12. ✅ Qualidade dos dados: limpeza da NVT (185 versículos) com script idempotente.
-13. ✅ **Filtros da busca** (item 16): Antigo, Novo e livro, com o painel, o seletor de pílula, a lista curta de livros, a etiqueta e o botão do funil pintado; API validada (400 para valores inválidos).
-14. ✅ Testes: 255 testes automatizados, bateria de precisão de 15 camadas (~104 mil conferências) e verificações da tela, tudo verde. Defeitos achados no caminho (offset gigante, parâmetro repetido, `book_id=1e1`, foco do Tab) foram corrigidos.
+13. ✅ **Filtros da busca** (item 12): Antigo, Novo e livro, com o painel, o seletor de pílula, a lista curta de livros, a etiqueta e o botão do funil pintado; API validada (400 para valores inválidos).
+14. ✅ Testes: 257 testes automatizados, bateria de precisão de 15 camadas (~104 mil conferências) e verificações da tela, tudo verde. Defeitos achados no caminho (offset gigante, parâmetro repetido, `book_id=1e1`, foco do Tab) foram corrigidos.
 15. ✅ Acabamento da busca: botão "Tentar de novo" na falha de rede, selo "2×" legível no tema claro, sem balões de dica nos botões.
 16. ✅ Textos: as mensagens da busca por referência ficaram **sem ponto final** (decisão do usuário) e a marca aparece sempre como "Nossa Bíblia" (com espaço), inclusive no título da aba do navegador.
 17. ✅ **Leitor redesenhado** (ver "Interface do leitor"): cartão vertical para todos os aparelhos, sem piscar entre capítulos, posição lembrada e verificações da tela próprias (`leitor-livro.js`).
 18. ✅ **Decisões fechadas da busca:** as mensagens de falha ("Não foi possível buscar agora. Verifique a conexão e tente de novo.", "Não foi possível carregar mais.", "Não foi possível carregar essa referência.") **mantêm o ponto final**; os botões de 30 a 38 px de altura (seletor NAA/NVT, botões redondos de 36 px) **ficam como estão**, e o usuário conferiu no aparelho.
 19. ✅ **Celular e telas pequenas:** ponto de quebra único em 1070 px, letras padronizadas a partir do subtítulo, livro de uma página, cartões enxutos e centralizados, cabeçalho em linha única até 320 px, página que não rola (o `#root` rola, para as barras do navegador ficarem à mostra), `svh`/`dvh`, margem simétrica no entalhe, celular deitado, toque sem `:hover` preso, busca com fundo sólido, sem barras de rolagem à vista abaixo do desktop e o leitor que mantém o lugar ao trocar de tradução ou de largura (ver "Navegadores de celular"). Os oito `ui-checks` e os 63 testes passam; o usuário conferiu no aparelho.
-20. ✅ **Preparação da Fase 4 (14/10/2026):** domínio `nossabiblia.party` com DNS, TLS estrito, e-mail de entrada (`contato@`) e DNSSEC ativo; Resend verificado (envio testado e entregue na caixa de entrada); migrações `001` e `002` ensaiadas em branch separada da Neon (20 testes de regra e 12 como `nb_app`) e **aplicadas na produção em 14/10/2026** (modo teste antes); servidor com CORS de lista fixa, certificado do banco verificado, cabeçalhos de segurança e limite de requisições; `backup.mjs` com envio ao R2 testado (bucket privado, retenção de 90 dias, token restrito); servidor conectando como o papel de banco limitado `nb_app` (menor privilégio, migração 002); contrato da API em `API.md`. A branch de produção da Neon não pôde ser protegida (limite do plano), e a janela de recuperação da Neon é de 6 horas.
+20. ✅ **Preparação da conta e da infraestrutura (14/10/2026):** domínio `nossabiblia.party` com DNS, TLS estrito, e-mail de entrada (`contato@`) e DNSSEC ativo; Resend verificado (envio testado e entregue na caixa de entrada); migrações `001` e `002` ensaiadas em branch separada da Neon (20 testes de regra e 12 como `nb_app`) e **aplicadas na produção em 14/10/2026** (modo teste antes); servidor com CORS de lista fixa, certificado do banco verificado, cabeçalhos de segurança e limite de requisições; `backup.mjs` com envio ao R2 testado (bucket privado, retenção de 90 dias, token restrito); servidor conectando como o papel de banco limitado `nb_app` (menor privilégio, migração 002); contrato da API em `API.md`. A branch de produção da Neon não pôde ser protegida (limite do plano), e a janela de recuperação da Neon é de 6 horas.
 21. ✅ **Publicado (14/10/2026), tudo gratuito:** o **site** em https://nossabiblia.party (e `www`), como Worker com arquivos estáticos no Cloudflare (raiz `client`, `npm ci && npm run build` + `npx wrangler deploy`, `client/wrangler.jsonc`, token de build próprio `nossabiblia-build`, deploy a cada push no `main`), HTTPS, http redireciona para https, cabeçalhos de segurança de `dist/_headers` (CSP com hash do script do tema; testada com 0 violações e provada contra script injetado); e a **API** em https://api.nossabiblia.party (Render grátis, serviço `nossabiblia-api`, Ohio, Node 24, `/healthz` sem banco, papel de banco limitado `nb_app`, CORS só para `nossabiblia.party`, deploy automático depois que o CI passa). Verificado de ponta a ponta no navegador: home, leitor (Gênesis 1 com 31 versículos), busca ("Deus" = 4.664 ocorrências em 4.085 versículos) e Salmos 23 NVT com destaque. **Limites do plano grátis:** a API dorme após 15 minutos sem uso e a primeira requisição leva ~50 s (a tela avisa "Acordando o servidor"). Um incidente do Render (status.render.com) pausou os deploys gratuitos por horas no mesmo dia; alternativas estudadas: Koyeb e Vercel Hobby.
 22. ✅ **Experiência e automação (14/10/2026):** aviso "Acordando o servidor" na tela quando a API gratuita demora mais de 4 s; contrato das rotinas diárias no GitHub Actions (backup para o R2 e faxina das contas não verificadas, cada uma com o seu papel de banco de menor privilégio, migração 003) e integração contínua (lint, testes sem banco e build); README de portfólio com diagrama da arquitetura, decisões e trade-offs. Os papéis `nb_backup` e `nb_maint` foram criados e a migração 003 aplicada na produção, os segredos estão no GitHub e as rotinas passam a rodar depois do primeiro push dos workflows.
 23. ✅ **Revisão e correções (14/10/2026):** cache em memória e `Cache-Control` na leitura (poupa a cota gratuita da Neon); limite de requisições deixa de ser burlável por `X-Forwarded-For` falso (`TRUST_PROXY=3`, medido com uma rota de diagnóstico temporária e provado em produção: IPs inventados passam a dividir o mesmo contador); cabeçalhos de cache do site sem contradição; faxina só depois do backup; e **restauração do backup ensaiada de ponta a ponta** (`restore.mjs`), com hash por tabela idêntico, que corrigiu três defeitos do backup.
-24. ✅ **Endurecimento e organização (15/10/2026):** dependências em dia (e as sem uso removidas), Dependabot e `npm audit` no CI; DNS com CAA, DMARC em quarentena e `www` redirecionando para o domínio principal (DNSSEC ativo; DMARC em quarentena provado com SPF, DKIM e DMARC = PASS; entrega testada no Gmail, Outlook e iCloud); HSTS gradual no site; fontes auto-hospedadas (medidas idênticas às do Google); prévia de compartilhamento (Open Graph), `robots.txt` e sitemap com os 1.189 capítulos; servidor em camadas (`routes/`, `services/`, `http/`); teste de fumaça da tela (Playwright) no CI; e a infraestrutura documentada como código (`render.yaml`, `infra/`).
+24. ✅ **Endurecimento e organização (15/10/2026):** dependências em dia (e as sem uso removidas), Dependabot e `npm audit` no CI; DNS com CAA, DMARC em quarentena e `www` redirecionando para o domínio principal (DNSSEC ativo; DMARC em quarentena provado com SPF, DKIM e DMARC = PASS; entrega testada no Gmail, Outlook e iCloud); HSTS de 6 meses no site; fontes auto-hospedadas (medidas idênticas às do Google); prévia de compartilhamento (Open Graph), `robots.txt` e sitemap com os 1.189 capítulos; servidor em camadas (`routes/`, `services/`, `http/`); teste de fumaça da tela (Playwright) no CI; e a infraestrutura documentada como código (`render.yaml`, `infra/`).
 25. ✅ **Conta, marcações, progresso e exclusão de conta:** cadastro com confirmação por e-mail, login, recuperação de senha, marcações por cor, página inicial pessoal com o progresso de leitura, posição de leitura guardada no servidor, "Voltar" que aprende de onde a pessoa veio e exclusão de conta. Tudo no ar. O projeto está completo; daqui para a frente são refinamentos.
 
 ### "Voltar" (origem) nas telas da conta e na busca

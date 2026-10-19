@@ -1,4 +1,4 @@
-// Marcações. Mesmo molde: lê o pedido, valida (server/http/validation.js), chama o serviço e responde. Só conta VERIFICADA (regra 28) e
+// Marcações. Mesmo molde: lê o pedido, valida (server/http/validation.js), chama o serviço e responde. Só conta VERIFICADA (regra 23) e
 // sempre as marcações do próprio usuário da sessão: o id do usuário nunca vem do pedido.
 import { verifiedUser } from '../http/verified-user.js';
 import { findBook } from '../services/books.js';

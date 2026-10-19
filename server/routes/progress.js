@@ -1,4 +1,4 @@
-// Progresso de leitura: só conta VERIFICADA (itens 22 a 26) e sempre o do próprio usuário da sessão (o id nunca vem do pedido).
+// Progresso de leitura: só conta VERIFICADA (itens 17 a 21) e sempre o do próprio usuário da sessão (o id nunca vem do pedido).
 import { verifiedUser } from '../http/verified-user.js';
 import { markToday, lastDays, yearBoard } from '../services/progress.js';
 
