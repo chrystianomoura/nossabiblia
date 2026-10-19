@@ -2,11 +2,12 @@
 // script existe para a restauração poder ser ensaiada e, num desastre, feita de verdade.
 //
 // Uso:
-//   node server/scripts/restore.mjs <arquivo.json.gz>        só ensaia: restaura dentro de uma transação e desfaz no fim
+//   node server/scripts/restore.mjs <arquivo.json.gz[.enc]> só ensaia: restaura dentro de uma transação e desfaz no fim
 //   node server/scripts/restore.mjs r2:latest                baixa do R2 o backup mais recente
 //   node server/scripts/restore.mjs r2:<chave>               baixa um backup específico do R2
 //   node server/scripts/restore.mjs <origem> --apply         grava de verdade
 //
+// Backups criptografados (.enc) pedem a BACKUP_ENCRYPTION_KEY; os antigos, em gzip puro, abrem sem ela.
 // O banco de destino vem SEMPRE de DATABASE_URL_RESTORE (um papel com permissão de escrever em todas as tabelas, em geral o
 // dono). Não há valor padrão de propósito: restaurar na produção por engano seria pior que não restaurar. O script imprime o
 // endereço do destino antes de tudo, recusa um banco que já tenha dados e confere as contagens no fim.
@@ -15,9 +16,10 @@ import zlib from 'node:zlib';
 import pg from 'pg';
 import { S3Client, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { createPool } from '../db-core.js';
+import { parseKey, decrypt, isEncrypted } from './backup-crypto.mjs';
 
 // Mesma ordem do backup: quem é referenciado vem antes (as chaves estrangeiras são conferidas a cada linha).
-const TABLES = ['users', 'sessions', 'bookmarks', 'daily_progress', 'email_blocks'];
+const TABLES = ['users', 'sessions', 'bookmarks', 'daily_progress', 'reading_positions', 'email_blocks'];
 
 const [source] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const apply = process.argv.includes('--apply');
@@ -57,7 +59,17 @@ async function readBackup() {
 // Datas como texto, como no backup (evita trocar o dia por causa de fuso).
 pg.types.setTypeParser(1082, (value) => value);
 
-const backup = JSON.parse(zlib.gunzipSync(await readBackup()).toString('utf8'));
+let bytes = await readBackup();
+if (isEncrypted(bytes)) {
+  try {
+    if (!process.env.BACKUP_ENCRYPTION_KEY) throw new Error('Este backup é criptografado: informe a BACKUP_ENCRYPTION_KEY');
+    bytes = decrypt(bytes, parseKey(process.env.BACKUP_ENCRYPTION_KEY));
+  } catch (err) {
+    console.error(`Erro: ${err.message}`);
+    process.exit(1);
+  }
+}
+const backup = JSON.parse(zlib.gunzipSync(bytes).toString('utf8'));
 for (const t of TABLES) {
   if (!Array.isArray(backup.data[t])) throw new Error(`O backup não tem a tabela ${t}`);
   if (backup.data[t].length !== backup.counts[t]) throw new Error(`Backup corrompido: ${t} tem ${backup.data[t].length} linhas e o índice diz ${backup.counts[t]}`);

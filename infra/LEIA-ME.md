@@ -32,7 +32,7 @@ verdade** (Manual Deploy → Deploy latest commit); "Restart service" não relê
 
 ## Backup (R2)
 Bucket privado `nossabiblia-backups` (Standard), **sem** acesso público (`r2.dev` desligado) e sem domínio, regra de retenção de **90 dias**, token
-restrito a esse bucket (Object Read & Write). A rotina diária roda às 03:30 (São Paulo). O roteiro que prova a restauração:
+restrito a esse bucket (Object Read & Write). O arquivo é **criptografado** (AES-256-GCM) antes de sair, com a chave `BACKUP_ENCRYPTION_KEY`; sem ela o backup não abre, então guarde uma cópia da chave fora do computador. A rotina diária roda às 03:30 (São Paulo). O roteiro que prova a restauração:
 `server/ensaio-restauracao/LEIA-ME.md`.
 
 ## E-mail de saída (Resend)
@@ -41,8 +41,8 @@ Domínio `nossabiblia.party` adicionado na região São Paulo, com o rastreament
 
 ## Segredos
 Nenhum segredo está no repositório. Local: `.env.local` (fora do Git). No GitHub (Settings → Secrets → Actions): `DATABASE_URL_BACKUP`,
-`DATABASE_URL_MAINT`, `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. Na Render: `DATABASE_URL_APP`.
+`DATABASE_URL_MAINT`, `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `BACKUP_ENCRYPTION_KEY`. Na Render: `DATABASE_URL_APP`.
 
 ## O que nenhum código faz
-Registrar o domínio, conferir se o DS do DNSSEC foi publicado (`dig DS nossabiblia.party`), ligar a verificação em duas etapas nas contas (Cloudflare, Render, Neon, GitHub, Resend) e
+Registrar o domínio, ligar a verificação em duas etapas nas contas (Cloudflare, Render, Neon, GitHub, Resend) e
 guardar os códigos de recuperação.

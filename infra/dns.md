@@ -21,8 +21,6 @@ A Cloudflare ainda acrescenta sozinha, na borda, os CAA das autoridades dela (`c
 
 ## Configurações da zona
 - SSL/TLS **estrito**, **sempre HTTPS**, TLS mínimo **1.2**, TLS 1.3 ligado.
-- **DNSSEC: aguardando.** A zona está assinada, mas o DS ainda não aparece no registro `.party` (`dig DS nossabiblia.party` vazio em 15/10/2026).
-  Para domínio registrado na Cloudflare ela publica o DS sozinha (varredura CDS/CDNSKEY, "um a dois dias"; o domínio nasceu em 14/10/2026 e
-  está no período inicial, `addperiod`). Não há ação manual nem API para adiantar. Conferir com `dig DS nossabiblia.party`; se passar de
-  uns 3 dias, abrir chamado no suporte da Cloudflare.
-- **HSTS** do site: começa em 1 dia (`client/scripts/write-headers.mjs`); subir para 6 meses depois de uma semana sem problema.
+- **DNSSEC: ativo.** A zona está assinada e o DS está publicado no registro `.party` (conferir com `dig DS nossabiblia.party`).
+- **HSTS** do site: 6 meses, sem `includeSubDomains` nem `preload` (`client/scripts/write-headers.mjs`).
+- **Web Analytics** da Cloudflare (medida de visitas sem cookie) para `nossabiblia.party`, com o script no `index.html` do site compilado; a política de conteúdo libera `static.cloudflareinsights.com` e `cloudflareinsights.com`.

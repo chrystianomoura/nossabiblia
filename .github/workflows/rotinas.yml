@@ -1,7 +1,7 @@
 # Rotinas diárias, de graça no GitHub Actions: backup dos dados dos usuários para o R2 e faxina das contas não verificadas.
 # Cada rotina usa o seu papel de banco, com o menor privilégio possível (migração 003):
 #   backup -> nb_backup (só leitura)      faxina -> nb_maint (lê e apaga em users, sessions e email_blocks)
-# Os segredos ficam em Settings > Secrets and variables > Actions. Se uma rotina falhar, o GitHub avisa por e-mail.
+# O backup sai criptografado (BACKUP_ENCRYPTION_KEY). Os segredos ficam em Settings > Secrets and variables > Actions. Se uma rotina falhar, o GitHub avisa por e-mail.
 name: Rotinas
 
 on:
@@ -32,6 +32,7 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
 
   faxina:
     name: Faxina (contas não verificadas, sessões e bloqueios vencidos)

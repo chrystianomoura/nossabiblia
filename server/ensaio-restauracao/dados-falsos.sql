@@ -20,6 +20,9 @@ INSERT INTO bookmarks (id, user_id, book_id, chapter, verse, created_in_translat
 INSERT INTO daily_progress (user_id, sp_date) VALUES
   ('11111111-1111-1111-1111-111111111111', '2026-10-13'), ('11111111-1111-1111-1111-111111111111', '2026-10-14');
 
+INSERT INTO reading_positions (user_id, book_id, chapter, verse, translation) VALUES
+  ('11111111-1111-1111-1111-111111111111', 19, 23, 3, 'NVT');
+
 INSERT INTO email_blocks (email_hash, blocked_until) VALUES (repeat('c', 64), '2026-11-05T00:00:00Z');
 
 COMMIT;

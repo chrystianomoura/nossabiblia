@@ -15,14 +15,14 @@ conforme o fuso de quem gerava o backup. Depois das correções, todos os hashes
 2. **Dados falsos na origem:** rode `dados-falsos.sql` na branch de origem (console da Neon ou `psql`).
 3. **Endereços das branches:** copie a `DATABASE_URL` do `.env.local` trocando **só o servidor** pelo da branch (ele aparece nos detalhes da
    branch na Neon, no formato `ep-xxxx-pooler...`). A senha é a mesma da produção; não a cole em chats nem em commits.
-4. **Backup da origem, só em arquivo** (sem enviar ao R2):
+4. **Backup da origem, só em arquivo** (sem enviar ao R2). Com `BACKUP_ENCRYPTION_KEY` no ambiente (como no `.env.local`) o arquivo sai criptografado (`.json.gz.enc`):
    ```bash
-   DATABASE_URL_BACKUP="<url da origem>" node server/scripts/backup.mjs --no-upload
+   DATABASE_URL_BACKUP="<url da origem>" node --env-file=.env.local server/scripts/backup.mjs --no-upload
    ```
 5. **Ensaio e restauração no destino** (que está vazio):
    ```bash
-   DATABASE_URL_RESTORE="<url do destino>" node server/scripts/restore.mjs backups/<arquivo>.json.gz            # ensaio, desfaz no fim
-   DATABASE_URL_RESTORE="<url do destino>" node server/scripts/restore.mjs backups/<arquivo>.json.gz --apply    # grava
+   DATABASE_URL_RESTORE="<url do destino>" node server/scripts/restore.mjs backups/<arquivo>.json.gz.enc        # ensaio, desfaz no fim
+   DATABASE_URL_RESTORE="<url do destino>" node server/scripts/restore.mjs backups/<arquivo>.json.gz.enc --apply    # grava
    ```
    Rodar `--apply` de novo no mesmo destino tem que **recusar** ("restaure só em banco vazio").
 6. **Comparar:** rode `comparar.sql` na origem e no destino. As linhas (contagem e hash) têm que ser idênticas.
