@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#F6F4EE" />
-    <title>Nossa Bíblia — A Palavra Viva no seu ritmo</title>
+    <title>Nossa Bíblia</title>
     <meta name="description" content="Uma experiência devocional profunda, instantânea e minimalista em NAA e NVT. Sem algoritmos, sem distrações, apenas você e as Escrituras." />
     <!-- Prévia ao compartilhar o link (WhatsApp, redes, mensageiros) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Nossa Bíblia" />
     <meta property="og:locale" content="pt_BR" />
-    <meta property="og:title" content="Nossa Bíblia — A Palavra Viva no seu ritmo" />
+    <meta property="og:title" content="Nossa Bíblia" />
     <meta property="og:description" content="Leitura e busca exata da Bíblia em NAA e NVT. Sem algoritmos, sem anúncios, sem distrações." />
     <meta property="og:url" content="https://nossabiblia.party/" />
     <meta property="og:image" content="https://nossabiblia.party/og.png" />
@@ -34,7 +34,13 @@
     </script>
     <link rel="preload" href="/fonts/newsreader-normal-300-700.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/fonts/plus-jakarta-sans-variable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Ícones: o SVG para navegadores modernos, o .ico e o PNG de 32 px como alternativa, o ícone do iOS e o manifest do aplicativo (npm run icons) -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="16x16 32x32" />
+    <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-title" content="Nossa Bíblia" />
   </head>
   <body>
     <div id="root"></div>

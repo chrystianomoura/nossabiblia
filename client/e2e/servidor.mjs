@@ -10,7 +10,7 @@ const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist
 const headers = fs.readFileSync(path.join(dist, '_headers'), 'utf8').split('\n\n')[0].split('\n').slice(1)
   .map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
   .map((l) => [l.slice(0, l.indexOf(':')), l.slice(l.indexOf(':') + 1).trim()]);
-const types = { '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json', '.woff2': 'font/woff2', '.png': 'image/png', '.txt': 'text/plain', '.xml': 'application/xml' };
+const types = { '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json', '.woff2': 'font/woff2', '.png': 'image/png', '.txt': 'text/plain', '.xml': 'application/xml', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon' };
 
 http.createServer((req, res) => {
   let file = path.join(dist, decodeURIComponent(req.url.split('?')[0]));

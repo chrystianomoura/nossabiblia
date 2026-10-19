@@ -12,7 +12,8 @@
     "sample": "node scripts/generate-hero-sample.mjs",
     "sample:check": "node scripts/generate-hero-sample.mjs --check",
     "postbuild": "node scripts/write-headers.mjs && node scripts/write-seo.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.57.0",

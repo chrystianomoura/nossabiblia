@@ -1326,3 +1326,49 @@ test('referência com intervalo: o fim que passa do último versículo é pedido
   await campo.fill('joão 3:40'); // um versículo só, fora do capítulo: continua igual
   await expect(dialogo).toContainText('João 3 tem 36 versículos na NAA');
 });
+
+// ---- Identidade do site: ícones, manifest e prévia de compartilhamento ----
+const tamanhoPng = (buf) => ({ sig: buf.subarray(0, 8).toString('hex'), w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) });
+const PNG_SIG = '89504e470d0a1a0a';
+
+test('identidade do site: ícones, manifest e prévia de compartilhamento existem, com o tipo e o tamanho certos', async ({ page, request }) => {
+  await page.goto('/');
+  const href = (sel) => page.locator(sel).getAttribute('href');
+  expect(await href('link[rel="manifest"]')).toBe('/manifest.webmanifest');
+  expect(await href('link[rel="apple-touch-icon"]')).toBe('/apple-touch-icon.png');
+  expect(await href('link[rel="icon"][type="image/x-icon"]')).toBe('/favicon.ico');
+  expect(await href('link[rel="icon"][type="image/svg+xml"]')).toBe('/favicon.svg');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://nossabiblia.party/og.png');
+  await expect(page).toHaveTitle('Nossa Bíblia');
+
+  // manifest: JSON válido, com o necessário para instalar
+  const resp = await request.get('/manifest.webmanifest');
+  expect(resp.headers()['content-type']).toContain('application/manifest+json');
+  const manifest = await resp.json();
+  expect(manifest).toMatchObject({ name: 'Nossa Bíblia', short_name: 'Nossa Bíblia', lang: 'pt-BR', start_url: '/', display: 'standalone' });
+  expect(manifest.background_color).toMatch(/^#[0-9a-f]{6}$/i);
+  expect(manifest.theme_color).toMatch(/^#[0-9a-f]{6}$/i);
+  expect(manifest.icons.some((i) => i.sizes === '192x192' && i.purpose === 'any')).toBe(true);
+  expect(manifest.icons.some((i) => i.sizes === '512x512' && i.purpose === 'any')).toBe(true);
+  expect(manifest.icons.some((i) => i.sizes === '512x512' && i.purpose === 'maskable')).toBe(true);
+
+  // cada ícone do manifest existe, é PNG de verdade e tem o tamanho declarado
+  for (const icone of manifest.icons) {
+    const r = await request.get(icone.src);
+    expect(r.status(), icone.src).toBe(200);
+    const { sig, w, h } = tamanhoPng(await r.body());
+    expect(sig, icone.src).toBe(PNG_SIG);
+    expect(`${w}x${h}`, icone.src).toBe(icone.sizes);
+  }
+  // ícone do iOS (180) e favicon de 32 px
+  for (const [url, lado] of [['/apple-touch-icon.png', 180], ['/favicon-32.png', 32]]) {
+    const { sig, w, h } = tamanhoPng(await (await request.get(url)).body());
+    expect([sig, w, h], url).toEqual([PNG_SIG, lado, lado]);
+  }
+  // favicon.ico: cabeçalho de ícone (tipo 1) com 2 imagens (16 e 32 px), e não o HTML do site
+  const ico = await (await request.get('/favicon.ico')).body();
+  expect([ico.readUInt16LE(0), ico.readUInt16LE(2), ico.readUInt16LE(4)]).toEqual([0, 1, 2]);
+  // prévia de compartilhamento: imagem de 1200 x 630 declarada e real
+  const og = tamanhoPng(await (await request.get('/og.png')).body());
+  expect([og.sig, og.w, og.h]).toEqual([PNG_SIG, 1200, 630]);
+});
