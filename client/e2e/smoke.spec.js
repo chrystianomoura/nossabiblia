@@ -1241,3 +1241,34 @@ test('posição de leitura: uma falha passageira do servidor (429) é tentada de
   await page.clock.fastForward(11_000);
   await expect.poll(() => respostas).toEqual([429, 204]); // tentou de novo e foi aceito
 });
+
+// ---- Refinamentos de tela (centro das telas da conta e foco do filtro de cor) ----
+test('telas da conta: em telas altas o cartão fica no meio EXATO da janela (e não do espaço abaixo da barra)', async ({ page }) => {
+  await simularTurnstile(page);
+  for (const [w, h] of [[1280, 800], [1920, 1080], [390, 844], [768, 1024]]) {
+    await page.setViewportSize({ width: w, height: h });
+    for (const rota of ['/entrar', '/esqueci-senha']) {
+      await page.goto(rota);
+      await page.waitForSelector('.auth-card');
+      const dif = await page.evaluate(() => { const c = document.querySelector('.auth-card').getBoundingClientRect(); return Math.round(c.top + c.height / 2 - window.innerHeight / 2); });
+      expect(Math.abs(dif), `${rota} em ${w}x${h}`).toBeLessThanOrEqual(1);
+    }
+  }
+});
+
+test('filtro de cor das marcações: o anel de foco só aparece para quem navega por teclado (clique de mouse não o mostra)', async ({ page }) => {
+  await entrarComo(page);
+  await page.route('**/api/bookmarks?*', (route) => respondeJson(route, 200, marcas([19, 'Salmos', 23, 1, 'amarelo', 'O SENHOR é meu pastor.', 'NVT'])));
+  await page.goto('/marcacoes');
+  const filtro = page.locator('.mk-select');
+  await expect(filtro).toBeVisible();
+  const anel = () => filtro.evaluate((el) => getComputedStyle(el).outlineStyle);
+  await filtro.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab'); // de volta ao filtro, por teclado
+  await expect(filtro).toBeFocused();
+  expect(await anel()).toBe('solid'); // teclado: anel visível
+  await filtro.click({ position: { x: 20, y: 10 } }); // mouse
+  await page.keyboard.press('Escape');
+  expect(await anel()).toBe('none'); // mouse: sem anel
+});

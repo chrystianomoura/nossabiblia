@@ -67,6 +67,19 @@ export default function App() {
     return () => window.removeEventListener(OPEN_SEARCH, onOpenSearch);
   }, []);
 
+  // De que jeito a pessoa está usando a tela (teclado ou mouse/toque), para o CSS mostrar o anel de foco só a quem navega por teclado.
+  useEffect(() => {
+    const root = document.documentElement;
+    const keys = (event) => { if (['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' ', 'Home', 'End'].includes(event.key)) root.dataset.input = 'keys'; };
+    const pointer = () => { root.dataset.input = 'pointer'; };
+    window.addEventListener('keydown', keys, true);
+    window.addEventListener('pointerdown', pointer, true);
+    return () => {
+      window.removeEventListener('keydown', keys, true);
+      window.removeEventListener('pointerdown', pointer, true);
+    };
+  }, []);
+
   useEffect(() => {
     loadSession();
   }, []);

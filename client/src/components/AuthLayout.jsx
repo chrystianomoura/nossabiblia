@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import Navbar from './Navbar';
 import BackLink from './BackLink';
 import { originBack } from '../lib/router';
@@ -7,8 +8,23 @@ export default function AuthLayout({ theme, onToggleTheme, onOpenSearch, title, 
   // Só há "Voltar" quando a pessoa veio de uma tela com sentido (leitor, marcações): voltar ao início é o que a marca, no canto, já faz.
   const origin = originBack(null);
   const back = origin && origin.to !== '/' ? origin : null;
+
+  // O cartão fica no meio EXATO da janela (não só do espaço abaixo da barra): o CSS reserva embaixo a altura da barra, que varia (entalhe, tamanho do
+  // aparelho), então ela é medida aqui e guardada em --nav-h. Antes de pintar, para o cartão não "pular".
+  const pageRef = useRef(null);
+  useLayoutEffect(() => {
+    const page = pageRef.current;
+    const bar = page?.querySelector('.navbar');
+    if (!bar) return undefined;
+    const measure = () => page.style.setProperty('--nav-h', `${bar.getBoundingClientRect().height}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="auth-page">
+    <div className="auth-page" ref={pageRef}>
       <Navbar onOpenSearch={onOpenSearch} theme={theme} onToggleTheme={onToggleTheme} />
       <main id="main" className="auth-main">
         <div className={`auth-col${wide ? ' auth-col--wide' : ''}`}>

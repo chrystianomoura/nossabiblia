@@ -337,3 +337,8 @@ A decisão original previa a Railway para a API; o plano dela deixou de ser grat
 - **Acesso:** menu "Conta" → "Excluir conta", último item, separado por uma linha e em vermelho. Rota `/conta/excluir` (tela da conta: nunca vale como origem nem como destino de `?next=`). Visitante é levado ao login.
 - **Tela:** uma só. Título "Excluir conta", aviso de que não dá para desfazer, a caixa "O que será apagado" com os **números reais** da pessoa (marcações e dias de progresso, lidos das rotas que já existem; se falharem, a lista aparece sem números; zero não aparece), a senha ("Confirme com a sua senha"), botão vermelho "Excluir minha conta" (só libera com a senha preenchida), o aviso do bloqueio de 30 dias do e-mail (só conta verificada) e "Cancelar" (volta a quem abriu a tela). Conta não verificada vê a mesma tela sem números e sem o aviso de bloqueio.
 - **Depois de excluir:** a tela vira "Conta excluída" com "Ir para o início"; a sessão e o que o navegador guardava (`nb-last-read`, `nb-progress-day`) são limpos.
+
+### Telas da conta: posição e foco
+
+- O cartão das telas da conta (entrar, criar conta, senha...) fica no **meio exato da janela**, e não só do espaço abaixo da barra (a altura da barra é medida em `AuthLayout.jsx` e reservada embaixo). Em telas baixas (altura até 760 px, a partir de 641 px de largura) vale o layout compacto, que precisa caber sem rolar. Em telas pequenas com formulário mais alto que a janela a página rola normalmente.
+- O filtro de cor da tela "Marcações" só mostra o anel de foco para quem navega por **teclado** (`html[data-input="keys"]`, definido em `App.jsx` pelo último gesto: teclas de navegação ou clique/toque).

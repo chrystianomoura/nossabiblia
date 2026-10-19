@@ -2097,7 +2097,8 @@ body:has(.read) {
 .auth-main {
   flex: 1;
   width: 100%;
-  padding: 24px calc(20px + var(--safe-x)) calc(24px + env(safe-area-inset-bottom));
+  /* embaixo vai também a altura da barra (--nav-h, medida em AuthLayout.jsx): assim o cartão fica no meio exato da janela, e não do espaço abaixo da barra */
+  padding: 24px calc(20px + var(--safe-x)) calc(24px + env(safe-area-inset-bottom) + var(--nav-h, 76px));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2366,6 +2367,7 @@ body:has(.read) {
 
 /* Telas baixas (notebook com barra de favoritos): o cartão do cadastro precisa caber sem rolar */
 @media (min-width: 641px) and (max-height: 760px) {
+  /* Telas baixas: o cartão precisa caber sem rolar, então aqui não se reserva a altura da barra (o centro exato vale para as telas altas) */
   .auth-main {
     padding-top: 8px;
     padding-bottom: 8px;
@@ -2712,6 +2714,12 @@ body:has(.read) {
 
 .mk-select:focus-visible {
   outline: none;
+}
+
+/* O anel só aparece para quem navega por teclado (html[data-input="keys"], ver App.jsx): depois de um clique o Chrome mostraria o anel amarelo aqui */
+html[data-input="keys"] .mk-select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 /* Com uma cor escolhida, a pílula fica pintada com ela (a mesma cor e linha das marcações do leitor) */
