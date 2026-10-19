@@ -84,10 +84,12 @@ function resolve(candidate, state, translation) {
   if (!state.data) return { type: 'loading' };
 
   const total = state.data.verses.length;
+  const last = state.data.verses.at(-1)?.verse ?? 0; // o maior versículo que existe neste capítulo, na tradução escolhida
   const shown = verse ? state.data.verses.filter((v) => v.verse >= verse && v.verse <= (verseEnd ?? verse)) : [];
 
-  // A NAA e a NVT numeram alguns versículos de forma diferente: vale o que existe na tradução escolhida.
-  if (verse && shown.length === 0) {
+  // A NAA e a NVT numeram alguns versículos de forma diferente: vale o que existe na tradução escolhida. Um versículo que não existe, ou um
+  // intervalo que passa do último, é pedido inválido: a tela diz o que existe, em vez de encurtar o pedido em silêncio ("16-1587" virar "16-36").
+  if (verse && (shown.length === 0 || (verseEnd !== null && verseEnd > last))) {
     return {
       type: 'message',
       node: <><strong>{displayBookName(book.name)} {chapter}</strong> tem {total} {plural(total, 'versículo', 'versículos')} na {translation}</>,

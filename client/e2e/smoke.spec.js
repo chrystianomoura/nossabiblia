@@ -1310,3 +1310,19 @@ test('marcar: se o servidor recusar a REMOÇÃO, a cor volta na tela (antes a re
   await expect(page.getByRole('alert')).toBeVisible(); // o erro aparece
   await expect(page.locator('#v2 .vt')).toHaveAttribute('data-mark', 'verde'); // e a cor continua, porque o servidor ainda a tem
 });
+
+test('referência com intervalo: o fim que passa do último versículo é pedido inválido (diz o que existe), e não é encurtado em silêncio', async ({ page }) => {
+  await page.goto('/');
+  await abrirBusca(page);
+  const campo = page.getByRole('searchbox');
+  const dialogo = page.getByRole('dialog');
+  await campo.fill('joão 3:16-36'); // João 3 tem 36 versículos: o intervalo inteiro vale
+  await expect(dialogo.locator('.search-result').first()).toContainText('João 3:16-36');
+  for (const pedido of ['joão 3:16-37', 'joão 3 16-1587', 'joão 3:1-99']) {
+    await campo.fill(pedido);
+    await expect(dialogo).toContainText('João 3 tem 36 versículos na NAA'); // o mesmo texto que já existia para um versículo que não existe
+    await expect(dialogo.locator('.search-result')).toHaveCount(0); // e nenhum cartão encurtado
+  }
+  await campo.fill('joão 3:40'); // um versículo só, fora do capítulo: continua igual
+  await expect(dialogo).toContainText('João 3 tem 36 versículos na NAA');
+});
