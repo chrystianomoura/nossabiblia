@@ -17,14 +17,16 @@ const api = (process.env.VITE_API_URL ?? '').replace(/\/+$/, '');
 const csp = [
   "default-src 'self'",
   // challenges.cloudflare.com: o Turnstile (desafio do cadastro) carrega um script e abre um quadro (iframe) desse endereço
-  `script-src 'self' ${hashes.join(' ')} https://challenges.cloudflare.com`.trim(),
+  // static.cloudflareinsights.com: o script do Web Analytics da Cloudflare (medida de visitas sem cookie), colocado no index.html
+  `script-src 'self' ${hashes.join(' ')} https://challenges.cloudflare.com https://static.cloudflareinsights.com`.trim(),
   "frame-src https://challenges.cloudflare.com",
   // style-src-attr: o React escreve `style="--reading-size: …"`; as folhas de estilo e as fontes são só do próprio site
   "style-src 'self'",
   "style-src-attr 'unsafe-inline'",
   "font-src 'self'",
   "img-src 'self' data:",
-  `connect-src 'self'${api ? ` ${api}` : ''} https://challenges.cloudflare.com`,
+  // cloudflareinsights.com: para onde o Web Analytics envia a medida
+  `connect-src 'self'${api ? ` ${api}` : ''} https://challenges.cloudflare.com https://cloudflareinsights.com`,
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
@@ -32,11 +34,10 @@ const csp = [
   'upgrade-insecure-requests',
 ].join('; ');
 
-// HSTS gradual: começa em 1 dia (sem includeSubDomains nem preload) para um erro de configuração se desfazer logo. Depois de uma semana sem
-// problema, subir para 6 meses (15552000) e então avaliar includeSubDomains. A API já manda o dela.
+// HSTS: 6 meses (15552000), sem includeSubDomains nem preload. A API manda o dela.
 // Cache: o HTML tem que ser sempre conferido (ele aponta para os arquivos com hash no nome, que mudam a cada versão); os arquivos de
-// /assets têm o hash no nome e nunca mudam, então ficam um ano. `no-transform` impede a Cloudflare de reescrever o HTML (ela
-// injetaria o script do Web Analytics, que a CSP bloqueia). Os cabeçalhos das regras se somam, por isso /assets/* remove o de /*
+// /assets têm o hash no nome e nunca mudam, então ficam um ano. `no-transform` impede a Cloudflare de reescrever o HTML (o script do Web Analytics
+// já está no index.html, e a injeção automática o duplicaria). Os cabeçalhos das regras se somam, por isso /assets/* remove o de /*
 // antes de pôr o seu (a linha com "!"): sem isso saíam duas políticas de cache contraditórias na mesma resposta.
 const headers = `/*
   Content-Security-Policy: ${csp}
@@ -45,7 +46,7 @@ const headers = `/*
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
-  Strict-Transport-Security: max-age=86400
+  Strict-Transport-Security: max-age=15552000
   Cache-Control: no-transform, public, max-age=0, must-revalidate
 
 /assets/*

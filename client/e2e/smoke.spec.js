@@ -7,6 +7,9 @@ const abrirBusca = (page) => page.evaluate(() => window.dispatchEvent(new Keyboa
 test.beforeEach(async ({ page }) => {
   page.on('pageerror', (err) => { throw err; }); // qualquer erro de JavaScript derruba o teste
   await mockApi(page);
+  // Web Analytics da Cloudflare: o endereço real é pedido (a política de conteúdo precisa deixar), mas a resposta é vazia e nada sai do teste
+  await page.route('https://static.cloudflareinsights.com/**', (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
+  await page.route('https://cloudflareinsights.com/**', (route) => route.fulfill({ status: 204 }));
 });
 
 test('a página inicial carrega com o manifesto e a amostra de Gênesis 1 (sem esperar a API)', async ({ page }) => {
@@ -1183,6 +1186,16 @@ test('excluir conta: os dias contam como o calendário (o dia de abertura vale c
   await ano([]); // só o dia de abertura -> 1 dia (no singular)
   await page.reload();
   await expect(page.locator('.del-list')).toContainText('1 dia de progresso de leitura');
+});
+
+test('Web Analytics: o script da Cloudflare está no site compilado, a política o deixa rodar sem nenhuma violação', async ({ page }) => {
+  await registrarViolacoes(page);
+  const pedidos = [];
+  page.on('request', (r) => { if (r.url().startsWith('https://static.cloudflareinsights.com/')) pedidos.push(r.url()); });
+  await page.goto('/');
+  await expect.poll(() => pedidos.length).toBeGreaterThan(0);
+  expect(await page.locator('script[data-cf-beacon]').count()).toBe(1);
+  expect(await page.evaluate(() => window.__v || [])).toEqual([]); // nenhuma violação da política
 });
 
 test('busca: a tradução escolhida continua depois de fechar e abrir de novo (o termo e o filtro, não)', async ({ page }) => {
