@@ -89,3 +89,22 @@ test('busca: parâmetros diferentes não compartilham resultado', opts, async ()
   assert.notEqual(naa.total_occurrences, nvt.total_occurrences);
   assert.equal(at.total_occurrences, 3259);
 });
+
+test('livro: nome ou abreviação que começa com número é o livro certo (não o id lido pelo começo do texto)', opts, async () => {
+  const nomeDe = async (param) => JSON.parse((await get(`/api/books/${encodeURIComponent(param)}/chapters/1?translation=NAA`)).body).book.name;
+  assert.equal(await nomeDe('1Rs'), '1 Reis'); // antes: o parseInt lia "1" e devolvia Gênesis
+  assert.equal(await nomeDe('2Rs'), '2 Reis'); // antes: "2" = Êxodo
+  assert.equal(await nomeDe('1 João'), '1 João');
+  assert.equal(await nomeDe('1Jo'), '1 João');
+  assert.equal(await nomeDe('19'), 'Salmos'); // só dígitos continua sendo o id
+  assert.equal((await get('/api/books/1abc/chapters/1?translation=NAA')).statusCode, 404);
+});
+
+test('capítulo: só dígitos ("3abc", "2.9", "1e1" não são capítulo; o mesmo capítulo não existe sob muitas URLs)', opts, async () => {
+  for (const ruim of ['3abc', '2.9', '1e1', '0', '-1', '99999', '%203']) {
+    const r = await get(`/api/books/43/chapters/${ruim}?translation=NAA`);
+    assert.equal(r.statusCode, 400, ruim);
+    assert.ok(!r.headers['cache-control']?.includes('max-age=86400'), `${ruim}: erro não pode ser guardado pelo navegador`);
+  }
+  assert.equal((await get('/api/books/43/chapters/3?translation=NAA')).statusCode, 200);
+});

@@ -2,7 +2,7 @@
 // responde; nada de SQL nem de regra de negócio. As rotas da conta (Fase 4) entram em arquivos próprios, no mesmo molde.
 import { parseQuery } from '../search.js';
 import { IMMUTABLE } from '../http/cache.js';
-import { parseBookId, parsePaging, parseTestament, parseTranslation } from '../http/validation.js';
+import { parseBookId, parsePaging, parsePositiveInt, parseTestament, parseTranslation } from '../http/validation.js';
 import { listBooks, findBook } from '../services/books.js';
 import { getChapter } from '../services/chapters.js';
 import { searchVerses } from '../services/verse-search.js';
@@ -36,8 +36,10 @@ export default async function bibleRoutes(fastify) {
       const bookInfo = await findBook(book);
       if (!bookInfo) return reply.status(404).send({ error: 'Livro não encontrado.' });
 
-      const chapterNumber = parseInt(chapter, 10);
-      if (isNaN(chapterNumber) || chapterNumber < 1 || chapterNumber > bookInfo.chapters_count) {
+      // Só dígitos ("3abc", "2.9" e "1e1" não são capítulo): senão o mesmo capítulo existiria sob muitas URLs.
+      const parsed = parsePositiveInt(chapter, bookInfo.chapters_count, 'Capítulo');
+      const chapterNumber = parsed.value;
+      if (parsed.error) {
         return reply.status(400).send({
           error: `Capítulo inválido para ${bookInfo.name}. O livro possui ${bookInfo.chapters_count} capítulos.`,
         });

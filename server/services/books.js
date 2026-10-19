@@ -20,10 +20,10 @@ export async function findBook(param) {
   const key = String(param).toLowerCase();
   try {
     return await lookupMemo.memo(key, async () => {
-      const id = parseInt(param, 10);
-      const result = isNaN(id)
-        ? await pool.query(`SELECT ${COLUMNS} FROM books WHERE LOWER(name) = LOWER($1) OR LOWER(abbrev) = LOWER($1) LIMIT 1;`, [param])
-        : await pool.query(`SELECT ${COLUMNS} FROM books WHERE id = $1;`, [id]);
+      // É id só quando são só dígitos: "2Rs" ou "1 João" começam com número, mas são nomes (o parseInt leria 2 e 1 e devolveria o livro errado).
+      const result = /^\d{1,6}$/.test(String(param))
+        ? await pool.query(`SELECT ${COLUMNS} FROM books WHERE id = $1;`, [Number(param)])
+        : await pool.query(`SELECT ${COLUMNS} FROM books WHERE LOWER(name) = LOWER($1) OR LOWER(abbrev) = LOWER($1) LIMIT 1;`, [param]);
       if (result.rowCount === 0) throw Object.assign(new Error('livro não encontrado'), { notFound: true });
       return result.rows[0];
     });
