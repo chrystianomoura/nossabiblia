@@ -36,9 +36,10 @@ const csp = [
 
 // HSTS: 6 meses (15552000), sem includeSubDomains nem preload. A API manda o dela.
 // Cache: o HTML tem que ser sempre conferido (ele aponta para os arquivos com hash no nome, que mudam a cada versão); os arquivos de
-// /assets têm o hash no nome e nunca mudam, então ficam um ano. `no-transform` impede a Cloudflare de reescrever o HTML (o script do Web Analytics
-// já está no index.html, e a injeção automática o duplicaria). Os cabeçalhos das regras se somam, por isso /assets/* remove o de /*
-// antes de pôr o seu (a linha com "!"): sem isso saíam duas políticas de cache contraditórias na mesma resposta.
+// /assets têm o hash no nome e nunca mudam, então ficam um ano. `no-transform` só no HTML: a Cloudflare não comprime resposta com ele, e o
+// JavaScript e o CSS saíam sem compressão (310 KB em vez de ~95 KB), então /assets e /fonts NÃO o levam (o HTML tem 2,7 KB e fica sem ser
+// reescrito pela borda). Os cabeçalhos das regras se somam, por isso /assets/* remove o de /* antes de pôr o seu (a linha com "!"): sem isso
+// saíam duas políticas de cache contraditórias na mesma resposta.
 const headers = `/*
   Content-Security-Policy: ${csp}
   X-Content-Type-Options: nosniff
@@ -51,11 +52,11 @@ const headers = `/*
 
 /assets/*
   ! Cache-Control
-  Cache-Control: no-transform, public, max-age=31536000, immutable
+  Cache-Control: public, max-age=31536000, immutable
 
 /fonts/*
   ! Cache-Control
-  Cache-Control: no-transform, public, max-age=2592000
+  Cache-Control: public, max-age=2592000
 `;
 fs.writeFileSync(path.join(dist, '_headers'), headers);
 console.log(`dist/_headers gerado (${inline.length} script(s) embutido(s) com hash; API permitida: ${api || 'só a própria origem'})`);

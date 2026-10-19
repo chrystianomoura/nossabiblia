@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
 // Web Analytics da Cloudflare (medida de visitas, sem cookie): o script só entra no site compilado, não no desenvolvimento, para o
 // localhost não aparecer nas medidas. O token é público (aparece em qualquer página que usa o serviço); a política de conteúdo libera o endereço
@@ -14,9 +14,16 @@ const webAnalytics = {
   }],
 }
 
+// Conexão antecipada com a API: o leitor pede o capítulo a ela e, sem isto, o navegador só abre a conexão (DNS, TCP e TLS) depois de baixar e
+// executar o JavaScript. O endereço vem de VITE_API_URL (vazio em desenvolvimento, onde o proxy do Vite cuida).
+const apiPreconnect = (apiUrl) => ({
+  name: 'api-preconnect',
+  transformIndexHtml: () => (apiUrl ? [{ tag: 'link', attrs: { rel: 'preconnect', href: new URL(apiUrl).origin, crossorigin: true }, injectTo: 'head' }] : []),
+})
+
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), webAnalytics],
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), webAnalytics, apiPreconnect(loadEnv(mode, process.cwd(), 'VITE_').VITE_API_URL)],
   server: {
     port: 3000,
     proxy: {
@@ -30,4 +37,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))
