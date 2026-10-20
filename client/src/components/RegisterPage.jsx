@@ -58,7 +58,7 @@ export default function RegisterPage(props) {
           <p className="auth-lines">
             <span>Enviamos um link de confirmação para</span>
             <span className="auth-strong">{sentTo}</span>
-            <span>Ele vale por 24 horas.</span>
+            <span>O link vale por 24 horas.</span>
           </p>
           <p className="auth-lines">
             <span>Não encontrou?</span>
