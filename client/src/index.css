@@ -2167,7 +2167,8 @@ body:has(.read) {
 .auth-field label {
   display: block;
   margin-bottom: 5px;
-  text-align: center;
+  padding-left: 6px; /* um respiro da borda do campo */
+  text-align: left;
   font-size: 13px;
   font-weight: 600;
 }
